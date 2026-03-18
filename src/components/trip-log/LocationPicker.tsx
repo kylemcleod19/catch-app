@@ -15,6 +15,31 @@ interface LocationPickerProps {
   onLocationNameChange: (name: string) => void;
 }
 
+/** Inner component only mounted once we have a valid API key */
+const MapView = ({ apiKey, location, onMapClick }: { apiKey: string; location: { lat: number; lng: number } | null; onMapClick: (e: google.maps.MapMouseEvent) => void }) => {
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
+
+  if (!isLoaded) {
+    return (
+      <div className="h-[240px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
+      center={location ?? defaultCenter}
+      zoom={location ? 13 : 6}
+      onClick={onMapClick}
+      options={{ disableDefaultUI: true, zoomControl: true, mapTypeControl: false, streetViewControl: false }}
+    >
+      {location && <Marker position={location} />}
+    </GoogleMap>
+  );
+};
+
 const LocationPicker = ({ location, locationName, onLocationChange, onLocationNameChange }: LocationPickerProps) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,11 +50,6 @@ const LocationPicker = ({ location, locationName, onLocationChange, onLocationNa
       setLoading(false);
     });
   }, []);
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? "",
-    id: "google-map-script",
-  });
 
   const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
@@ -45,14 +65,6 @@ const LocationPicker = ({ location, locationName, onLocationChange, onLocationNa
     );
   };
 
-  if (loading) {
-    return (
-      <div className="h-[240px] rounded-xl bg-muted flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-foreground">Location</label>
@@ -67,16 +79,12 @@ const LocationPicker = ({ location, locationName, onLocationChange, onLocationNa
           <MapPin className="w-3.5 h-3.5" /> Use my location
         </Button>
       </div>
-      {isLoaded && apiKey ? (
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          center={location ?? defaultCenter}
-          zoom={location ? 13 : 6}
-          onClick={handleMapClick}
-          options={{ disableDefaultUI: true, zoomControl: true, mapTypeControl: false, streetViewControl: false }}
-        >
-          {location && <Marker position={location} />}
-        </GoogleMap>
+      {loading ? (
+        <div className="h-[240px] rounded-xl bg-muted flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : apiKey ? (
+        <MapView apiKey={apiKey} location={location} onMapClick={handleMapClick} />
       ) : (
         <div className="h-[240px] rounded-xl bg-muted flex items-center justify-center text-sm text-muted-foreground">
           Map unavailable — enter location manually
