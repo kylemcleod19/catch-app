@@ -58,10 +58,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
             const end = new Date(data.ended_at);
             setEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
           }
-          if (data.latitude && data.longitude) {
-            setLocation({ lat: data.latitude, lng: data.longitude });
+          if (data.spot_id) {
+            setSpotId(data.spot_id);
           }
-          setLocationName(data.location_name || "");
           setNotes(data.notes || "");
         }
         setLoadingTrip(false);
