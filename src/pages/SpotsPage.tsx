@@ -1,16 +1,121 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
+import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
+import { Button } from "@/components/ui/button";
+import { MapPin, Plus, Loader2, Trash2, Fish } from "lucide-react";
+import { getStateName } from "@/lib/us-states";
+import { toast } from "sonner";
+
+interface SpotRow {
+  id: string;
+  name: string | null;
+  body_of_water: string;
+  state_code: string;
+  site_type: string;
+  spot_points: { id: string; label: string; latitude: number; longitude: number }[];
+}
 
 const SpotsPage = () => {
+  const { user } = useAuth();
+  const [spots, setSpots] = useState<SpotRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const fetchSpots = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("spots")
+      .select("id, name, body_of_water, state_code, site_type, spot_points(id, label, latitude, longitude)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }) as any;
+    setSpots(data || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchSpots();
+  }, [fetchSpots]);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("spots").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete spot");
+    } else {
+      setSpots((prev) => prev.filter((s) => s.id !== id));
+      toast.success("Spot deleted");
+    }
+  };
+
+  const handleCreated = () => {
+    fetchSpots();
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-4">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <h1 className="text-lg font-bold tracking-tight text-foreground">Spots</h1>
+          <Button size="sm" className="rounded-xl gap-1.5" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4" /> New Spot
+          </Button>
         </div>
       </header>
-      <main className="max-w-lg mx-auto px-4 pt-6">
-        <p className="text-muted-foreground text-sm">Your saved fishing spots and map will appear here.</p>
+
+      <main className="max-w-lg mx-auto px-4 pt-4 space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : spots.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="w-full py-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center gap-3 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <Fish className="w-8 h-8" />
+            <span className="text-sm font-medium">Tap to add your first fishing spot</span>
+          </button>
+        ) : (
+          spots.map((spot) => (
+            <div key={spot.id} className="catch-card space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-card-foreground truncate">
+                    {spot.name || spot.body_of_water}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(spot.id)}
+                  className="text-muted-foreground hover:text-destructive p-1 shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {spot.spot_points.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {spot.spot_points.map((p) => (
+                    <span
+                      key={p.id}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs text-muted-foreground"
+                    >
+                      <MapPin className="w-3 h-3 text-primary" /> {p.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </main>
+
+      <SpotCreationModal open={createOpen} onOpenChange={setCreateOpen} onSpotCreated={handleCreated} />
       <BottomNav />
     </div>
   );
