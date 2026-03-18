@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import LocationPicker from "./LocationPicker";
+import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 
