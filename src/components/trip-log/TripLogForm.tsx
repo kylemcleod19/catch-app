@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, X, Loader2, Mic, MicOff } from "lucide-react";
+import { CalendarIcon, X, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import LocationPicker from "./LocationPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
+import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 
 interface TripLogFormProps {
   tripId: string;
@@ -34,8 +35,11 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [voiceStage, setVoiceStage] = useState<"idle" | "listening" | "parsing" | "done" | "error">("idle");
+  const [transcript, setTranscript] = useState("");
+  const [parsedData, setParsedData] = useState<ParsedTripData | null>(null);
+  const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
 
   // Load existing draft trip data
@@ -65,12 +69,17 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       });
   }, [tripId]);
 
-  const startListening = () => {
+  const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Speech recognition is not supported in this browser");
       return;
     }
+
+    setVoiceStage("listening");
+    setTranscript("");
+    setParsedData(null);
+    setVoiceError("");
 
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -78,65 +87,62 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     recognition.lang = "en-US";
 
     recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setIsListening(false);
-      toast.info(`Heard: "${transcript}"`);
-      await parseTranscript(transcript);
+      const text = event.results[0][0].transcript;
+      setTranscript(text);
+      setVoiceStage("parsing");
+
+      try {
+        const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
+          body: { transcript: text },
+        });
+        if (error) throw error;
+        setParsedData(data);
+        setVoiceStage("done");
+      } catch (err: any) {
+        setVoiceError(err.message || "Failed to parse voice input");
+        setVoiceStage("error");
+      }
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
-      setIsListening(false);
       if (event.error === "not-allowed") {
-        toast.error("Microphone access denied. Please allow microphone permissions.");
+        setVoiceError("Microphone access denied. Please allow microphone permissions.");
       } else {
-        toast.error("Speech recognition failed. Try again.");
+        setVoiceError("Speech recognition failed. Try again.");
       }
+      setVoiceStage("error");
     };
 
     recognition.onend = () => {
-      setIsListening(false);
+      // only reset to idle if we haven't moved to parsing/done/error
+      setVoiceStage((s) => (s === "listening" ? "idle" : s));
     };
 
     recognitionRef.current = recognition;
     recognition.start();
-    setIsListening(true);
-  };
+  }, []);
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
-    setIsListening(false);
-  };
+  }, []);
 
-  const parseTranscript = async (transcript: string) => {
-    setIsParsing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-        body: { transcript },
-      });
+  const applyParsedData = useCallback(async () => {
+    if (!parsedData) return;
+    if (parsedData.start_time) setStartTime(parsedData.start_time);
+    if (parsedData.end_time) setEndTime(parsedData.end_time);
+    if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
+    if (parsedData.location) setLocationName(parsedData.location);
+    if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
-      if (error) throw error;
-
-      // Pre-fill form fields
-      if (data.start_time) setStartTime(data.start_time);
-      if (data.end_time) setEndTime(data.end_time);
-      if (data.date) setDate(new Date(data.date + "T00:00:00"));
-      if (data.location) setLocationName(data.location);
-      if (data.notes) setNotes((prev) => (prev ? prev + "\n" + data.notes : data.notes));
-
-      // Bulk-insert catches
-      if (data.catches?.length && catchLoggerRef.current) {
-        await catchLoggerRef.current.addBulkCatches(data.catches);
-      }
-
-      toast.success("Voice data applied to form!");
-    } catch (err: any) {
-      console.error("Voice parse error:", err);
-      toast.error(err.message || "Failed to parse voice input");
-    } finally {
-      setIsParsing(false);
+    if (parsedData.catches?.length && catchLoggerRef.current) {
+      await catchLoggerRef.current.addBulkCatches(parsedData.catches);
     }
-  };
+
+    toast.success("Voice data applied to form!");
+    setVoiceModalOpen(false);
+    setVoiceStage("idle");
+  }, [parsedData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,54 +196,39 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold tracking-tight text-foreground">Log a Trip</h2>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant={isListening ? "destructive" : "outline"}
-            size="icon"
-            className={cn("h-9 w-9 rounded-xl transition-all", isParsing && "opacity-50 pointer-events-none")}
-            onClick={isListening ? stopListening : startListening}
-            disabled={isParsing}
-            title="Voice dictation"
-          >
-            {isParsing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isListening ? (
-              <MicOff className="w-4 h-4" />
-            ) : (
-              <Mic className="w-4 h-4" />
-            )}
-          </Button>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+          <X className="w-5 h-5 text-muted-foreground" />
+        </button>
       </div>
 
-      {/* Voice status */}
-      {(isListening || isParsing) && (
-        <div className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium",
-          isListening ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-        )}>
-          {isListening ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-              </span>
-              Listening… speak now
-            </>
-          ) : (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Parsing your trip details…
-            </>
-          )}
-        </div>
-      )}
+      {/* Voice Log Button */}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-12 rounded-xl gap-2 text-base font-medium border-primary/30 text-primary hover:bg-primary/5"
+        onClick={() => {
+          setVoiceStage("idle");
+          setTranscript("");
+          setParsedData(null);
+          setVoiceError("");
+          setVoiceModalOpen(true);
+        }}
+      >
+        <Mic className="w-5 h-5" />
+        Voice Log
+      </Button>
 
-      {/* Title */}
+      <VoiceLogModal
+        open={voiceModalOpen}
+        onOpenChange={setVoiceModalOpen}
+        stage={voiceStage}
+        transcript={transcript}
+        parsedData={parsedData}
+        errorMessage={voiceError}
+        onStartListening={startListening}
+        onStopListening={stopListening}
+        onApply={applyParsedData}
+      />
       <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
 
       {/* Date & Times */}
