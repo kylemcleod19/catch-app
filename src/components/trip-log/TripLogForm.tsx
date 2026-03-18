@@ -150,7 +150,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     if (parsedData.start_time) setStartTime(parsedData.start_time);
     if (parsedData.end_time) setEndTime(parsedData.end_time);
     if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
-    if (parsedData.location) setLocationName(parsedData.location);
+    // Voice location is handled separately — user should pick/create a spot
     if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
     if (parsedData.catches?.length && catchLoggerRef.current) {
