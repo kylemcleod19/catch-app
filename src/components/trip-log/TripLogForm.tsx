@@ -72,7 +72,18 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in this browser");
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      toast.error(
+        isSafari
+          ? "Speech recognition is not available in Safari. Please try Chrome or Edge."
+          : "Speech recognition is not supported in this browser. Please try Chrome or Edge."
+      );
+      setVoiceStage("error");
+      setVoiceError(
+        isSafari
+          ? "Safari has limited support for speech recognition. Please use Chrome or Edge for voice logging."
+          : "Your browser does not support speech recognition. Please use Chrome or Edge."
+      );
       return;
     }
 
@@ -81,46 +92,55 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     setParsedData(null);
     setVoiceError("");
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
 
-    recognition.onresult = async (event: any) => {
-      const text = event.results[0][0].transcript;
-      setTranscript(text);
-      setVoiceStage("parsing");
+      recognition.onresult = async (event: any) => {
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        setVoiceStage("parsing");
 
-      try {
-        const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-          body: { transcript: text },
-        });
-        if (error) throw error;
-        setParsedData(data);
-        setVoiceStage("done");
-      } catch (err: any) {
-        setVoiceError(err.message || "Failed to parse voice input");
+        try {
+          const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
+            body: { transcript: text },
+          });
+          if (error) throw error;
+          setParsedData(data);
+          setVoiceStage("done");
+        } catch (err: any) {
+          setVoiceError(err.message || "Failed to parse voice input");
+          setVoiceStage("error");
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === "not-allowed") {
+          setVoiceError("Microphone access denied. Please allow microphone permissions in your browser settings.");
+        } else if (event.error === "no-speech") {
+          setVoiceError("No speech detected. Please try again and speak clearly.");
+        } else if (event.error === "network") {
+          setVoiceError("Network error during speech recognition. Check your internet connection.");
+        } else {
+          setVoiceError(`Speech recognition failed (${event.error}). Try again or use Chrome.`);
+        }
         setVoiceStage("error");
-      }
-    };
+      };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error === "not-allowed") {
-        setVoiceError("Microphone access denied. Please allow microphone permissions.");
-      } else {
-        setVoiceError("Speech recognition failed. Try again.");
-      }
+      recognition.onend = () => {
+        setVoiceStage((s) => (s === "listening" ? "idle" : s));
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err: any) {
+      console.error("Failed to start speech recognition:", err);
+      setVoiceError("Failed to start speech recognition. Please try Chrome or Edge.");
       setVoiceStage("error");
-    };
-
-    recognition.onend = () => {
-      // only reset to idle if we haven't moved to parsing/done/error
-      setVoiceStage((s) => (s === "listening" ? "idle" : s));
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    }
   }, []);
 
   const stopListening = useCallback(() => {
