@@ -25,22 +25,20 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Parse action from body (default: "fetch" for initial load, "normalize" for AI pass)
-    let action = "fetch";
+    // Parse action from body — "sync" (default) does fetch+normalize for new only,
+    // "backfill" normalizes existing unnormalized rows in batches
+    let action = "sync";
     try {
       const body = await req.json();
       if (body?.action) action = body.action;
     } catch { /* no body is fine */ }
 
-    if (action === "fetch") {
-      return await handleFetch(supabase, USGS_API_KEY);
-    } else if (action === "normalize") {
-      return await handleNormalize(supabase, LOVABLE_API_KEY);
-    } else {
-      return new Response(JSON.stringify({ error: "Unknown action" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (action === "backfill") {
+      return await handleBackfillNormalize(supabase, LOVABLE_API_KEY);
     }
+
+    // Default: fetch new locations from USGS, then normalize only the new ones
+    return await handleSync(supabase, USGS_API_KEY, LOVABLE_API_KEY);
   } catch (e) {
     console.error("sync-usgs-locations error:", e);
     return new Response(
@@ -50,7 +48,8 @@ serve(async (req) => {
   }
 });
 
-async function handleFetch(supabase: any, apiKey: string) {
+async function handleSync(supabase: any, apiKey: string, lovableApiKey: string) {
+  // Step 1: Fetch from USGS
   console.log("Fetching USGS monitoring locations...");
   const siteTypes = ["Stream", "Lake, Reservoir, Impoundment"];
   const fetchPromises = siteTypes.map(async (siteType) => {
@@ -69,10 +68,10 @@ async function handleFetch(supabase: any, apiKey: string) {
   console.log(`Fetched ${features.length} locations from USGS`);
 
   if (features.length === 0) {
-    return respond({ message: "No locations returned from USGS", inserted: 0 });
+    return respond({ message: "No locations returned from USGS", inserted: 0, normalized: 0 });
   }
 
-  // Get existing site_ids
+  // Step 2: Filter to new locations only
   const { data: existing } = await supabase
     .from("usgs_monitoring_locations")
     .select("site_id");
@@ -86,29 +85,43 @@ async function handleFetch(supabase: any, apiKey: string) {
   console.log(`Found ${newFeatures.length} new locations`);
 
   if (newFeatures.length === 0) {
-    return respond({ message: "No new locations", inserted: 0 });
+    return respond({ message: "No new locations", inserted: 0, normalized: 0 });
   }
 
-  // Insert in DB batches of 500 (no AI yet, normalized_water_body = null)
-  let totalInserted = 0;
-  for (let i = 0; i < newFeatures.length; i += 500) {
-    const batch = newFeatures.slice(i, i + 500);
-    const rows = batch.map((f: any) => {
+  // Step 3: Normalize new location names with AI (in batches)
+  const allRows: any[] = [];
+  for (let i = 0; i < newFeatures.length; i += AI_BATCH_SIZE) {
+    const batch = newFeatures.slice(i, i + AI_BATCH_SIZE);
+    const names = batch.map((f: any) => f.properties?.monitoring_location_name || "Unknown");
+    const normalizedNames = await normalizeWaterBodies(names, lovableApiKey);
+
+    for (let j = 0; j < batch.length; j++) {
+      const f = batch[j];
       const coords = f.geometry?.coordinates;
-      return {
+      allRows.push({
         site_id: String(f.properties?.id || f.id),
         monitoring_location_name: f.properties?.monitoring_location_name || "Unknown",
-        normalized_water_body: null,
+        normalized_water_body: normalizedNames[j] || null,
         site_type: f.properties?.site_type || null,
         state_code: f.properties?.state_code || "48",
         latitude: coords?.[1] ?? null,
         longitude: coords?.[0] ?? null,
-      };
-    });
+      });
+    }
 
+    // Small delay between AI batches
+    if (i + AI_BATCH_SIZE < newFeatures.length) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
+  // Step 4: Insert into DB in batches of 500
+  let totalInserted = 0;
+  for (let i = 0; i < allRows.length; i += 500) {
+    const batch = allRows.slice(i, i + 500);
     const { error, data: inserted } = await supabase
       .from("usgs_monitoring_locations")
-      .upsert(rows, { onConflict: "site_id", ignoreDuplicates: true })
+      .upsert(batch, { onConflict: "site_id", ignoreDuplicates: true })
       .select("id");
 
     if (error) {
@@ -118,12 +131,12 @@ async function handleFetch(supabase: any, apiKey: string) {
     }
   }
 
-  console.log(`Inserted ${totalInserted} locations. Normalization pending.`);
-  return respond({ message: "Fetch complete, run normalize next", inserted: totalInserted, needs_normalization: true });
+  console.log(`Inserted ${totalInserted} locations with normalized names`);
+  return respond({ message: "Sync complete", total_fetched: features.length, inserted: totalInserted, normalized: totalInserted });
 }
 
-async function handleNormalize(supabase: any, lovableApiKey: string) {
-  // Find locations without normalized names
+// Backfill: normalize existing rows that don't have a normalized name yet (for initial data load)
+async function handleBackfillNormalize(supabase: any, lovableApiKey: string) {
   const { data: unnormalized, error } = await supabase
     .from("usgs_monitoring_locations")
     .select("id, monitoring_location_name")
@@ -135,11 +148,10 @@ async function handleNormalize(supabase: any, lovableApiKey: string) {
     return respond({ message: "All locations normalized", remaining: 0 });
   }
 
-  console.log(`Normalizing ${unnormalized.length} locations...`);
+  console.log(`Backfill: normalizing ${unnormalized.length} locations...`);
   const names = unnormalized.map((r: any) => r.monitoring_location_name);
   const normalized = await normalizeWaterBodies(names, lovableApiKey);
 
-  // Update each row
   let updated = 0;
   for (let i = 0; i < unnormalized.length; i++) {
     const { error: upErr } = await supabase
@@ -149,14 +161,13 @@ async function handleNormalize(supabase: any, lovableApiKey: string) {
     if (!upErr) updated++;
   }
 
-  // Check remaining
   const { count } = await supabase
     .from("usgs_monitoring_locations")
     .select("id", { count: "exact", head: true })
     .is("normalized_water_body", null);
 
-  console.log(`Normalized ${updated} locations, ${count || 0} remaining`);
-  return respond({ message: "Normalization batch complete", normalized: updated, remaining: count || 0 });
+  console.log(`Backfill: normalized ${updated}, ${count || 0} remaining`);
+  return respond({ message: "Backfill batch complete", normalized: updated, remaining: count || 0 });
 }
 
 async function normalizeWaterBodies(names: string[], apiKey: string): Promise<string[]> {
