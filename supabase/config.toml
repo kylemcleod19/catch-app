@@ -1,1 +1,4 @@
 project_id = "qdadozyjallcspeqbtlm"
+
+[functions.parse-trip-voice]
+verify_jwt = false
