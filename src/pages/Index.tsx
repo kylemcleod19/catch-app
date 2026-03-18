@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Plus, CalendarPlus, MapPin, Fish, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import WeatherHeader from "@/components/WeatherHeader";
+import TripLogForm from "@/components/trip-log/TripLogForm";
 import { useNavigate } from "react-router-dom";
 
 const RecentTripCard = ({ title, location, date, catchCount }: { title: string; location: string; date: string; catchCount: number }) => (
@@ -35,6 +37,7 @@ const sampleTrips = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const [isLogging, setIsLogging] = useState(false);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -48,37 +51,43 @@ const Index = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        <WeatherHeader />
+        {isLogging ? (
+          <TripLogForm onClose={() => setIsLogging(false)} onSuccess={() => setIsLogging(false)} />
+        ) : (
+          <>
+            <WeatherHeader />
 
-        {/* Primary Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="catch" size="lg" className="w-full gap-2" onClick={() => navigate("/trips")}>
-            <Plus className="w-5 h-5" />
-            Log Trip
-          </Button>
-          <Button variant="outline" size="lg" className="w-full gap-2 rounded-xl" onClick={() => navigate("/trips")}>
-            <CalendarPlus className="w-5 h-5" />
-            Plan Trip
-          </Button>
-        </div>
+            {/* Primary Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="catch" size="lg" className="w-full gap-2" onClick={() => setIsLogging(true)}>
+                <Plus className="w-5 h-5" />
+                Log Trip
+              </Button>
+              <Button variant="outline" size="lg" className="w-full gap-2 rounded-xl" onClick={() => navigate("/trips")}>
+                <CalendarPlus className="w-5 h-5" />
+                Plan Trip
+              </Button>
+            </div>
 
-        {/* Recent Trips */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">Recent Trips</h2>
-            <button
-              onClick={() => navigate("/trips")}
-              className="text-xs font-medium text-primary active:text-primary/70 transition-colors"
-            >
-              View all
-            </button>
-          </div>
-          <div className="space-y-2">
-            {sampleTrips.map((trip) => (
-              <RecentTripCard key={trip.id} {...trip} />
-            ))}
-          </div>
-        </div>
+            {/* Recent Trips */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">Recent Trips</h2>
+                <button
+                  onClick={() => navigate("/trips")}
+                  className="text-xs font-medium text-primary active:text-primary/70 transition-colors"
+                >
+                  View all
+                </button>
+              </div>
+              <div className="space-y-2">
+                {sampleTrips.map((trip) => (
+                  <RecentTripCard key={trip.id} {...trip} />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       <BottomNav />
