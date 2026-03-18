@@ -203,9 +203,19 @@ const Index = () => {
                 </button>
               </div>
               <div className="space-y-2">
-                {sampleTrips.map((trip) => (
-                  <RecentTripCard key={trip.id} {...trip} />
-                ))}
+                {loadingTrips ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : recentTrips.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No trips yet. Tap "Log Trip" to get started!
+                  </div>
+                ) : (
+                  recentTrips.map((trip) => (
+                    <RecentTripCard key={trip.id} {...trip} />
+                  ))
+                )}
               </div>
             </div>
           </>
