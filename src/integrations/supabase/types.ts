@@ -14,16 +14,218 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      catches: {
+        Row: {
+          caught_at: string
+          created_at: string
+          id: string
+          is_demo: boolean
+          length_in: number | null
+          lure_or_bait: string | null
+          notes: string | null
+          photo_url: string | null
+          species: string
+          trip_id: string
+          user_id: string
+          weight_oz: number | null
+        }
+        Insert: {
+          caught_at?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          length_in?: number | null
+          lure_or_bait?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          species: string
+          trip_id: string
+          user_id: string
+          weight_oz?: number | null
+        }
+        Update: {
+          caught_at?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          length_in?: number | null
+          lure_or_bait?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          species?: string
+          trip_id?: string
+          user_id?: string
+          weight_oz?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catches_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "fishing_trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fishing_trips: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          is_demo: boolean
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          notes: string | null
+          started_at: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          water_flow_snapshot: Json | null
+          weather_snapshot: Json | null
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          is_demo?: boolean
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          notes?: string | null
+          started_at?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          water_flow_snapshot?: Json | null
+          weather_snapshot?: Json | null
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          is_demo?: boolean
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          notes?: string | null
+          started_at?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          water_flow_snapshot?: Json | null
+          weather_snapshot?: Json | null
+        }
+        Relationships: []
+      }
+      gear: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          id: string
+          is_demo: boolean
+          name: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          demo_session_id: string | null
+          display_name: string | null
+          favorite_species: string[] | null
+          home_water: string | null
+          id: string
+          is_demo: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          demo_session_id?: string | null
+          display_name?: string | null
+          favorite_species?: string[] | null
+          home_water?: string | null
+          id?: string
+          is_demo?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          demo_session_id?: string | null
+          display_name?: string | null
+          favorite_species?: string[] | null
+          home_water?: string | null
+          id?: string
+          is_demo?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +352,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
