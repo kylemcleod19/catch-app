@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import LocationPicker from "./LocationPicker";
+import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 
@@ -29,8 +29,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("12:00");
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationName, setLocationName] = useState("");
+  const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
   // Voice dictation
@@ -59,10 +58,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
             const end = new Date(data.ended_at);
             setEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
           }
-          if (data.latitude && data.longitude) {
-            setLocation({ lat: data.latitude, lng: data.longitude });
+          if (data.spot_id) {
+            setSpotId(data.spot_id);
           }
-          setLocationName(data.location_name || "");
           setNotes(data.notes || "");
         }
         setLoadingTrip(false);
@@ -152,7 +150,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     if (parsedData.start_time) setStartTime(parsedData.start_time);
     if (parsedData.end_time) setEndTime(parsedData.end_time);
     if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
-    if (parsedData.location) setLocationName(parsedData.location);
+    // Voice location is handled separately — user should pick/create a spot
     if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
     if (parsedData.catches?.length && catchLoggerRef.current) {
@@ -182,9 +180,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         .from("fishing_trips")
         .update({
           title: title || `Trip on ${format(date, "MMM d")}`,
-          location_name: locationName || null,
-          latitude: location?.lat ?? null,
-          longitude: location?.lng ?? null,
+          spot_id: spotId ?? null,
           started_at: startedAt.toISOString(),
           ended_at: endedAt.toISOString(),
           notes: notes || null,
@@ -274,8 +270,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         </div>
       </div>
 
-      {/* Location */}
-      <LocationPicker location={location} locationName={locationName} onLocationChange={setLocation} onLocationNameChange={setLocationName} />
+      {/* Spot */}
+      <SpotPicker spotId={spotId} onSpotChange={setSpotId} />
 
       {/* Catches */}
       {user && <CatchLogger ref={catchLoggerRef} tripId={tripId} userId={user.id} />}
