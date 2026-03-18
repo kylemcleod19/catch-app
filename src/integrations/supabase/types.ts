@@ -80,6 +80,7 @@ export type Database = {
           location_name: string | null
           longitude: number | null
           notes: string | null
+          spot_id: string | null
           started_at: string
           status: string
           title: string | null
@@ -97,6 +98,7 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          spot_id?: string | null
           started_at?: string
           status?: string
           title?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          spot_id?: string | null
           started_at?: string
           status?: string
           title?: string | null
@@ -122,7 +125,15 @@ export type Database = {
           water_flow_snapshot?: Json | null
           weather_snapshot?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fishing_trips_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gear: {
         Row: {
@@ -196,6 +207,80 @@ export type Database = {
           is_demo?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      spot_points: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          latitude: number
+          longitude: number
+          spot_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          latitude: number
+          longitude: number
+          spot_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          latitude?: number
+          longitude?: number
+          spot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_points_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spots: {
+        Row: {
+          body_of_water: string
+          created_at: string
+          id: string
+          is_demo: boolean
+          name: string | null
+          site_type: string
+          state_code: string
+          updated_at: string
+          user_id: string
+          usgs_site_id: string | null
+        }
+        Insert: {
+          body_of_water: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name?: string | null
+          site_type?: string
+          state_code: string
+          updated_at?: string
+          user_id: string
+          usgs_site_id?: string | null
+        }
+        Update: {
+          body_of_water?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name?: string | null
+          site_type?: string
+          state_code?: string
+          updated_at?: string
+          user_id?: string
+          usgs_site_id?: string | null
         }
         Relationships: []
       }
