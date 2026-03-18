@@ -180,9 +180,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         .from("fishing_trips")
         .update({
           title: title || `Trip on ${format(date, "MMM d")}`,
-          location_name: locationName || null,
-          latitude: location?.lat ?? null,
-          longitude: location?.lng ?? null,
+          spot_id: spotId ?? null,
           started_at: startedAt.toISOString(),
           ended_at: endedAt.toISOString(),
           notes: notes || null,
