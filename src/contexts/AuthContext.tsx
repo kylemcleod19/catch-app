@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const demoEmail = `demo-${crypto.randomUUID()}@catch-demo.local`;
     const demoPassword = crypto.randomUUID();
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: demoEmail,
       password: demoPassword,
       options: {
@@ -58,6 +58,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) throw error;
+
+    // Seed demo data for this user
+    const userId = signUpData.user?.id;
+    if (userId) {
+      try {
+        await supabase.functions.invoke("seed-demo-data", {
+          body: { user_id: userId },
+        });
+      } catch (seedErr) {
+        console.error("Failed to seed demo data:", seedErr);
+      }
+    }
+
     setIsDemo(true);
   };
 

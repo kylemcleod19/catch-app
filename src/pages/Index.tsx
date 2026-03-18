@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, CalendarPlus, MapPin, Fish, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, CalendarPlus, MapPin, Fish, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import WeatherHeader from "@/components/WeatherHeader";
@@ -34,11 +34,13 @@ const RecentTripCard = ({ title, location, date, catchCount }: { title: string; 
   </div>
 );
 
-const sampleTrips = [
-  { id: "1", title: "Morning on Lake Fork", location: "Lake Fork, TX", date: "Mar 15", catchCount: 4 },
-  { id: "2", title: "White River Float", location: "White River, AR", date: "Mar 12", catchCount: 7 },
-  { id: "3", title: "Table Rock Evening", location: "Table Rock Lake, MO", date: "Mar 8", catchCount: 2 },
-];
+interface RecentTrip {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  catchCount: number;
+}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -46,6 +48,45 @@ const Index = () => {
   const [draftTripId, setDraftTripId] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
   const [checkingDraft, setCheckingDraft] = useState(true);
+  const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+
+  const fetchRecentTrips = useCallback(async () => {
+    if (!user) return;
+    setLoadingTrips(true);
+    const { data: trips } = await supabase
+      .from("fishing_trips")
+      .select("id, title, location_name, started_at")
+      .eq("user_id", user.id)
+      .eq("status", "completed")
+      .order("started_at", { ascending: false })
+      .limit(5);
+
+    if (trips) {
+      // Fetch catch counts for these trips
+      const tripIds = trips.map((t) => t.id);
+      const { data: catches } = await supabase
+        .from("catches")
+        .select("trip_id, quantity")
+        .in("trip_id", tripIds);
+
+      const countMap: Record<string, number> = {};
+      catches?.forEach((c) => {
+        countMap[c.trip_id] = (countMap[c.trip_id] || 0) + c.quantity;
+      });
+
+      setRecentTrips(
+        trips.map((t) => ({
+          id: t.id,
+          title: t.title || "Untitled Trip",
+          location: t.location_name || "Unknown",
+          date: format(new Date(t.started_at), "MMM d"),
+          catchCount: countMap[t.id] || 0,
+        }))
+      );
+    }
+    setLoadingTrips(false);
+  }, [user]);
 
   // On mount, check for an existing draft trip
   useEffect(() => {
@@ -74,7 +115,8 @@ const Index = () => {
     } else {
       setCheckingDraft(false);
     }
-  }, [user]);
+    fetchRecentTrips();
+  }, [user, fetchRecentTrips]);
 
   const handleStartLogging = async () => {
     if (!user) return;
@@ -99,6 +141,7 @@ const Index = () => {
     localStorage.removeItem(DRAFT_KEY);
     setDraftTripId(null);
     setIsLogging(false);
+    fetchRecentTrips();
   };
 
   const handleCancel = async () => {
@@ -160,9 +203,19 @@ const Index = () => {
                 </button>
               </div>
               <div className="space-y-2">
-                {sampleTrips.map((trip) => (
-                  <RecentTripCard key={trip.id} {...trip} />
-                ))}
+                {loadingTrips ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : recentTrips.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No trips yet. Tap "Log Trip" to get started!
+                  </div>
+                ) : (
+                  recentTrips.map((trip) => (
+                    <RecentTripCard key={trip.id} {...trip} />
+                  ))
+                )}
               </div>
             </div>
           </>

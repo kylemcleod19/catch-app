@@ -2,3 +2,9 @@ project_id = "qdadozyjallcspeqbtlm"
 
 [functions.parse-trip-voice]
 verify_jwt = false
+
+[functions.seed-demo-data]
+verify_jwt = false
+
+[functions.cleanup-demo-data]
+verify_jwt = false
