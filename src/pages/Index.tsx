@@ -60,7 +60,7 @@ const Index = () => {
         .select("id")
         .eq("id", stored)
         .eq("user_id", user.id)
-        .eq("status" as any, "draft")
+        .filter("status", "eq", "draft")
         .single()
         .then(({ data }) => {
           if (data) {
