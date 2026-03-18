@@ -196,54 +196,39 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold tracking-tight text-foreground">Log a Trip</h2>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant={isListening ? "destructive" : "outline"}
-            size="icon"
-            className={cn("h-9 w-9 rounded-xl transition-all", isParsing && "opacity-50 pointer-events-none")}
-            onClick={isListening ? stopListening : startListening}
-            disabled={isParsing}
-            title="Voice dictation"
-          >
-            {isParsing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isListening ? (
-              <MicOff className="w-4 h-4" />
-            ) : (
-              <Mic className="w-4 h-4" />
-            )}
-          </Button>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+          <X className="w-5 h-5 text-muted-foreground" />
+        </button>
       </div>
 
-      {/* Voice status */}
-      {(isListening || isParsing) && (
-        <div className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium",
-          isListening ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-        )}>
-          {isListening ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-              </span>
-              Listening… speak now
-            </>
-          ) : (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Parsing your trip details…
-            </>
-          )}
-        </div>
-      )}
+      {/* Voice Log Button */}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-12 rounded-xl gap-2 text-base font-medium border-primary/30 text-primary hover:bg-primary/5"
+        onClick={() => {
+          setVoiceStage("idle");
+          setTranscript("");
+          setParsedData(null);
+          setVoiceError("");
+          setVoiceModalOpen(true);
+        }}
+      >
+        <Mic className="w-5 h-5" />
+        Voice Log
+      </Button>
 
-      {/* Title */}
+      <VoiceLogModal
+        open={voiceModalOpen}
+        onOpenChange={setVoiceModalOpen}
+        stage={voiceStage}
+        transcript={transcript}
+        parsedData={parsedData}
+        errorMessage={voiceError}
+        onStartListening={startListening}
+        onStopListening={stopListening}
+        onApply={applyParsedData}
+      />
       <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
 
       {/* Date & Times */}
