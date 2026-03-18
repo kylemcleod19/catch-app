@@ -24,6 +24,7 @@ export type Database = {
           lure_or_bait: string | null
           notes: string | null
           photo_url: string | null
+          quantity: number
           species: string
           trip_id: string
           user_id: string
@@ -38,6 +39,7 @@ export type Database = {
           lure_or_bait?: string | null
           notes?: string | null
           photo_url?: string | null
+          quantity?: number
           species: string
           trip_id: string
           user_id: string
@@ -52,6 +54,7 @@ export type Database = {
           lure_or_bait?: string | null
           notes?: string | null
           photo_url?: string | null
+          quantity?: number
           species?: string
           trip_id?: string
           user_id?: string
@@ -78,6 +81,7 @@ export type Database = {
           longitude: number | null
           notes: string | null
           started_at: string
+          status: string
           title: string | null
           updated_at: string
           user_id: string
@@ -94,6 +98,7 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           started_at?: string
+          status?: string
           title?: string | null
           updated_at?: string
           user_id: string
@@ -110,6 +115,7 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           started_at?: string
+          status?: string
           title?: string | null
           updated_at?: string
           user_id?: string
