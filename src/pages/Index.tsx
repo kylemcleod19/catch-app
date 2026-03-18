@@ -141,6 +141,7 @@ const Index = () => {
     localStorage.removeItem(DRAFT_KEY);
     setDraftTripId(null);
     setIsLogging(false);
+    fetchRecentTrips();
   };
 
   const handleCancel = async () => {
