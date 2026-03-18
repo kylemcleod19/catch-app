@@ -29,8 +29,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("12:00");
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationName, setLocationName] = useState("");
+  const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
   // Voice dictation
