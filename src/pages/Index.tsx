@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, CalendarPlus, MapPin, Fish, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import WeatherHeader from "@/components/WeatherHeader";
 import TripLogForm from "@/components/trip-log/TripLogForm";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+
+const DRAFT_KEY = "draftTripId";
 
 const RecentTripCard = ({ title, location, date, catchCount }: { title: string; location: string; date: string; catchCount: number }) => (
   <div className="catch-card flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer">
@@ -37,7 +42,81 @@ const sampleTrips = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [draftTripId, setDraftTripId] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
+  const [checkingDraft, setCheckingDraft] = useState(true);
+
+  // On mount, check for an existing draft trip
+  useEffect(() => {
+    if (!user) {
+      setCheckingDraft(false);
+      return;
+    }
+    const stored = localStorage.getItem(DRAFT_KEY);
+    if (stored) {
+      supabase
+        .from("fishing_trips")
+        .select("id")
+        .eq("id", stored)
+        .eq("user_id", user.id)
+        .eq("status" as any, "draft")
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setDraftTripId(stored);
+            setIsLogging(true);
+          } else {
+            localStorage.removeItem(DRAFT_KEY);
+          }
+          setCheckingDraft(false);
+        });
+    } else {
+      setCheckingDraft(false);
+    }
+  }, [user]);
+
+  const handleStartLogging = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("fishing_trips")
+      .insert({
+        user_id: user.id,
+        title: `Trip on ${format(new Date(), "MMM d")}`,
+        status: "draft",
+      } as any)
+      .select("id")
+      .single();
+
+    if (data && !error) {
+      localStorage.setItem(DRAFT_KEY, data.id);
+      setDraftTripId(data.id);
+      setIsLogging(true);
+    }
+  };
+
+  const handleComplete = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftTripId(null);
+    setIsLogging(false);
+  };
+
+  const handleCancel = async () => {
+    if (draftTripId) {
+      await supabase.from("fishing_trips").delete().eq("id", draftTripId);
+    }
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftTripId(null);
+    setIsLogging(false);
+  };
+
+  if (checkingDraft) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -51,15 +130,15 @@ const Index = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        {isLogging ? (
-          <TripLogForm onClose={() => setIsLogging(false)} onSuccess={() => setIsLogging(false)} />
+        {isLogging && draftTripId ? (
+          <TripLogForm tripId={draftTripId} onClose={handleCancel} onSuccess={handleComplete} />
         ) : (
           <>
             <WeatherHeader />
 
             {/* Primary Actions */}
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="catch" size="lg" className="w-full gap-2" onClick={() => setIsLogging(true)}>
+              <Button variant="catch" size="lg" className="w-full gap-2" onClick={handleStartLogging}>
                 <Plus className="w-5 h-5" />
                 Log Trip
               </Button>

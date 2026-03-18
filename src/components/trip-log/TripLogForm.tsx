@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import LocationPicker from "./LocationPicker";
-import CatchLogger, { type CatchEntry } from "./CatchLogger";
+import CatchLogger from "./CatchLogger";
 
 interface TripLogFormProps {
+  tripId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
+const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [loadingTrip, setLoadingTrip] = useState(true);
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState<Date>(new Date());
@@ -29,7 +31,33 @@ const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
   const [notes, setNotes] = useState("");
-  const [catches, setCatches] = useState<CatchEntry[]>([]);
+
+  // Load existing draft trip data
+  useEffect(() => {
+    supabase
+      .from("fishing_trips")
+      .select("*")
+      .eq("id", tripId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setTitle(data.title || "");
+          setDate(new Date(data.started_at));
+          const start = new Date(data.started_at);
+          setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
+          if (data.ended_at) {
+            const end = new Date(data.ended_at);
+            setEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
+          }
+          if (data.latitude && data.longitude) {
+            setLocation({ lat: data.latitude, lng: data.longitude });
+          }
+          setLocationName(data.location_name || "");
+          setNotes(data.notes || "");
+        }
+        setLoadingTrip(false);
+      });
+  }, [tripId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +73,9 @@ const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
       const [eh, em] = endTime.split(":").map(Number);
       endedAt.setHours(eh, em, 0, 0);
 
-      const { data: trip, error: tripError } = await supabase
+      const { error } = await supabase
         .from("fishing_trips")
-        .insert({
-          user_id: user.id,
+        .update({
           title: title || `Trip on ${format(date, "MMM d")}`,
           location_name: locationName || null,
           latitude: location?.lat ?? null,
@@ -56,30 +83,11 @@ const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
           started_at: startedAt.toISOString(),
           ended_at: endedAt.toISOString(),
           notes: notes || null,
-        })
-        .select("id")
-        .single();
+          status: "completed",
+        } as any)
+        .eq("id", tripId);
 
-      if (tripError) throw tripError;
-
-      if (catches.length > 0) {
-        const catchRows = catches
-          .filter((c) => c.species.trim())
-          .map((c) => ({
-            user_id: user.id,
-            trip_id: trip.id,
-            species: c.species.trim(),
-            weight_oz: c.weightOz ? parseFloat(c.weightOz) : null,
-            length_in: c.lengthIn ? parseFloat(c.lengthIn) : null,
-            lure_or_bait: c.lureOrBait || null,
-            notes: c.notes || null,
-          }));
-
-        if (catchRows.length > 0) {
-          const { error: catchError } = await supabase.from("catches").insert(catchRows);
-          if (catchError) throw catchError;
-        }
-      }
+      if (error) throw error;
 
       toast.success("Trip logged!");
       onSuccess();
@@ -89,6 +97,14 @@ const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
       setSaving(false);
     }
   };
+
+  if (loadingTrip) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -130,7 +146,7 @@ const TripLogForm = ({ onClose, onSuccess }: TripLogFormProps) => {
       <LocationPicker location={location} locationName={locationName} onLocationChange={setLocation} onLocationNameChange={setLocationName} />
 
       {/* Catches */}
-      <CatchLogger catches={catches} onCatchesChange={setCatches} />
+      {user && <CatchLogger tripId={tripId} userId={user.id} />}
 
       {/* Notes */}
       <div className="space-y-2">
