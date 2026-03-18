@@ -217,6 +217,45 @@ export type Database = {
         }
         Relationships: []
       }
+      usgs_monitoring_locations: {
+        Row: {
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          monitoring_location_name: string
+          normalized_water_body: string | null
+          site_id: string
+          site_type: string | null
+          state_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          monitoring_location_name: string
+          normalized_water_body?: string | null
+          site_id: string
+          site_type?: string | null
+          state_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          monitoring_location_name?: string
+          normalized_water_body?: string | null
+          site_id?: string
+          site_type?: string | null
+          state_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
