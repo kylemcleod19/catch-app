@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Plus, X, Fish, Minus, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,18 @@ interface CatchRow {
   lure_or_bait: string | null;
   notes: string | null;
   quantity: number;
+}
+
+export interface BulkCatch {
+  species: string;
+  quantity: number;
+  lure_or_bait?: string | null;
+  weight_oz?: number | null;
+  length_in?: number | null;
+}
+
+export interface CatchLoggerHandle {
+  addBulkCatches: (catches: BulkCatch[]) => Promise<void>;
 }
 
 interface CatchLoggerProps {
@@ -36,7 +48,7 @@ const emptyForm = (): NewCatchForm => ({
   notes: "",
 });
 
-const CatchLogger = ({ tripId, userId }: CatchLoggerProps) => {
+const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, userId }, ref) => {
   const [catches, setCatches] = useState<CatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,6 +69,28 @@ const CatchLogger = ({ tripId, userId }: CatchLoggerProps) => {
   useEffect(() => {
     fetchCatches();
   }, [tripId]);
+
+  useImperativeHandle(ref, () => ({
+    addBulkCatches: async (bulkCatches: BulkCatch[]) => {
+      const rows = bulkCatches.map((c) => ({
+        user_id: userId,
+        trip_id: tripId,
+        species: c.species,
+        quantity: c.quantity || 1,
+        lure_or_bait: c.lure_or_bait || null,
+        weight_oz: c.weight_oz ?? null,
+        length_in: c.length_in ?? null,
+      }));
+
+      const { error } = await supabase.from("catches").insert(rows as any);
+      if (error) {
+        toast.error("Failed to save catches from voice input");
+      } else {
+        toast.success(`${bulkCatches.length} catch${bulkCatches.length > 1 ? "es" : ""} added from voice!`);
+        await fetchCatches();
+      }
+    },
+  }));
 
   const handleSaveCatch = async () => {
     if (!form.species.trim()) {
@@ -153,27 +187,13 @@ const CatchLogger = ({ tripId, userId }: CatchLoggerProps) => {
           {c.notes && <p className="text-xs text-muted-foreground">{c.notes}</p>}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Qty:</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-7 w-7 rounded-lg"
-              onClick={() => updateQuantity(c.id, -1)}
-              disabled={c.quantity <= 1 || updatingId === c.id}
-            >
+            <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-lg" onClick={() => updateQuantity(c.id, -1)} disabled={c.quantity <= 1 || updatingId === c.id}>
               <Minus className="w-3 h-3" />
             </Button>
             <span className="text-sm font-semibold text-foreground w-6 text-center">
               {updatingId === c.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : c.quantity}
             </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-7 w-7 rounded-lg"
-              onClick={() => updateQuantity(c.id, 1)}
-              disabled={updatingId === c.id}
-            >
+            <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-lg" onClick={() => updateQuantity(c.id, 1)} disabled={updatingId === c.id}>
               <Plus className="w-3 h-3" />
             </Button>
           </div>
@@ -204,6 +224,8 @@ const CatchLogger = ({ tripId, userId }: CatchLoggerProps) => {
       )}
     </div>
   );
-};
+});
+
+CatchLogger.displayName = "CatchLogger";
 
 export default CatchLogger;
