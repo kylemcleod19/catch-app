@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.cleanup-demo-data]
 verify_jwt = false
+
+[functions.sync-usgs-locations]
+verify_jwt = false
