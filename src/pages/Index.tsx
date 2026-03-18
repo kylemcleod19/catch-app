@@ -34,6 +34,13 @@ const RecentTripCard = ({ title, location, date, catchCount }: { title: string; 
   </div>
 );
 
+interface RecentTrip {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  catchCount: number;
+}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -41,6 +48,45 @@ const Index = () => {
   const [draftTripId, setDraftTripId] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
   const [checkingDraft, setCheckingDraft] = useState(true);
+  const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+
+  const fetchRecentTrips = useCallback(async () => {
+    if (!user) return;
+    setLoadingTrips(true);
+    const { data: trips } = await supabase
+      .from("fishing_trips")
+      .select("id, title, location_name, started_at")
+      .eq("user_id", user.id)
+      .eq("status", "completed")
+      .order("started_at", { ascending: false })
+      .limit(5);
+
+    if (trips) {
+      // Fetch catch counts for these trips
+      const tripIds = trips.map((t) => t.id);
+      const { data: catches } = await supabase
+        .from("catches")
+        .select("trip_id, quantity")
+        .in("trip_id", tripIds);
+
+      const countMap: Record<string, number> = {};
+      catches?.forEach((c) => {
+        countMap[c.trip_id] = (countMap[c.trip_id] || 0) + c.quantity;
+      });
+
+      setRecentTrips(
+        trips.map((t) => ({
+          id: t.id,
+          title: t.title || "Untitled Trip",
+          location: t.location_name || "Unknown",
+          date: format(new Date(t.started_at), "MMM d"),
+          catchCount: countMap[t.id] || 0,
+        }))
+      );
+    }
+    setLoadingTrips(false);
+  }, [user]);
 
   // On mount, check for an existing draft trip
   useEffect(() => {
@@ -69,7 +115,8 @@ const Index = () => {
     } else {
       setCheckingDraft(false);
     }
-  }, [user]);
+    fetchRecentTrips();
+  }, [user, fetchRecentTrips]);
 
   const handleStartLogging = async () => {
     if (!user) return;
