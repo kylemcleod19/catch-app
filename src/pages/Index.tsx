@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, CalendarPlus, MapPin, Fish, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, CalendarPlus, MapPin, Fish, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import WeatherHeader from "@/components/WeatherHeader";
