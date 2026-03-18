@@ -35,8 +35,11 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [voiceStage, setVoiceStage] = useState<"idle" | "listening" | "parsing" | "done" | "error">("idle");
+  const [transcript, setTranscript] = useState("");
+  const [parsedData, setParsedData] = useState<ParsedTripData | null>(null);
+  const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
 
   // Load existing draft trip data
@@ -66,12 +69,17 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       });
   }, [tripId]);
 
-  const startListening = () => {
+  const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Speech recognition is not supported in this browser");
       return;
     }
+
+    setVoiceStage("listening");
+    setTranscript("");
+    setParsedData(null);
+    setVoiceError("");
 
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -79,65 +87,62 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     recognition.lang = "en-US";
 
     recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setIsListening(false);
-      toast.info(`Heard: "${transcript}"`);
-      await parseTranscript(transcript);
+      const text = event.results[0][0].transcript;
+      setTranscript(text);
+      setVoiceStage("parsing");
+
+      try {
+        const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
+          body: { transcript: text },
+        });
+        if (error) throw error;
+        setParsedData(data);
+        setVoiceStage("done");
+      } catch (err: any) {
+        setVoiceError(err.message || "Failed to parse voice input");
+        setVoiceStage("error");
+      }
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
-      setIsListening(false);
       if (event.error === "not-allowed") {
-        toast.error("Microphone access denied. Please allow microphone permissions.");
+        setVoiceError("Microphone access denied. Please allow microphone permissions.");
       } else {
-        toast.error("Speech recognition failed. Try again.");
+        setVoiceError("Speech recognition failed. Try again.");
       }
+      setVoiceStage("error");
     };
 
     recognition.onend = () => {
-      setIsListening(false);
+      // only reset to idle if we haven't moved to parsing/done/error
+      setVoiceStage((s) => (s === "listening" ? "idle" : s));
     };
 
     recognitionRef.current = recognition;
     recognition.start();
-    setIsListening(true);
-  };
+  }, []);
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
-    setIsListening(false);
-  };
+  }, []);
 
-  const parseTranscript = async (transcript: string) => {
-    setIsParsing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-        body: { transcript },
-      });
+  const applyParsedData = useCallback(async () => {
+    if (!parsedData) return;
+    if (parsedData.start_time) setStartTime(parsedData.start_time);
+    if (parsedData.end_time) setEndTime(parsedData.end_time);
+    if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
+    if (parsedData.location) setLocationName(parsedData.location);
+    if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
-      if (error) throw error;
-
-      // Pre-fill form fields
-      if (data.start_time) setStartTime(data.start_time);
-      if (data.end_time) setEndTime(data.end_time);
-      if (data.date) setDate(new Date(data.date + "T00:00:00"));
-      if (data.location) setLocationName(data.location);
-      if (data.notes) setNotes((prev) => (prev ? prev + "\n" + data.notes : data.notes));
-
-      // Bulk-insert catches
-      if (data.catches?.length && catchLoggerRef.current) {
-        await catchLoggerRef.current.addBulkCatches(data.catches);
-      }
-
-      toast.success("Voice data applied to form!");
-    } catch (err: any) {
-      console.error("Voice parse error:", err);
-      toast.error(err.message || "Failed to parse voice input");
-    } finally {
-      setIsParsing(false);
+    if (parsedData.catches?.length && catchLoggerRef.current) {
+      await catchLoggerRef.current.addBulkCatches(parsedData.catches);
     }
-  };
+
+    toast.success("Voice data applied to form!");
+    setVoiceModalOpen(false);
+    setVoiceStage("idle");
+  }, [parsedData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
