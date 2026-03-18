@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, X, Loader2, Mic, MicOff } from "lucide-react";
+import { CalendarIcon, X, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import LocationPicker from "./LocationPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
+import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 
 interface TripLogFormProps {
   tripId: string;
