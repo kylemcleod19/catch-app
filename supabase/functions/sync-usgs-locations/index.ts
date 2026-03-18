@@ -25,19 +25,23 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Step 1: Fetch all locations from USGS API
+    // Step 1: Fetch locations from USGS API (Stream + Lake in parallel)
     console.log("Fetching USGS monitoring locations...");
-    const usgsUrl = `${USGS_BASE_URL}?state_code=48&site_type_code=ST,LK&properties=monitoring_location_name,state_code,site_type,id&limit=10000&f=json&api_key=${USGS_API_KEY}`;
-    
-    const usgsResp = await fetch(usgsUrl);
-    if (!usgsResp.ok) {
-      const text = await usgsResp.text();
-      console.error("USGS API error:", usgsResp.status, text);
-      throw new Error(`USGS API returned ${usgsResp.status}`);
-    }
+    const siteTypes = ["Stream", "Lake, Reservoir, Impoundment"];
+    const fetchPromises = siteTypes.map(async (siteType) => {
+      const url = `${USGS_BASE_URL}?state_code=48&site_type=${encodeURIComponent(siteType)}&properties=monitoring_location_name,state_code,site_type,id&limit=10000&f=json&api_key=${USGS_API_KEY}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error(`USGS API error for ${siteType}:`, resp.status, text);
+        return [];
+      }
+      const data = await resp.json();
+      return data.features || [];
+    });
 
-    const usgsData = await usgsResp.json();
-    const features = usgsData.features || [];
+    const results = await Promise.all(fetchPromises);
+    const features = results.flat();
     console.log(`Fetched ${features.length} locations from USGS`);
 
     if (features.length === 0) {
