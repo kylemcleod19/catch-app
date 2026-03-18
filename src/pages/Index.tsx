@@ -34,11 +34,6 @@ const RecentTripCard = ({ title, location, date, catchCount }: { title: string; 
   </div>
 );
 
-const sampleTrips = [
-  { id: "1", title: "Morning on Lake Fork", location: "Lake Fork, TX", date: "Mar 15", catchCount: 4 },
-  { id: "2", title: "White River Float", location: "White River, AR", date: "Mar 12", catchCount: 7 },
-  { id: "3", title: "Table Rock Evening", location: "Table Rock Lake, MO", date: "Mar 8", catchCount: 2 },
-];
 
 const Index = () => {
   const navigate = useNavigate();
