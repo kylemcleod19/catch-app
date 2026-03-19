@@ -26,7 +26,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [saving, setSaving] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
 
-  const [title, setTitle] = useState("");
+  
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("12:00");
@@ -53,7 +53,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       .single()
       .then(({ data }) => {
         if (data) {
-          setTitle(data.title || "");
+          
           setDate(new Date(data.started_at));
           const start = new Date(data.started_at);
           setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
@@ -176,38 +176,33 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       const [eh, em] = endTime.split(":").map(Number);
       endedAt.setHours(eh, em, 0, 0);
 
-      // Auto-generate title from spot + date + species if user didn't set one
-      let finalTitle = title;
-      if (!finalTitle) {
-        const parts: string[] = [];
-        // Try to get spot/water body name
-        if (spotId) {
-          const { data: spot } = await supabase
-            .from("spots")
-            .select("name, body_of_water")
-            .eq("id", spotId)
-            .single();
-          if (spot) parts.push(spot.body_of_water || spot.name || "");
-        }
-        parts.push(format(date, "MMM d"));
-        // Get top species from catches
-        const { data: catches } = await supabase
-          .from("catches")
-          .select("species, quantity")
-          .eq("trip_id", tripId);
-        if (catches?.length) {
-          const speciesCounts: Record<string, number> = {};
-          catches.forEach((c) => {
-            speciesCounts[c.species] = (speciesCounts[c.species] || 0) + c.quantity;
-          });
-          const topSpecies = Object.entries(speciesCounts)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 2)
-            .map(([name]) => name);
-          if (topSpecies.length) parts.push(`– ${topSpecies.join(" & ")}`);
-        }
-        finalTitle = parts.filter(Boolean).join(" · ");
+      // Auto-generate title from spot + date + species
+      const parts: string[] = [];
+      if (spotId) {
+        const { data: spot } = await supabase
+          .from("spots")
+          .select("name, body_of_water")
+          .eq("id", spotId)
+          .single();
+        if (spot) parts.push(spot.body_of_water || spot.name || "");
       }
+      parts.push(format(date, "MMM d"));
+      const { data: catches } = await supabase
+        .from("catches")
+        .select("species, quantity")
+        .eq("trip_id", tripId);
+      if (catches?.length) {
+        const speciesCounts: Record<string, number> = {};
+        catches.forEach((c) => {
+          speciesCounts[c.species] = (speciesCounts[c.species] || 0) + c.quantity;
+        });
+        const topSpecies = Object.entries(speciesCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 2)
+          .map(([name]) => name);
+        if (topSpecies.length) parts.push(`– ${topSpecies.join(" & ")}`);
+      }
+      const finalTitle = parts.filter(Boolean).join(" · ");
 
       const { error } = await supabase
         .from("fishing_trips")
@@ -284,7 +279,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           onExpire={() => { turnstileTokenRef.current = ""; setTurnstileReady(false); }}
         />
       </VoiceLogModal>
-      <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
+      
 
       {/* Date & Times */}
       <div className="grid grid-cols-3 gap-2">
