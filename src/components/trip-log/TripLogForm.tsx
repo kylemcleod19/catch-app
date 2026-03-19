@@ -271,7 +271,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       </div>
 
       {/* Spot */}
-      <SpotPicker spotId={spotId} onSpotChange={setSpotId} />
+      <SpotPicker spotId={spotId} onSpotChange={setSpotId} tripId={tripId} />
 
       {/* Catches */}
       {user && <CatchLogger ref={catchLoggerRef} tripId={tripId} userId={user.id} />}

@@ -21,11 +21,12 @@ interface SpotData {
 interface SpotPickerProps {
   spotId: string | null;
   onSpotChange: (spotId: string | null) => void;
+  tripId?: string;
 }
 
 const mapStyle = { width: "100%", height: "200px", borderRadius: "0.75rem" };
 
-const SpotPicker = ({ spotId, onSpotChange }: SpotPickerProps) => {
+const SpotPicker = ({ spotId, onSpotChange, tripId }: SpotPickerProps) => {
   const { user } = useAuth();
   const [spots, setSpots] = useState<SpotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +68,19 @@ const SpotPicker = ({ spotId, onSpotChange }: SpotPickerProps) => {
     fetchSpots();
   }, [fetchSpots]);
 
-  const handleSelect = (spot: SpotData) => {
+  const handleSelect = async (spot: SpotData) => {
     setSelectedSpot(spot);
     onSpotChange(spot.id);
     setShowList(false);
     setSearchQuery("");
+
+    // Persist spot_id on the trip immediately
+    if (tripId) {
+      await supabase
+        .from("fishing_trips")
+        .update({ spot_id: spot.id } as any)
+        .eq("id", tripId);
+    }
   };
 
   const handleClear = () => {
