@@ -42,6 +42,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
   const turnstileTokenRef = useRef<string>("");
+  const [turnstileReady, setTurnstileReady] = useState(false);
 
   // Load existing draft trip data
   useEffect(() => {
