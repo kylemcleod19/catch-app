@@ -224,7 +224,7 @@ const Index = () => {
                   </div>
                 ) : (
                   recentTrips.map((trip) => (
-                    <RecentTripCard key={trip.id} {...trip} />
+                    <RecentTripCard key={trip.id} {...trip} onClick={() => setEditingTripId(trip.id)} />
                   ))
                 )}
               </div>
