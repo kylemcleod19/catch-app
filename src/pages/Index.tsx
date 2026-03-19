@@ -53,6 +53,14 @@ const Index = () => {
   const [checkingDraft, setCheckingDraft] = useState(true);
   const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [draftTripId, setDraftTripId] = useState<string | null>(null);
+  const [isLogging, setIsLogging] = useState(false);
+  const [checkingDraft, setCheckingDraft] = useState(true);
+  const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
 
   const fetchRecentTrips = useCallback(async () => {
     if (!user) return;
