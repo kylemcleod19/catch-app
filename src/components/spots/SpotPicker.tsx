@@ -26,7 +26,7 @@ interface SpotPickerProps {
 
 const mapStyle = { width: "100%", height: "200px", borderRadius: "0.75rem" };
 
-const SpotPicker = ({ spotId, onSpotChange }: SpotPickerProps) => {
+const SpotPicker = ({ spotId, onSpotChange, tripId }: SpotPickerProps) => {
   const { user } = useAuth();
   const [spots, setSpots] = useState<SpotData[]>([]);
   const [loading, setLoading] = useState(true);
