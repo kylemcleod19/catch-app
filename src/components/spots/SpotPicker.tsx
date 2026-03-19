@@ -67,11 +67,19 @@ const SpotPicker = ({ spotId, onSpotChange }: SpotPickerProps) => {
     fetchSpots();
   }, [fetchSpots]);
 
-  const handleSelect = (spot: SpotData) => {
+  const handleSelect = async (spot: SpotData) => {
     setSelectedSpot(spot);
     onSpotChange(spot.id);
     setShowList(false);
     setSearchQuery("");
+
+    // Persist spot_id on the trip immediately
+    if (tripId) {
+      await supabase
+        .from("fishing_trips")
+        .update({ spot_id: spot.id } as any)
+        .eq("id", tripId);
+    }
   };
 
   const handleClear = () => {
