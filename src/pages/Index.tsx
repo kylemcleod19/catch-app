@@ -60,34 +60,56 @@ const Index = () => {
     setLoadingTrips(true);
     const { data: trips } = await supabase
       .from("fishing_trips")
-      .select("id, title, location_name, started_at")
+      .select("id, started_at, spot_id")
       .eq("user_id", user.id)
       .eq("status", "completed")
       .order("started_at", { ascending: false })
       .limit(5);
 
-    if (trips) {
-      // Fetch catch counts for these trips
+    if (trips && trips.length > 0) {
       const tripIds = trips.map((t) => t.id);
-      const { data: catches } = await supabase
-        .from("catches")
-        .select("trip_id, quantity")
-        .in("trip_id", tripIds);
+      const spotIds = trips.map((t) => t.spot_id).filter(Boolean) as string[];
+
+      const [spotsRes, catchesRes] = await Promise.all([
+        spotIds.length > 0
+          ? supabase.from("spots").select("id, name, body_of_water").in("id", spotIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from("catches").select("trip_id, quantity, species").in("trip_id", tripIds),
+      ]);
+
+      const spotMap = new Map<string, { name: string | null; body_of_water: string }>();
+      spotsRes.data?.forEach((s) => spotMap.set(s.id, s));
 
       const countMap: Record<string, number> = {};
-      catches?.forEach((c) => {
+      const speciesMap: Record<string, Record<string, number>> = {};
+      catchesRes.data?.forEach((c) => {
         countMap[c.trip_id] = (countMap[c.trip_id] || 0) + c.quantity;
+        if (!speciesMap[c.trip_id]) speciesMap[c.trip_id] = {};
+        speciesMap[c.trip_id][c.species] = (speciesMap[c.trip_id][c.species] || 0) + c.quantity;
       });
 
       setRecentTrips(
-        trips.map((t) => ({
-          id: t.id,
-          title: t.title || "Untitled Trip",
-          location: t.location_name || "Unknown",
-          date: format(new Date(t.started_at), "MMM d"),
-          catchCount: countMap[t.id] || 0,
-        }))
+        trips.map((t) => {
+          const spot = t.spot_id ? spotMap.get(t.spot_id) : undefined;
+          const location = spot?.body_of_water || spot?.name || "No spot";
+          const topSpecies = Object.entries(speciesMap[t.id] || {})
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 2)
+            .map(([name]) => name);
+          const parts = [location !== "No spot" ? location : null, format(new Date(t.started_at), "MMM d")].filter(Boolean);
+          if (topSpecies.length) parts.push(`– ${topSpecies.join(" & ")}`);
+
+          return {
+            id: t.id,
+            title: parts.join(" · "),
+            location,
+            date: format(new Date(t.started_at), "MMM d"),
+            catchCount: countMap[t.id] || 0,
+          };
+        })
       );
+    } else {
+      setRecentTrips([]);
     }
     setLoadingTrips(false);
   }, [user]);
