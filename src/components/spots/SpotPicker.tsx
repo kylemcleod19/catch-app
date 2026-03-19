@@ -21,6 +21,7 @@ interface SpotData {
 interface SpotPickerProps {
   spotId: string | null;
   onSpotChange: (spotId: string | null) => void;
+  tripId?: string;
 }
 
 const mapStyle = { width: "100%", height: "200px", borderRadius: "0.75rem" };
