@@ -30,6 +30,7 @@ interface VoiceLogModalProps {
   onStartListening: () => void;
   onStopListening: () => void;
   onApply: () => void;
+  children?: React.ReactNode;
 }
 
 const VoiceLogModal = ({
