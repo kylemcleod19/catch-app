@@ -279,7 +279,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           onExpire={() => { turnstileTokenRef.current = ""; setTurnstileReady(false); }}
         />
       </VoiceLogModal>
-      <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
+      
 
       {/* Date & Times */}
       <div className="grid grid-cols-3 gap-2">
