@@ -104,6 +104,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           });
           // Reset token after use (single-use)
           turnstileTokenRef.current = "";
+          setTurnstileReady(false);
           if (error) throw error;
           setParsedData(data);
           setVoiceStage("done");
