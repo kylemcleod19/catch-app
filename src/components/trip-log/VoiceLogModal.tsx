@@ -30,6 +30,7 @@ interface VoiceLogModalProps {
   onStartListening: () => void;
   onStopListening: () => void;
   onApply: () => void;
+  children?: React.ReactNode;
 }
 
 const VoiceLogModal = ({
@@ -42,6 +43,7 @@ const VoiceLogModal = ({
   onStartListening,
   onStopListening,
   onApply,
+  children,
 }: VoiceLogModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,6 +56,8 @@ const VoiceLogModal = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Turnstile widget */}
+          {children}
           {/* Mic control */}
           {(stage === "idle" || stage === "listening") && (
             <div className="flex flex-col items-center gap-3 py-4">

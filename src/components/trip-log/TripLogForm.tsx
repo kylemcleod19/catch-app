@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 interface TripLogFormProps {
   tripId: string;
@@ -40,6 +41,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [parsedData, setParsedData] = useState<ParsedTripData | null>(null);
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
+  const turnstileTokenRef = useRef<string>("");
 
   // Load existing draft trip data
   useEffect(() => {
@@ -102,9 +104,14 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         setVoiceStage("parsing");
 
         try {
+          if (!turnstileTokenRef.current) {
+            throw new Error("Bot verification required. Please wait for the Turnstile widget to load.");
+          }
           const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-            body: { transcript: text },
+            body: { transcript: text, turnstileToken: turnstileTokenRef.current },
           });
+          // Reset token after use (single-use)
+          turnstileTokenRef.current = "";
           if (error) throw error;
           setParsedData(data);
           setVoiceStage("done");
@@ -244,7 +251,12 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onStartListening={startListening}
         onStopListening={stopListening}
         onApply={applyParsedData}
-      />
+      >
+        <TurnstileWidget
+          onToken={(token) => { turnstileTokenRef.current = token; }}
+          onExpire={() => { turnstileTokenRef.current = ""; }}
+        />
+      </VoiceLogModal>
       <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
 
       {/* Date & Times */}
