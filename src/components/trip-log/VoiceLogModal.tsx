@@ -56,6 +56,8 @@ const VoiceLogModal = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Turnstile widget */}
+          {children}
           {/* Mic control */}
           {(stage === "idle" || stage === "listening") && (
             <div className="flex flex-col items-center gap-3 py-4">
