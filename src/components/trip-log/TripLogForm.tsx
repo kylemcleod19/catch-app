@@ -26,7 +26,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [saving, setSaving] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
 
-  const [title, setTitle] = useState("");
+  
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("12:00");
