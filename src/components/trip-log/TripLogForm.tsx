@@ -42,6 +42,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
   const turnstileTokenRef = useRef<string>("");
+  const [turnstileReady, setTurnstileReady] = useState(false);
 
   // Load existing draft trip data
   useEffect(() => {
@@ -72,18 +73,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      toast.error(
-        isSafari
-          ? "Speech recognition is not available in Safari. Please try Chrome or Edge."
-          : "Speech recognition is not supported in this browser. Please try Chrome or Edge."
-      );
+      toast.error("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
       setVoiceStage("error");
-      setVoiceError(
-        isSafari
-          ? "Safari has limited support for speech recognition. Please use Chrome or Edge for voice logging."
-          : "Your browser does not support speech recognition. Please use Chrome or Edge."
-      );
+      setVoiceError("Your browser does not support speech recognition. Please use Chrome or Edge.");
       return;
     }
 
@@ -112,6 +104,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           });
           // Reset token after use (single-use)
           turnstileTokenRef.current = "";
+          setTurnstileReady(false);
           if (error) throw error;
           setParsedData(data);
           setVoiceStage("done");
@@ -251,10 +244,11 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onStartListening={startListening}
         onStopListening={stopListening}
         onApply={applyParsedData}
+        turnstileReady={turnstileReady}
       >
         <TurnstileWidget
-          onToken={(token) => { turnstileTokenRef.current = token; }}
-          onExpire={() => { turnstileTokenRef.current = ""; }}
+          onToken={(token) => { turnstileTokenRef.current = token; setTurnstileReady(true); }}
+          onExpire={() => { turnstileTokenRef.current = ""; setTurnstileReady(false); }}
         />
       </VoiceLogModal>
       <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />

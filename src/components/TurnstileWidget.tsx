@@ -57,7 +57,7 @@ const TurnstileWidget = ({ onToken, onExpire }: TurnstileWidgetProps) => {
     };
   }, [renderWidget]);
 
-  return <div ref={containerRef} className="flex justify-center" />;
+  return <div ref={containerRef} className="sr-only" aria-hidden="true" />;
 };
 
 export default TurnstileWidget;
