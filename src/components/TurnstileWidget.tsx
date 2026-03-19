@@ -5,7 +5,7 @@ interface TurnstileWidgetProps {
   onExpire?: () => void;
 }
 
-const SITE_KEY = "YOUR_CATCHAPP_SITE_KEY";
+const SITE_KEY = "0x4AAAAAACtSB3ohBhX7iv4n";
 
 const TurnstileWidget = ({ onToken, onExpire }: TurnstileWidgetProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
