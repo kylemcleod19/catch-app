@@ -29,7 +29,6 @@ interface SpotCreationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSpotCreated: (spot: CreatedSpot) => void;
-  /** Optional pre-set values to skip steps */
   initialStateCode?: string;
 }
 
@@ -51,7 +50,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [loadingWater, setLoadingWater] = useState(false);
   const [selectedWater, setSelectedWater] = useState("");
   const [customWater, setCustomWater] = useState("");
-  const [useCustom, setUseCustom] = useState(false);
   const [waterSearch, setWaterSearch] = useState("");
 
   // Step 3: Coordinates
@@ -59,6 +57,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [points, setPoints] = useState<SpotPoint[]>([]);
   const [newLabel, setNewLabel] = useState("Fishing spot");
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Fetch Google Maps API key
@@ -95,14 +94,32 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSiteType("Stream");
       setSelectedWater("");
       setCustomWater("");
-      setUseCustom(false);
       setPoints([]);
       setSpotName("");
       setNewLabel("Fishing spot");
+      setMapCenter(null);
     }
   }, [open, initialStateCode]);
 
-  const effectiveWater = useCustom ? customWater.trim() : selectedWater;
+  // When a water body is selected, fetch USGS coordinates to center the map
+  useEffect(() => {
+    if (!selectedWater || !stateCode) return;
+    supabase
+      .from("usgs_monitoring_locations")
+      .select("latitude, longitude")
+      .eq("state_code", stateCode)
+      .eq("normalized_water_body", selectedWater)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0 && data[0].latitude && data[0].longitude) {
+          setMapCenter({ lat: data[0].latitude, lng: data[0].longitude });
+        }
+      });
+  }, [selectedWater, stateCode]);
+
+  const effectiveWater = customWater.trim() || selectedWater;
 
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
@@ -184,6 +201,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     ? waterBodies.filter((w) => w.toLowerCase().includes(waterSearch.toLowerCase()))
     : waterBodies;
 
+  const hasUsgsData = waterBodies.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -246,8 +265,29 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               </Button>
             </div>
 
-            {!useCustom && (
+            {/* Custom input — always visible and prominent */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Name of water body</label>
+              <Input
+                placeholder="e.g. Brushy Creek, My Private Pond"
+                value={customWater}
+                onChange={(e) => {
+                  setCustomWater(e.target.value);
+                  if (e.target.value.trim()) setSelectedWater("");
+                }}
+                className="rounded-xl"
+              />
+            </div>
+
+            {/* USGS list — only show when data exists and custom is empty */}
+            {hasUsgsData && !customWater.trim() && (
               <>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">or choose from USGS data</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -264,9 +304,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 ) : (
                   <div className="max-h-48 overflow-y-auto border border-border rounded-xl divide-y divide-border">
                     {filteredWaterBodies.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-3 text-center">
-                        {waterBodies.length === 0 ? "No USGS data for this state/type yet" : "No matches"}
-                      </p>
+                      <p className="text-sm text-muted-foreground p-3 text-center">No matches</p>
                     ) : (
                       filteredWaterBodies.map((w) => (
                         <button
@@ -277,7 +315,10 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                               ? "bg-primary/10 text-primary font-medium"
                               : "hover:bg-muted text-foreground"
                           }`}
-                          onClick={() => setSelectedWater(w)}
+                          onClick={() => {
+                            setSelectedWater(w);
+                            setCustomWater("");
+                          }}
                         >
                           {w}
                         </button>
@@ -286,31 +327,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   </div>
                 )}
               </>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground"
-                onClick={() => {
-                  setUseCustom(!useCustom);
-                  setSelectedWater("");
-                  setCustomWater("");
-                }}
-              >
-                {useCustom ? "Choose from USGS list" : "Enter custom name"}
-              </Button>
-            </div>
-
-            {useCustom && (
-              <Input
-                placeholder="e.g. My Private Pond"
-                value={customWater}
-                onChange={(e) => setCustomWater(e.target.value)}
-                className="rounded-xl"
-              />
             )}
 
             <div className="flex justify-between">
@@ -354,7 +370,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               </Button>
             </div>
 
-            <MapSection apiKey={apiKey} points={points} onMapClick={handleMapClick} mapRef={mapRef} />
+            <MapSection apiKey={apiKey} points={points} onMapClick={handleMapClick} mapRef={mapRef} initialCenter={mapCenter} />
 
             {/* Points list */}
             {points.length > 0 && (
@@ -396,11 +412,13 @@ const MapSection = ({
   points,
   onMapClick,
   mapRef,
+  initialCenter,
 }: {
   apiKey: string | null;
   points: SpotPoint[];
   onMapClick: (e: google.maps.MapMouseEvent) => void;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
+  initialCenter?: { lat: number; lng: number } | null;
 }) => {
   if (!apiKey) {
     return (
@@ -410,7 +428,7 @@ const MapSection = ({
     );
   }
 
-  return <MapInner apiKey={apiKey} points={points} onMapClick={onMapClick} mapRef={mapRef} />;
+  return <MapInner apiKey={apiKey} points={points} onMapClick={onMapClick} mapRef={mapRef} initialCenter={initialCenter} />;
 };
 
 const MapInner = ({
@@ -418,17 +436,21 @@ const MapInner = ({
   points,
   onMapClick,
   mapRef,
+  initialCenter,
 }: {
   apiKey: string;
   points: SpotPoint[];
   onMapClick: (e: google.maps.MapMouseEvent) => void;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
+  initialCenter?: { lat: number; lng: number } | null;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
 
   const center = points.length > 0
     ? { lat: points[points.length - 1].latitude, lng: points[points.length - 1].longitude }
-    : { lat: 32.87, lng: -97.34 };
+    : initialCenter || { lat: 32.87, lng: -97.34 };
+
+  const zoom = points.length > 0 ? 13 : initialCenter ? 12 : 6;
 
   if (!isLoaded) {
     return (
@@ -442,7 +464,7 @@ const MapInner = ({
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
       center={center}
-      zoom={points.length > 0 ? 13 : 6}
+      zoom={zoom}
       onClick={onMapClick}
       onLoad={(map) => { mapRef.current = map; }}
       options={{ disableDefaultUI: true, zoomControl: true, mapTypeControl: false, streetViewControl: false }}
