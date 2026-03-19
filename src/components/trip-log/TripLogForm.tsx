@@ -73,18 +73,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      toast.error(
-        isSafari
-          ? "Speech recognition is not available in Safari. Please try Chrome or Edge."
-          : "Speech recognition is not supported in this browser. Please try Chrome or Edge."
-      );
+      toast.error("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
       setVoiceStage("error");
-      setVoiceError(
-        isSafari
-          ? "Safari has limited support for speech recognition. Please use Chrome or Edge for voice logging."
-          : "Your browser does not support speech recognition. Please use Chrome or Edge."
-      );
+      setVoiceError("Your browser does not support speech recognition. Please use Chrome or Edge.");
       return;
     }
 
