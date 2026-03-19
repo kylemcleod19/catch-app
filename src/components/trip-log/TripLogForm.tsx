@@ -251,7 +251,12 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onStartListening={startListening}
         onStopListening={stopListening}
         onApply={applyParsedData}
-      />
+      >
+        <TurnstileWidget
+          onToken={(token) => { turnstileTokenRef.current = token; }}
+          onExpire={() => { turnstileTokenRef.current = ""; }}
+        />
+      </VoiceLogModal>
       <Input placeholder="Trip name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
 
       {/* Date & Times */}
