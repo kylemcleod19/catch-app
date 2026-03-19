@@ -43,6 +43,7 @@ const VoiceLogModal = ({
   onStartListening,
   onStopListening,
   onApply,
+  children,
 }: VoiceLogModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
