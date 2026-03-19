@@ -11,8 +11,11 @@ import { format } from "date-fns";
 
 const DRAFT_KEY = "draftTripId";
 
-const RecentTripCard = ({ title, location, date, catchCount }: { title: string; location: string; date: string; catchCount: number }) => (
-  <div className="catch-card flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer">
+const RecentTripCard = ({ title, location, date, catchCount, onClick }: { title: string; location: string; date: string; catchCount: number; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="w-full catch-card flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer text-left"
+  >
     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
       <Fish className="w-6 h-6 text-primary" />
     </div>
@@ -31,7 +34,7 @@ const RecentTripCard = ({ title, location, date, catchCount }: { title: string; 
       <span className="text-xs text-muted-foreground">fish</span>
       <ChevronRight className="w-4 h-4 text-muted-foreground ml-1" />
     </div>
-  </div>
+  </button>
 );
 
 interface RecentTrip {
