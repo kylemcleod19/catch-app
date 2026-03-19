@@ -177,7 +177,16 @@ const Index = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        {isLogging && draftTripId ? (
+        {editingTripId ? (
+          <TripLogForm
+            tripId={editingTripId}
+            onClose={() => setEditingTripId(null)}
+            onSuccess={() => {
+              setEditingTripId(null);
+              fetchRecentTrips();
+            }}
+          />
+        ) : isLogging && draftTripId ? (
           <TripLogForm tripId={draftTripId} onClose={handleCancel} onSuccess={handleComplete} />
         ) : (
           <>
