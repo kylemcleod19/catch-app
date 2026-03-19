@@ -104,9 +104,14 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         setVoiceStage("parsing");
 
         try {
+          if (!turnstileTokenRef.current) {
+            throw new Error("Bot verification required. Please wait for the Turnstile widget to load.");
+          }
           const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-            body: { transcript: text },
+            body: { transcript: text, turnstileToken: turnstileTokenRef.current },
           });
+          // Reset token after use (single-use)
+          turnstileTokenRef.current = "";
           if (error) throw error;
           setParsedData(data);
           setVoiceStage("done");
