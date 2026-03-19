@@ -44,8 +44,10 @@ const VoiceLogModal = ({
   onStartListening,
   onStopListening,
   onApply,
+  turnstileReady = false,
   children,
 }: VoiceLogModalProps) => {
+  const micDisabled = !turnstileReady && stage === "idle";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-2xl">
