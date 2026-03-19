@@ -53,7 +53,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       .single()
       .then(({ data }) => {
         if (data) {
-          setTitle(data.title || "");
+          
           setDate(new Date(data.started_at));
           const start = new Date(data.started_at);
           setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
