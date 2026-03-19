@@ -11,7 +11,35 @@ serve(async (req) => {
   }
 
   try {
-    const { transcript } = await req.json();
+    const { transcript, turnstileToken } = await req.json();
+
+    // --- Turnstile verification ---
+    if (!turnstileToken || typeof turnstileToken !== "string") {
+      return new Response(JSON.stringify({ error: "Turnstile token is required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY_CATCHAPP");
+    if (!TURNSTILE_SECRET) {
+      throw new Error("TURNSTILE_SECRET_KEY_CATCHAPP is not configured");
+    }
+
+    const turnstileResp = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret: TURNSTILE_SECRET, response: turnstileToken }),
+    });
+    const turnstileResult = await turnstileResp.json();
+    if (!turnstileResult.success) {
+      return new Response(JSON.stringify({ error: "Turnstile verification failed" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // --- End Turnstile verification ---
+
     if (!transcript || typeof transcript !== "string") {
       return new Response(JSON.stringify({ error: "transcript is required" }), {
         status: 400,
