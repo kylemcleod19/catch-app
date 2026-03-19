@@ -30,6 +30,7 @@ interface VoiceLogModalProps {
   onStartListening: () => void;
   onStopListening: () => void;
   onApply: () => void;
+  turnstileReady?: boolean;
   children?: React.ReactNode;
 }
 
