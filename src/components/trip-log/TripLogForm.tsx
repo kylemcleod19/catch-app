@@ -43,6 +43,13 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const recognitionRef = useRef<any>(null);
   const turnstileTokenRef = useRef<string>("");
   const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileRenderKey, setTurnstileRenderKey] = useState(0);
+
+  const resetTurnstile = useCallback(() => {
+    turnstileTokenRef.current = "";
+    setTurnstileReady(false);
+    setTurnstileRenderKey((current) => current + 1);
+  }, []);
 
   // Load existing draft trip data
   useEffect(() => {
@@ -79,6 +86,12 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       return;
     }
 
+    if (!turnstileTokenRef.current) {
+      setVoiceStage("error");
+      setVoiceError("Complete the security check before using Voice Log.");
+      return;
+    }
+
     setVoiceStage("listening");
     setTranscript("");
     setParsedData(null);
@@ -99,12 +112,14 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           if (!turnstileTokenRef.current) {
             throw new Error("Bot verification required. Please wait for the Turnstile widget to load.");
           }
+
+          const currentTurnstileToken = turnstileTokenRef.current;
+          resetTurnstile();
+
           const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-            body: { transcript: text, turnstileToken: turnstileTokenRef.current },
+            body: { transcript: text, turnstileToken: currentTurnstileToken },
           });
-          // Reset token after use (single-use)
-          turnstileTokenRef.current = "";
-          setTurnstileReady(false);
+
           if (error) throw error;
           setParsedData(data);
           setVoiceStage("done");
@@ -255,6 +270,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           setTranscript("");
           setParsedData(null);
           setVoiceError("");
+          resetTurnstile();
           setVoiceModalOpen(true);
         }}
       >
@@ -275,8 +291,15 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         turnstileReady={turnstileReady}
       >
         <TurnstileWidget
+          key={turnstileRenderKey}
           onToken={(token) => { turnstileTokenRef.current = token; setTurnstileReady(true); }}
           onExpire={() => { turnstileTokenRef.current = ""; setTurnstileReady(false); }}
+          onError={(message) => {
+            turnstileTokenRef.current = "";
+            setTurnstileReady(false);
+            setVoiceError(message);
+            toast.error(message);
+          }}
         />
       </VoiceLogModal>
       

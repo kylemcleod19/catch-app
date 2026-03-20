@@ -3,42 +3,73 @@ import { useEffect, useRef, useCallback } from "react";
 interface TurnstileWidgetProps {
   onToken: (token: string) => void;
   onExpire?: () => void;
+  onError?: (message: string) => void;
+}
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, unknown>) => string;
+      remove: (widgetId: string) => void;
+      reset: (widgetId: string) => void;
+    };
+    onTurnstileLoad?: () => void;
+  }
 }
 
 const SITE_KEY = "0x4AAAAAACtSB3ohBhX7iv4n";
 
-const TurnstileWidget = ({ onToken, onExpire }: TurnstileWidgetProps) => {
+const TurnstileWidget = ({ onToken, onExpire, onError }: TurnstileWidgetProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !(window as any).turnstile) return;
-    // Clear previous widget
-    if (widgetIdRef.current !== null) {
-      (window as any).turnstile.remove(widgetIdRef.current);
+  const resetWidget = useCallback(() => {
+    if (widgetIdRef.current !== null && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
     }
-    widgetIdRef.current = (window as any).turnstile.render(containerRef.current, {
+  }, []);
+
+  const renderWidget = useCallback(() => {
+    if (!containerRef.current || !window.turnstile) return;
+
+    if (widgetIdRef.current !== null) {
+      window.turnstile.remove(widgetIdRef.current);
+      widgetIdRef.current = null;
+    }
+
+    containerRef.current.innerHTML = "";
+
+    widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: SITE_KEY,
+      appearance: "interaction-only",
       callback: (token: string) => onToken(token),
-      "expired-callback": () => onExpire?.(),
+      "expired-callback": () => {
+        onExpire?.();
+        resetWidget();
+      },
+      "error-callback": (errorCode: string | number) => {
+        onExpire?.();
+        onError?.(`Security check failed. Please try again. (${String(errorCode)})`);
+        resetWidget();
+        return true;
+      },
       theme: "auto",
     });
-  }, [onToken, onExpire]);
+  }, [onError, onExpire, onToken, resetWidget]);
 
   useEffect(() => {
-    // Load script if not already loaded
-    if (!(window as any).turnstile) {
+    if (!window.turnstile) {
       const existing = document.querySelector('script[src*="turnstile"]');
       if (!existing) {
         const script = document.createElement("script");
         script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad";
         script.async = true;
-        (window as any).onTurnstileLoad = () => renderWidget();
+        script.defer = true;
+        window.onTurnstileLoad = () => renderWidget();
         document.head.appendChild(script);
       } else {
-        // Script exists but API not ready yet — wait
         const interval = setInterval(() => {
-          if ((window as any).turnstile) {
+          if (window.turnstile) {
             clearInterval(interval);
             renderWidget();
           }
@@ -50,14 +81,18 @@ const TurnstileWidget = ({ onToken, onExpire }: TurnstileWidgetProps) => {
     }
 
     return () => {
-      if (widgetIdRef.current !== null && (window as any).turnstile) {
-        (window as any).turnstile.remove(widgetIdRef.current);
+      if (widgetIdRef.current !== null && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
       }
     };
   }, [renderWidget]);
 
-  return <div ref={containerRef} className="sr-only" aria-hidden="true" />;
+  return (
+    <div className="flex justify-center" aria-live="polite">
+      <div ref={containerRef} />
+    </div>
+  );
 };
 
 export default TurnstileWidget;
