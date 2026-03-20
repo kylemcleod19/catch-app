@@ -30,8 +30,6 @@ interface VoiceLogModalProps {
   onStartListening: () => void;
   onStopListening: () => void;
   onApply: () => void;
-  turnstileReady?: boolean;
-  children?: React.ReactNode;
 }
 
 const VoiceLogModal = ({
@@ -44,10 +42,7 @@ const VoiceLogModal = ({
   onStartListening,
   onStopListening,
   onApply,
-  turnstileReady = false,
-  children,
 }: VoiceLogModalProps) => {
-  const micDisabled = !turnstileReady && stage === "idle";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-2xl">
@@ -59,22 +54,17 @@ const VoiceLogModal = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Turnstile widget */}
-          {children}
           {/* Mic control */}
           {(stage === "idle" || stage === "listening") && (
             <div className="flex flex-col items-center gap-3 py-4">
               <button
                 type="button"
-                disabled={micDisabled}
                 onClick={stage === "listening" ? onStopListening : onStartListening}
                 className={cn(
                   "w-20 h-20 rounded-full flex items-center justify-center transition-all",
-                  micDisabled
-                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
-                    : stage === "listening"
-                      ? "bg-destructive text-destructive-foreground animate-pulse"
-                      : "bg-primary text-primary-foreground hover:opacity-90"
+                  stage === "listening"
+                    ? "bg-destructive text-destructive-foreground animate-pulse"
+                    : "bg-primary text-primary-foreground hover:opacity-90"
                 )}
               >
                 {stage === "listening" ? (
@@ -84,11 +74,9 @@ const VoiceLogModal = ({
                 )}
               </button>
               <p className="text-sm text-muted-foreground">
-                {micDisabled
-                  ? "Verifying… please wait"
-                  : stage === "listening"
-                    ? "Listening… tap to stop"
-                    : "Tap to start speaking"}
+                {stage === "listening"
+                  ? "Listening… tap to stop"
+                  : "Tap to start speaking"}
               </p>
             </div>
           )}

@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
-import TurnstileWidget from "@/components/TurnstileWidget";
 
 interface TripLogFormProps {
   tripId: string;
@@ -26,7 +25,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [saving, setSaving] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
 
-  
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("12:00");
@@ -41,15 +39,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [parsedData, setParsedData] = useState<ParsedTripData | null>(null);
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef<any>(null);
-  const turnstileTokenRef = useRef<string>("");
-  const [turnstileReady, setTurnstileReady] = useState(false);
-  const [turnstileRenderKey, setTurnstileRenderKey] = useState(0);
-
-  const resetTurnstile = useCallback(() => {
-    turnstileTokenRef.current = "";
-    setTurnstileReady(false);
-    setTurnstileRenderKey((current) => current + 1);
-  }, []);
 
   // Load existing draft trip data
   useEffect(() => {
@@ -60,7 +49,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       .single()
       .then(({ data }) => {
         if (data) {
-          
           setDate(new Date(data.started_at));
           const start = new Date(data.started_at);
           setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
@@ -86,12 +74,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       return;
     }
 
-    if (!turnstileTokenRef.current) {
-      setVoiceStage("error");
-      setVoiceError("Complete the security check before using Voice Log.");
-      return;
-    }
-
     setVoiceStage("listening");
     setTranscript("");
     setParsedData(null);
@@ -109,15 +91,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         setVoiceStage("parsing");
 
         try {
-          if (!turnstileTokenRef.current) {
-            throw new Error("Bot verification required. Please wait for the Turnstile widget to load.");
-          }
-
-          const currentTurnstileToken = turnstileTokenRef.current;
-          resetTurnstile();
-
           const { data, error } = await supabase.functions.invoke("parse-trip-voice", {
-            body: { transcript: text, turnstileToken: currentTurnstileToken },
+            body: { transcript: text },
           });
 
           if (error) throw error;
@@ -165,7 +140,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     if (parsedData.start_time) setStartTime(parsedData.start_time);
     if (parsedData.end_time) setEndTime(parsedData.end_time);
     if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
-    // Voice location is handled separately — user should pick/create a spot
     if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
     if (parsedData.catches?.length && catchLoggerRef.current) {
@@ -270,7 +244,6 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           setTranscript("");
           setParsedData(null);
           setVoiceError("");
-          resetTurnstile();
           setVoiceModalOpen(true);
         }}
       >
@@ -288,21 +261,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onStartListening={startListening}
         onStopListening={stopListening}
         onApply={applyParsedData}
-        turnstileReady={turnstileReady}
-      >
-        <TurnstileWidget
-          key={turnstileRenderKey}
-          onToken={(token) => { turnstileTokenRef.current = token; setTurnstileReady(true); }}
-          onExpire={() => { turnstileTokenRef.current = ""; setTurnstileReady(false); }}
-          onError={(message) => {
-            turnstileTokenRef.current = "";
-            setTurnstileReady(false);
-            setVoiceError(message);
-            toast.error(message);
-          }}
-        />
-      </VoiceLogModal>
-      
+      />
 
       {/* Date & Times */}
       <div className="grid grid-cols-3 gap-2">
