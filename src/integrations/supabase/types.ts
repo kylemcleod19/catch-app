@@ -176,6 +176,7 @@ export type Database = {
           demo_session_id: string | null
           display_name: string | null
           favorite_species: string[] | null
+          home_state: string | null
           home_water: string | null
           id: string
           is_demo: boolean
@@ -189,6 +190,7 @@ export type Database = {
           demo_session_id?: string | null
           display_name?: string | null
           favorite_species?: string[] | null
+          home_state?: string | null
           home_water?: string | null
           id?: string
           is_demo?: boolean
@@ -202,6 +204,7 @@ export type Database = {
           demo_session_id?: string | null
           display_name?: string | null
           favorite_species?: string[] | null
+          home_state?: string | null
           home_water?: string | null
           id?: string
           is_demo?: boolean
