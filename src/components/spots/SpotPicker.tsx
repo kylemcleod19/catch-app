@@ -24,7 +24,7 @@ interface SpotPickerProps {
   tripId?: string;
 }
 
-const mapStyle = { width: "100%", height: "200px", borderRadius: "0.75rem" };
+const mapStyle = { width: "100%", height: "max(40vh, 250px)", borderRadius: "0.75rem" };
 
 const SpotPicker = ({ spotId, onSpotChange, tripId }: SpotPickerProps) => {
   const { user } = useAuth();
@@ -320,7 +320,7 @@ const AddPointMapInner = ({
       zoom={existingPoints.length > 0 ? 13 : 6}
       onClick={onMapClick}
       onLoad={(map) => { mapRef.current = map; }}
-      options={{ disableDefaultUI: true, zoomControl: true }}
+      options={{ gestureHandling: "greedy", zoomControl: true, mapTypeControl: true, streetViewControl: false, fullscreenControl: false }}
     >
       {existingPoints.map((p, i) => (
         <Marker key={i} position={{ lat: p.latitude, lng: p.longitude }} title={p.label} opacity={0.5} />
