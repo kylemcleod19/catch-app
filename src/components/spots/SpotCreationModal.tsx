@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeState } from "@/hooks/useHomeState";
 import { toast } from "sonner";
-import { US_STATES } from "@/lib/us-states";
+import { US_STATES, getStateName } from "@/lib/us-states";
 import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search, Navigation } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
@@ -44,7 +44,7 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "usgs" | "homebase" | "holes";
+type Step = "state" | "water" | "usgs" | "homebase" | "holes" | "naming";
 
 const LIBRARIES: ("places")[] = ["places"];
 
@@ -151,7 +151,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const handlePlaceSelected = (place: { name: string; lat: number; lng: number }) => {
-    setSpotName(place.name);
+    if (!spotName) setSpotName(place.name);
     setHomeBasePoint({ label: "Home Base", latitude: place.lat, longitude: place.lng });
     mapRef.current?.panTo({ lat: place.lat, lng: place.lng });
     mapRef.current?.setZoom(15);
@@ -160,6 +160,10 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const handleHomeBaseLongPress = useCallback((coords: { lat: number; lng: number }) => {
     setHomeBasePoint({ label: "Home Base", latitude: coords.lat, longitude: coords.lng });
   }, []);
+
+  const handleClearHomeBase = () => {
+    setHomeBasePoint(null);
+  };
 
   const handleHoleLongPress = useCallback((coords: { lat: number; lng: number }) => {
     setPendingHoleCoords(coords);
@@ -247,12 +251,31 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             {step === "usgs" && "Link USGS Location"}
             {step === "homebase" && "Set Home Base"}
             {step === "holes" && "Add Fishing Holes"}
+            {step === "naming" && "Name Your Spot"}
           </DialogTitle>
+          {/* Show current state context on non-state steps */}
+          {step !== "state" && stateCode && (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors mt-1"
+              onClick={() => setStep("state")}
+            >
+              <MapPin className="w-3 h-3" />
+              {getStateName(stateCode)}
+              <span className="text-[10px] underline">change</span>
+            </button>
+          )}
         </DialogHeader>
 
         {/* Step 1: State */}
         {step === "state" && (
           <div className="space-y-4">
+            {homeState && (
+              <div className="p-3 bg-muted rounded-xl">
+                <p className="text-xs text-muted-foreground mb-1">Your home state</p>
+                <p className="text-sm font-medium text-foreground">{getStateName(homeState)}</p>
+              </div>
+            )}
             <Select value={stateCode} onValueChange={setStateCode}>
               <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="Choose a state" />
@@ -380,14 +403,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         {step === "homebase" && (
           <HomeBaseStep
             effectiveWater={effectiveWater}
-            spotName={spotName}
-            setSpotName={setSpotName}
             homeBasePoint={homeBasePoint}
             apiKey={apiKey}
             mapCenter={mapCenter}
             mapRef={mapRef}
             onPlaceSelected={handlePlaceSelected}
             onLongPress={handleHomeBaseLongPress}
+            onClearHomeBase={handleClearHomeBase}
             onLocateMe={() => handleLocateMe(mapRef)}
             onBack={() => setStep("usgs")}
             onNext={() => setStep("holes")}
@@ -408,9 +430,56 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             onRemoveHole={removeHole}
             onLocateMe={() => handleLocateMe(holesMapRef)}
             onBack={() => setStep("homebase")}
-            onSave={handleSave}
-            saving={saving}
+            onNext={() => setStep("naming")}
           />
+        )}
+
+        {/* Step 6: Naming (optional) */}
+        {step === "naming" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              on <span className="font-semibold text-foreground">{effectiveWater}</span>
+            </p>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Spot name (optional)</label>
+              <Input
+                placeholder="e.g. Allen Bates Park, My secret spot"
+                value={spotName}
+                onChange={(e) => setSpotName(e.target.value)}
+                className="rounded-xl"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Give it a memorable name. The water body is already saved separately.
+              </p>
+            </div>
+
+            {/* Summary */}
+            <div className="bg-muted rounded-xl p-3 space-y-1.5 text-sm">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Summary</p>
+              <p className="text-foreground">{effectiveWater} · {getStateName(stateCode)}</p>
+              {homeBasePoint && (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <MapPin className="w-3 h-3 text-primary" /> Home Base set
+                </div>
+              )}
+              {holes.length > 0 && (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <MapPin className="w-3 h-3 text-primary" /> {holes.length} hole{holes.length !== 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between">
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("holes")}>
+                <ChevronLeft className="w-4 h-4" /> Back
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-1">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Create Spot
+              </Button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
@@ -420,18 +489,17 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 /* ─── Home Base Step ─── */
 
 const HomeBaseStep = ({
-  effectiveWater, spotName, setSpotName, homeBasePoint, apiKey, mapCenter, mapRef,
-  onPlaceSelected, onLongPress, onLocateMe, onBack, onNext,
+  effectiveWater, homeBasePoint, apiKey, mapCenter, mapRef,
+  onPlaceSelected, onLongPress, onClearHomeBase, onLocateMe, onBack, onNext,
 }: {
   effectiveWater: string;
-  spotName: string;
-  setSpotName: (v: string) => void;
   homeBasePoint: SpotPoint | null;
   apiKey: string | null;
   mapCenter: { lat: number; lng: number } | null;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
   onLongPress: (coords: { lat: number; lng: number }) => void;
+  onClearHomeBase: () => void;
   onLocateMe: () => void;
   onBack: () => void;
   onNext: () => void;
@@ -443,13 +511,6 @@ const HomeBaseStep = ({
       </p>
 
       <PlacesAutocomplete map={mapRef.current} onPlaceSelected={onPlaceSelected} />
-
-      <Input
-        placeholder="Spot name (e.g. Allen Bates Park)"
-        value={spotName}
-        onChange={(e) => setSpotName(e.target.value)}
-        className="rounded-xl"
-      />
 
       <p className="text-xs text-muted-foreground">
         Search above or hold on the map to set your entry point / parking.
@@ -476,6 +537,9 @@ const HomeBaseStep = ({
           <span className="text-xs text-muted-foreground tabular-nums">
             {homeBasePoint.latitude.toFixed(4)}, {homeBasePoint.longitude.toFixed(4)}
           </span>
+          <button type="button" onClick={onClearHomeBase} className="text-muted-foreground hover:text-destructive p-0.5">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -517,7 +581,7 @@ const HomeBaseMapInner = ({
   const center = homeBasePoint
     ? { lat: homeBasePoint.latitude, lng: homeBasePoint.longitude }
     : initialCenter || { lat: 32.87, lng: -97.34 };
-  const zoom = homeBasePoint ? 15 : initialCenter ? 12 : 6;
+  const zoom = homeBasePoint ? 15 : initialCenter ? 14 : 10;
 
   if (!isLoaded) return <MapLoading />;
 
@@ -548,7 +612,7 @@ const HomeBaseMapInner = ({
 
 const HolesStep = ({
   homeBasePoint, holes, pendingHoleCoords, apiKey, holesMapRef,
-  onLongPress, onConfirmHole, onCancelHole, onRemoveHole, onLocateMe, onBack, onSave, saving,
+  onLongPress, onConfirmHole, onCancelHole, onRemoveHole, onLocateMe, onBack, onNext, saving,
 }: {
   homeBasePoint: SpotPoint | null;
   holes: SpotPoint[];
@@ -561,8 +625,8 @@ const HolesStep = ({
   onRemoveHole: (idx: number) => void;
   onLocateMe: () => void;
   onBack: () => void;
-  onSave: () => void;
-  saving: boolean;
+  onNext: () => void;
+  saving?: boolean;
 }) => {
   return (
     <div className="space-y-3">
@@ -612,9 +676,8 @@ const HolesStep = ({
 
       <div className="flex justify-between">
         <Button variant="outline" className="rounded-xl gap-1" onClick={onBack}><ChevronLeft className="w-4 h-4" /> Back</Button>
-        <Button onClick={onSave} disabled={saving} className="rounded-xl gap-1">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Create Spot
+        <Button onClick={onNext} className="rounded-xl gap-1">
+          Next <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
     </div>
@@ -660,7 +723,7 @@ const HolesMapInner = ({
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
       center={center}
-      zoom={homeBasePoint ? 15 : 6}
+      zoom={homeBasePoint ? 15 : 10}
       onMouseDown={longPress.onMouseDown}
       onMouseUp={longPress.onMouseUp}
       onLoad={(map) => { holesMapRef.current = map; }}
