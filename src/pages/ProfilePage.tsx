@@ -1,12 +1,22 @@
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut } from "lucide-react";
+import { useHomeState } from "@/hooks/useHomeState";
+import { US_STATES, getStateName } from "@/lib/us-states";
+import { LogOut, MapPin } from "lucide-react";
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { user, isDemo, signOut } = useAuth();
+  const { homeState, updateHomeState } = useHomeState();
   const displayName = user?.user_metadata?.display_name || "Angler";
   const initial = displayName.charAt(0).toUpperCase();
+
+  const handleStateChange = async (value: string) => {
+    await updateHomeState(value);
+    toast.success(`Home state set to ${getStateName(value)}`);
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -31,6 +41,29 @@ const ProfilePage = () => {
               <p className="text-xs text-muted-foreground">{user.email}</p>
             )}
           </div>
+        </div>
+
+        {/* Home State */}
+        <div className="catch-card space-y-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-card-foreground">Home State</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Sets your default state when adding new fishing spots.
+          </p>
+          <Select value={homeState ?? ""} onValueChange={handleStateChange}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder="Select your home state" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {US_STATES.map((s) => (
+                <SelectItem key={s.code} value={s.code}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Button

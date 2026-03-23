@@ -3,11 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHomeState } from "@/hooks/useHomeState";
 import { toast } from "sonner";
-import { US_STATES } from "@/lib/us-states";
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search } from "lucide-react";
+import { US_STATES, getStateName } from "@/lib/us-states";
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search, Navigation } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
 interface SpotPoint {
@@ -25,6 +27,13 @@ export interface CreatedSpot {
   points: SpotPoint[];
 }
 
+interface UsgsLocation {
+  site_id: string;
+  monitoring_location_name: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 interface SpotCreationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,17 +41,19 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "coordinates";
+type Step = "state" | "water" | "usgs" | "coordinates";
 
 const mapContainerStyle = { width: "100%", height: "260px", borderRadius: "0.75rem" };
 
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
+  const { homeState, updateHomeState } = useHomeState();
   const [step, setStep] = useState<Step>("state");
   const [saving, setSaving] = useState(false);
 
   // Step 1: State
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
+  const [saveAsHome, setSaveAsHome] = useState(false);
 
   // Step 2: Water body
   const [siteType, setSiteType] = useState<"Stream" | "Lake, Reservoir, Impoundment">("Stream");
@@ -51,6 +62,11 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [selectedWater, setSelectedWater] = useState("");
   const [customWater, setCustomWater] = useState("");
   const [waterSearch, setWaterSearch] = useState("");
+
+  // Step 2.5: USGS location selection
+  const [usgsLocations, setUsgsLocations] = useState<UsgsLocation[]>([]);
+  const [loadingUsgs, setLoadingUsgs] = useState(false);
+  const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
   // Step 3: Coordinates
   const [spotName, setSpotName] = useState("");
@@ -67,21 +83,17 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     });
   }, []);
 
-  // Fetch water bodies when state + site type changes
+  // Fetch water bodies using RPC (no row limit)
   useEffect(() => {
     if (!stateCode) return;
     setLoadingWater(true);
     setSelectedWater("");
     setWaterSearch("");
     supabase
-      .from("usgs_monitoring_locations")
-      .select("normalized_water_body")
-      .eq("state_code", stateCode)
-      .eq("site_type", siteType)
-      .not("normalized_water_body", "is", null)
+      .rpc("get_distinct_water_bodies", { _state_code: stateCode, _site_type: siteType })
       .then(({ data }) => {
-        const unique = [...new Set((data || []).map((d) => d.normalized_water_body!).filter(Boolean))].sort();
-        setWaterBodies(unique);
+        const bodies = (data || []).map((d: any) => d.normalized_water_body as string).filter(Boolean);
+        setWaterBodies(bodies);
         setLoadingWater(false);
       });
   }, [stateCode, siteType]);
@@ -89,8 +101,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   // Reset on open
   useEffect(() => {
     if (open) {
-      setStep(initialStateCode ? "water" : "state");
-      setStateCode(initialStateCode ?? "");
+      const defaultState = initialStateCode ?? homeState ?? "";
+      setStep(defaultState ? "water" : "state");
+      setStateCode(defaultState);
       setSiteType("Stream");
       setSelectedWater("");
       setCustomWater("");
@@ -98,28 +111,29 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSpotName("");
       setNewLabel("Fishing spot");
       setMapCenter(null);
+      setSaveAsHome(false);
+      setSelectedUsgs(null);
+      setUsgsLocations([]);
     }
-  }, [open, initialStateCode]);
-
-  // When a water body is selected, fetch USGS coordinates to center the map
-  useEffect(() => {
-    if (!selectedWater || !stateCode) return;
-    supabase
-      .from("usgs_monitoring_locations")
-      .select("latitude, longitude")
-      .eq("state_code", stateCode)
-      .eq("normalized_water_body", selectedWater)
-      .not("latitude", "is", null)
-      .not("longitude", "is", null)
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0 && data[0].latitude && data[0].longitude) {
-          setMapCenter({ lat: data[0].latitude, lng: data[0].longitude });
-        }
-      });
-  }, [selectedWater, stateCode]);
+  }, [open, initialStateCode, homeState]);
 
   const effectiveWater = customWater.trim() || selectedWater;
+
+  // Fetch USGS locations for selected water body
+  const fetchUsgsLocations = useCallback(async () => {
+    if (!effectiveWater || !stateCode) return;
+    setLoadingUsgs(true);
+    const { data } = await supabase
+      .from("usgs_monitoring_locations")
+      .select("site_id, monitoring_location_name, latitude, longitude")
+      .eq("state_code", stateCode)
+      .eq("normalized_water_body", effectiveWater)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .order("monitoring_location_name");
+    setUsgsLocations((data as UsgsLocation[]) || []);
+    setLoadingUsgs(false);
+  }, [effectiveWater, stateCode]);
 
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
@@ -150,6 +164,14 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     );
   };
 
+  const handleNextToUsgs = async () => {
+    if (saveAsHome && stateCode) {
+      await updateHomeState(stateCode);
+    }
+    await fetchUsgsLocations();
+    setStep("usgs");
+  };
+
   const handleSave = async () => {
     if (!user || !effectiveWater || !stateCode) return;
     setSaving(true);
@@ -162,6 +184,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           body_of_water: effectiveWater,
           state_code: stateCode,
           site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
+          usgs_site_id: selectedUsgs?.site_id || null,
         } as any)
         .select("id")
         .single();
@@ -210,6 +233,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           <DialogTitle className="text-lg font-bold">
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
+            {step === "usgs" && "Link USGS Location"}
             {step === "coordinates" && "Mark Locations"}
           </DialogTitle>
         </DialogHeader>
@@ -229,9 +253,18 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 ))}
               </SelectContent>
             </Select>
+            {stateCode && stateCode !== homeState && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                <Checkbox checked={saveAsHome} onCheckedChange={(v) => setSaveAsHome(!!v)} />
+                Set as my home state
+              </label>
+            )}
             <div className="flex justify-end">
               <Button
-                onClick={() => setStep("water")}
+                onClick={() => {
+                  if (saveAsHome && stateCode) updateHomeState(stateCode);
+                  setStep("water");
+                }}
                 disabled={!stateCode}
                 className="rounded-xl gap-1"
               >
@@ -265,7 +298,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               </Button>
             </div>
 
-            {/* Custom input — always visible and prominent */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">Name of water body</label>
               <Input
@@ -279,7 +311,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               />
             </div>
 
-            {/* USGS list — only show when data exists and custom is empty */}
             {hasUsgsData && !customWater.trim() && (
               <>
                 <div className="flex items-center gap-2">
@@ -334,11 +365,70 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button
-                onClick={() => setStep("coordinates")}
+                onClick={handleNextToUsgs}
                 disabled={!effectiveWater}
                 className="rounded-xl gap-1"
               >
                 Next <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2.5: USGS Location */}
+        {step === "usgs" && (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Optionally link a USGS monitoring station to this spot for water flow data. Skip if unsure.
+            </p>
+
+            {loadingUsgs ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : usgsLocations.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                No USGS monitoring stations found for {effectiveWater}.
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto border border-border rounded-xl divide-y divide-border">
+                {usgsLocations.map((loc) => (
+                  <button
+                    key={loc.site_id}
+                    type="button"
+                    className={`w-full text-left px-3 py-2.5 transition-colors ${
+                      selectedUsgs?.site_id === loc.site_id
+                        ? "bg-primary/10 text-primary"
+                        : "hover:bg-muted text-foreground"
+                    }`}
+                    onClick={() => {
+                      setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc);
+                      if (loc.latitude && loc.longitude) {
+                        setMapCenter({ lat: loc.latitude, lng: loc.longitude });
+                      }
+                    }}
+                  >
+                    <p className="text-sm font-medium truncate">{loc.monitoring_location_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <Navigation className="w-3 h-3 inline mr-1" />
+                      {loc.site_id}
+                      {loc.latitude && loc.longitude && (
+                        <span className="ml-2 tabular-nums">
+                          {loc.latitude.toFixed(3)}, {loc.longitude.toFixed(3)}
+                        </span>
+                      )}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-between">
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("water")}>
+                <ChevronLeft className="w-4 h-4" /> Back
+              </Button>
+              <Button onClick={() => setStep("coordinates")} className="rounded-xl gap-1">
+                {selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -372,7 +462,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
             <MapSection apiKey={apiKey} points={points} onMapClick={handleMapClick} mapRef={mapRef} initialCenter={mapCenter} />
 
-            {/* Points list */}
             {points.length > 0 && (
               <div className="space-y-1.5">
                 {points.map((p, i) => (
@@ -391,7 +480,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             )}
 
             <div className="flex justify-between">
-              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("water")}>
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("usgs")}>
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-1">
@@ -427,7 +516,6 @@ const MapSection = ({
       </div>
     );
   }
-
   return <MapInner apiKey={apiKey} points={points} onMapClick={onMapClick} mapRef={mapRef} initialCenter={initialCenter} />;
 };
 
