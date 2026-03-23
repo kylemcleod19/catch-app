@@ -349,6 +349,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_distinct_water_bodies: {
+        Args: { _site_type: string; _state_code: string }
+        Returns: {
+          normalized_water_body: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
