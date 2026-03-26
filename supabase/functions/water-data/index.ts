@@ -228,9 +228,9 @@ serve(async (req) => {
       thresholds: f.properties?.thresholds || null,
     }));
 
-    // ── Computed stats ──
-    const dischargeValues = dischargeSeries.map((d: any) => d.value).filter((v: any) => v != null);
-    const gageValues = gageSeries.map((d: any) => d.value).filter((v: any) => v != null);
+    // ── Computed stats (USGS returns values as strings) ──
+    const dischargeValues = dischargeSeries.map((d: any) => parseFloat(d.value)).filter((v: number) => !isNaN(v));
+    const gageValues = gageSeries.map((d: any) => parseFloat(d.value)).filter((v: number) => !isNaN(v));
 
     const response = {
       monitoring_location_id: monId,
