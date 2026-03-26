@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
+import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
 
 interface TripLogFormProps {
   tripId: string;
@@ -30,6 +31,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [endTime, setEndTime] = useState("12:00");
   const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
@@ -60,6 +62,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
             setSpotId(data.spot_id);
           }
           setNotes(data.notes || "");
+          if (data.water_flow_snapshot) {
+            setWaterSnapshot(data.water_flow_snapshot as unknown as WaterFlowSnapshot);
+          }
         }
         setLoadingTrip(false);
       });
@@ -202,6 +207,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           ended_at: endedAt.toISOString(),
           notes: notes || null,
           status: "completed",
+          water_flow_snapshot: waterSnapshot ? (waterSnapshot as any) : null,
         } as any)
         .eq("id", tripId);
 
@@ -288,6 +294,14 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
 
       {/* Spot */}
       <SpotPicker spotId={spotId} onSpotChange={setSpotId} tripId={tripId} />
+
+      {/* Water Data */}
+      <WaterDataSection
+        spotId={spotId}
+        date={date}
+        existingSnapshot={waterSnapshot}
+        onSnapshotChange={setWaterSnapshot}
+      />
 
       {/* Catches */}
       {user && <CatchLogger ref={catchLoggerRef} tripId={tripId} userId={user.id} />}
