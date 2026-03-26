@@ -207,6 +207,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           ended_at: endedAt.toISOString(),
           notes: notes || null,
           status: "completed",
+          water_flow_snapshot: waterSnapshot ? (waterSnapshot as any) : null,
         } as any)
         .eq("id", tripId);
 
