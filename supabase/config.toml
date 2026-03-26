@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sync-usgs-locations]
 verify_jwt = false
+
+[functions.water-data]
+verify_jwt = false
