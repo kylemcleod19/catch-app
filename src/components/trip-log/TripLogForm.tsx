@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
+import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
 
 interface TripLogFormProps {
   tripId: string;
