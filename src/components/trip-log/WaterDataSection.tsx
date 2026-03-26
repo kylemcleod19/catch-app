@@ -95,13 +95,6 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
         const locName = locData?.monitoring_location_name || null;
         setLocationName(locName);
 
-        const { data, error } = await supabase.functions.invoke("water-data", {
-          body: null,
-          method: "GET",
-        });
-
-        // supabase.functions.invoke doesn't support query params well for GET,
-        // so let's use fetch directly
         const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
         const url = `https://${projectId}.supabase.co/functions/v1/water-data?monitoring_location_id=${encodeURIComponent(usgsSiteId)}&date=${dateStr}`;
         
