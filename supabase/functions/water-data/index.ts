@@ -32,6 +32,7 @@ async function usgsGet(path: string, params: Record<string, string>, apiKey: str
   const url = new URL(`${USGS_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set("f", "json");
+  url.searchParams.set("api_key", apiKey);
 
   const cacheKey = url.toString();
   const cached = cacheGet(cacheKey);
@@ -39,9 +40,7 @@ async function usgsGet(path: string, params: Record<string, string>, apiKey: str
 
   let lastErr: Error | null = null;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const resp = await fetch(url.toString(), {
-      headers: { "X-Api-Key": apiKey },
-    });
+    const resp = await fetch(url.toString());
 
     if (resp.status === 429) {
       const wait = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
