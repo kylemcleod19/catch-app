@@ -31,6 +31,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [endTime, setEndTime] = useState("12:00");
   const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
