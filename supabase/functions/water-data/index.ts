@@ -207,24 +207,19 @@ serve(async (req) => {
     }));
 
     // ── Historical discharge ──
-    const dischargeData =
-      dischargeResult.status === "fulfilled" ? dischargeResult.value : { features: [], paramUsed: null };
     const dischargeSeries = dischargeData.features.map((f: any) => ({
       date: f.properties?.time,
       value: f.properties?.value,
     }));
 
     // ── Historical gage height ──
-    const gageData =
-      gageResult.status === "fulfilled" ? gageResult.value : { features: [], paramUsed: null };
     const gageSeries = gageData.features.map((f: any) => ({
       date: f.properties?.time,
       value: f.properties?.value,
     }));
 
     // ── Metadata ──
-    const metadataFeatures =
-      metadataResult.status === "fulfilled" ? metadataResult.value?.features || [] : [];
+    const metadataFeatures = metadataData?.features || [];
     const metadata = metadataFeatures.map((f: any) => ({
       parameter_code: f.properties?.parameter_code,
       parameter_name: f.properties?.parameter_name,
