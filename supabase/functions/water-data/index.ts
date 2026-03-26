@@ -164,31 +164,37 @@ serve(async (req) => {
     const targetDate = date || new Date().toISOString().split("T")[0];
     const interval100 = buildInterval(targetDate, 100);
 
-    // Fire all requests in parallel
-    const [dailyResult, dischargeResult, gageResult, metadataResult] = await Promise.allSettled([
-      // Daily values for the target date
-      usgsGet("/collections/daily/items", {
+    // Sequential calls to avoid USGS 403 on concurrent requests
+    let dailyData: any = null;
+    let dischargeData = { features: [] as any[], paramUsed: null as string | null };
+    let gageData = { features: [] as any[], paramUsed: null as string | null };
+    let metadataData: any = null;
+
+    try {
+      dailyData = await usgsGet("/collections/daily/items", {
         monitoring_location_id: monId,
         time: targetDate,
         limit: "1000",
-      }, USGS_API_KEY),
+      }, USGS_API_KEY);
+    } catch (e) { console.warn("Daily fetch failed:", e); }
 
-      // 100-day discharge (param 00060, stat 00003 = daily mean)
-      fetchHistorical(monId, ["00060"], "00003", interval100, USGS_API_KEY),
+    try {
+      dischargeData = await fetchHistorical(monId, ["00060"], "00003", interval100, USGS_API_KEY);
+    } catch (e) { console.warn("Discharge fetch failed:", e); }
 
-      // 100-day gage height (try 62615 first, fallback to 00065)
-      fetchHistorical(monId, ["62615", "00065"], "00003", interval100, USGS_API_KEY),
+    try {
+      gageData = await fetchHistorical(monId, ["62615", "00065"], "00003", interval100, USGS_API_KEY);
+    } catch (e) { console.warn("Gage fetch failed:", e); }
 
-      // Time-series metadata
-      usgsGet("/collections/time-series-metadata/items", {
+    try {
+      metadataData = await usgsGet("/collections/time-series-metadata/items", {
         monitoring_location_id: monId,
         limit: "50000",
-      }, USGS_API_KEY),
-    ]);
+      }, USGS_API_KEY);
+    } catch (e) { console.warn("Metadata fetch failed:", e); }
 
     // ── Daily values ──
-    const dailyFeatures =
-      dailyResult.status === "fulfilled" ? dailyResult.value?.features || [] : [];
+    const dailyFeatures = dailyData?.features || [];
     const dailyValues = dailyFeatures.map((f: any) => ({
       parameter_code: f.properties?.parameter_code,
       parameter_name: f.properties?.parameter_name,
