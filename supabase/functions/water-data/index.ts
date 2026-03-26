@@ -32,7 +32,7 @@ async function usgsGet(path: string, params: Record<string, string>, apiKey: str
   const url = new URL(`${USGS_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set("f", "json");
-  url.searchParams.set("api_key", apiKey);
+  // Note: USGS API works without api_key for basic queries; adding it can cause 403
 
   const cacheKey = url.toString();
   const cached = cacheGet(cacheKey);
