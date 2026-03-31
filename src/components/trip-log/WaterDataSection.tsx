@@ -85,6 +85,45 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     const fetchWaterData = async () => {
       setLoading(true);
       try {
+        // Check cache first
+        const { data: cached } = await supabase
+          .from("water_data_cache")
+          .select("response_json")
+          .eq("monitoring_location_id", usgsSiteId)
+          .eq("date", dateStr)
+          .maybeSingle();
+
+        let result: any;
+
+        if (cached?.response_json) {
+          result = cached.response_json;
+        } else {
+          // Fetch from edge function
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          const url = `https://${projectId}.supabase.co/functions/v1/water-data?monitoring_location_id=${encodeURIComponent(usgsSiteId)}&date=${dateStr}`;
+          
+          const resp = await fetch(url, {
+            headers: {
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+          });
+
+          if (!resp.ok) throw new Error("Failed to fetch water data");
+
+          result = await resp.json();
+
+          // Store in cache (fire-and-forget)
+          supabase
+            .from("water_data_cache")
+            .upsert(
+              { monitoring_location_id: usgsSiteId, date: dateStr, response_json: result },
+              { onConflict: "monitoring_location_id,date" }
+            )
+            .then(({ error }) => {
+              if (error) console.warn("Cache write failed:", error);
+            });
+        }
+
         // Get location name from USGS table
         const { data: locData } = await supabase
           .from("usgs_monitoring_locations")
@@ -94,19 +133,6 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
 
         const locName = locData?.monitoring_location_name || null;
         setLocationName(locName);
-
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const url = `https://${projectId}.supabase.co/functions/v1/water-data?monitoring_location_id=${encodeURIComponent(usgsSiteId)}&date=${dateStr}`;
-        
-        const resp = await fetch(url, {
-          headers: {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-        });
-
-        if (!resp.ok) throw new Error("Failed to fetch water data");
-
-        const result = await resp.json();
 
         const snapshot: WaterFlowSnapshot = {
           monitoring_location_id: usgsSiteId,
