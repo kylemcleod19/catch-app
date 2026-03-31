@@ -344,6 +344,30 @@ export type Database = {
         }
         Relationships: []
       }
+      water_data_cache: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          monitoring_location_id: string
+          response_json: Json
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          monitoring_location_id: string
+          response_json: Json
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          monitoring_location_id?: string
+          response_json?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
