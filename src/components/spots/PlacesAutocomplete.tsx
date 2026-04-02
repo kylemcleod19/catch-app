@@ -3,29 +3,39 @@ import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 
 interface PlacesAutocompleteProps {
-  map: google.maps.Map | null;
   onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
 }
 
-const PlacesAutocomplete = ({ map, onPlaceSelected }: PlacesAutocompleteProps) => {
+const PlacesAutocomplete = ({ onPlaceSelected }: PlacesAutocompleteProps) => {
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = useRef<google.maps.places.PlacesService | null>(null);
+  const hiddenDiv = useRef<HTMLDivElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (window.google?.maps?.places) {
-      autocompleteService.current = new google.maps.places.AutocompleteService();
+    const init = () => {
+      if (window.google?.maps?.places) {
+        autocompleteService.current = new google.maps.places.AutocompleteService();
+        if (hiddenDiv.current) {
+          placesService.current = new google.maps.places.PlacesService(hiddenDiv.current);
+        }
+      }
+    };
+    init();
+    // Retry if google isn't loaded yet
+    if (!window.google?.maps?.places) {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          init();
+          clearInterval(interval);
+        }
+      }, 200);
+      return () => clearInterval(interval);
     }
   }, []);
-
-  useEffect(() => {
-    if (map && window.google?.maps?.places) {
-      placesService.current = new google.maps.places.PlacesService(map);
-    }
-  }, [map]);
 
   const search = useCallback((input: string) => {
     if (!input.trim() || !autocompleteService.current) {
@@ -73,10 +83,11 @@ const PlacesAutocomplete = ({ map, onPlaceSelected }: PlacesAutocompleteProps) =
 
   return (
     <div className="relative">
+      <div ref={hiddenDiv} style={{ display: "none" }} />
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search for a park, road, landmark..."
+          placeholder="Search for a city, road, park..."
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
           className="rounded-xl pl-9"
