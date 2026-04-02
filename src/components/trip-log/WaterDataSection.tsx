@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 interface DailyValue {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Cloud, Droplets, Loader2, Sun, Thermometer, Wind, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 export interface WeatherSnapshot {
   lat: number;
