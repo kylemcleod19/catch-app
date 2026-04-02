@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot } from "recharts";
 
 interface DailyValue {
   parameter_code: string;
@@ -218,11 +218,16 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
   const dischargeSeries = existingSnapshot.historical?.discharge?.series || [];
   const chartData = dischargeSeries
     .map((p) => ({
+      fullDate: p.date || "",
       date: p.date?.slice(5, 10) || "",
       value: parseFloat(p.value),
     }))
     .filter((d) => !isNaN(d.value))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
+
+  // Find max and min points for indicators
+  const maxPoint = chartData.length > 0 ? chartData.reduce((a, b) => b.value > a.value ? b : a) : null;
+  const minPoint = chartData.length > 0 ? chartData.reduce((a, b) => b.value < a.value ? b : a) : null;
   const hasCompactValues = displayValues.length > 0;
   const emptyMessage = existingSnapshot.daily_values.length === 0
     ? "No USGS daily values were returned for this site and date."
@@ -300,6 +305,26 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                     strokeWidth={1.5}
                     fill="url(#flowGrad)"
                   />
+                  {maxPoint && (
+                    <ReferenceDot
+                      x={maxPoint.date}
+                      y={maxPoint.value}
+                      r={3}
+                      fill="hsl(var(--destructive))"
+                      stroke="hsl(var(--destructive))"
+                      label={{ value: `▲ ${maxPoint.value}`, position: "top", fontSize: 9, fill: "hsl(var(--destructive))" }}
+                    />
+                  )}
+                  {minPoint && (
+                    <ReferenceDot
+                      x={minPoint.date}
+                      y={minPoint.value}
+                      r={3}
+                      fill="hsl(var(--accent))"
+                      stroke="hsl(var(--accent))"
+                      label={{ value: `▼ ${minPoint.value}`, position: "bottom", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>

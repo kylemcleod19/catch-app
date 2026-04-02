@@ -205,7 +205,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
   if (!existingSnapshot) return null;
 
   const s = existingSnapshot.given_day?.summary || {};
-  const hourly = existingSnapshot.given_day.hourly || [];
+  const hourly = existingSnapshot.given_day?.hourly || [];
   const hasCompactValues =
     s.temp_high_c != null ||
     s.temp_low_c != null ||
