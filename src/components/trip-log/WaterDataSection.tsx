@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Droplets, Loader2, Waves } from "lucide-react";
+import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 interface DailyValue {
   parameter_code: string;
@@ -12,12 +14,39 @@ interface DailyValue {
   approval_status?: string;
 }
 
+interface HistoricalPoint {
+  date: string;
+  value: string;
+}
+
+interface ComputedStats {
+  mean?: number;
+  min?: number;
+  max?: number;
+  median?: number;
+  p10?: number;
+  p25?: number;
+  p75?: number;
+  p90?: number;
+  count?: number;
+}
+
 export interface WaterFlowSnapshot {
   monitoring_location_id: string;
   monitoring_location_name?: string;
   date: string;
   fetched_at: string;
   daily_values: DailyValue[];
+  historical?: {
+    discharge?: { parameter_code?: string | null; series?: HistoricalPoint[] };
+    gage_height?: { parameter_code?: string | null; series?: HistoricalPoint[] };
+  };
+  statistics?: {
+    computed?: {
+      discharge?: ComputedStats;
+      gage_height?: ComputedStats;
+    };
+  };
 }
 
 interface WaterDataSectionProps {
@@ -27,28 +56,34 @@ interface WaterDataSectionProps {
   onSnapshotChange: (snapshot: WaterFlowSnapshot | null) => void;
 }
 
-const PARAM_LABELS: Record<string, string> = {
-  "00060": "Discharge",
-  "00065": "Gage Height",
-  "62615": "Gage Height",
-};
+function getParamIcon(code: string) {
+  if (code === "00060") return <Activity className="w-3.5 h-3.5 text-primary" />;
+  return <Ruler className="w-3.5 h-3.5 text-accent" />;
+}
 
-const STAT_LABELS: Record<string, string> = {
-  "00001": "Max",
-  "00002": "Min",
-  "00003": "Mean",
-};
+function RangeBar({ value, p10, p90 }: { value: number; p10: number; p90: number }) {
+  const range = p90 - p10;
+  if (range <= 0) return null;
+  const pct = Math.max(0, Math.min(100, ((value - p10) / range) * 100));
+
+  return (
+    <div className="relative w-12 h-2 rounded-full bg-muted overflow-hidden">
+      <div
+        className="absolute top-0 left-0 h-full rounded-full bg-primary/70"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: WaterDataSectionProps) => {
   const [loading, setLoading] = useState(false);
   const [usgsSiteId, setUsgsSiteId] = useState<string | null>(null);
-  const [locationName, setLocationName] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
-  // Look up spot's USGS site ID when spotId changes
   useEffect(() => {
     if (!spotId) {
       setUsgsSiteId(null);
-      setLocationName(null);
       onSnapshotChange(null);
       return;
     }
@@ -61,19 +96,15 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
       .then(({ data }) => {
         const siteId = data?.usgs_site_id || null;
         setUsgsSiteId(siteId);
-        if (!siteId) {
-          onSnapshotChange(null);
-        }
+        if (!siteId) onSnapshotChange(null);
       });
   }, [spotId]);
 
-  // Fetch water data when site ID or date changes
   useEffect(() => {
     if (!usgsSiteId) return;
 
     const dateStr = date.toISOString().split("T")[0];
 
-    // If we already have a snapshot for this site+date, skip
     if (
       existingSnapshot &&
       existingSnapshot.monitoring_location_id === usgsSiteId &&
@@ -85,7 +116,6 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     const fetchWaterData = async () => {
       setLoading(true);
       try {
-        // Check cache first
         const { data: cached } = await supabase
           .from("water_data_cache")
           .select("response_json")
@@ -98,10 +128,9 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
         if (cached?.response_json) {
           result = cached.response_json;
         } else {
-          // Fetch from edge function
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
           const url = `https://${projectId}.supabase.co/functions/v1/water-data?monitoring_location_id=${encodeURIComponent(usgsSiteId)}&date=${dateStr}`;
-          
+
           const resp = await fetch(url, {
             headers: {
               apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -109,10 +138,8 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
           });
 
           if (!resp.ok) throw new Error("Failed to fetch water data");
-
           result = await resp.json();
 
-          // Store in cache (fire-and-forget)
           supabase
             .from("water_data_cache")
             .upsert(
@@ -124,22 +151,20 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
             });
         }
 
-        // Get location name from USGS table
         const { data: locData } = await supabase
           .from("usgs_monitoring_locations")
           .select("monitoring_location_name")
           .eq("site_id", usgsSiteId.replace("USGS-", ""))
           .single();
 
-        const locName = locData?.monitoring_location_name || null;
-        setLocationName(locName);
-
         const snapshot: WaterFlowSnapshot = {
           monitoring_location_id: usgsSiteId,
-          monitoring_location_name: locName || undefined,
+          monitoring_location_name: locData?.monitoring_location_name || undefined,
           date: dateStr,
           fetched_at: new Date().toISOString(),
           daily_values: result.daily_values || [],
+          historical: result.historical,
+          statistics: result.statistics,
         };
 
         onSnapshotChange(snapshot);
@@ -159,58 +184,113 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     return (
       <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50">
         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Loading water conditions…</span>
+        <span className="text-sm text-muted-foreground">Loading water data…</span>
       </div>
     );
   }
 
   if (!existingSnapshot || existingSnapshot.daily_values.length === 0) {
-    return (
-      <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50">
-        <Droplets className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">No water data available for this date</span>
-      </div>
-    );
+    return null;
   }
 
-  // Group by parameter, show mean values primarily
+  // Get mean values for compact display
   const meanValues = existingSnapshot.daily_values.filter((v) => v.statistic_id === "00003");
-  const displayValues = meanValues.length > 0 ? meanValues : existingSnapshot.daily_values.slice(0, 3);
+  const displayValues = meanValues.length > 0 ? meanValues : existingSnapshot.daily_values.slice(0, 2);
+
+  const dischargeStats = existingSnapshot.statistics?.computed?.discharge;
+  const gageStats = existingSnapshot.statistics?.computed?.gage_height;
+
+  function getStats(paramCode: string): ComputedStats | undefined {
+    if (paramCode === "00060") return dischargeStats;
+    return gageStats;
+  }
+
+  // Build chart data from historical discharge
+  const dischargeSeries = existingSnapshot.historical?.discharge?.series || [];
+  const chartData = dischargeSeries
+    .map((p) => ({
+      date: p.date?.slice(5, 10) || "",
+      value: parseFloat(p.value),
+    }))
+    .filter((d) => !isNaN(d.value))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Waves className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Water Conditions</span>
-        <span className="text-xs text-muted-foreground">({existingSnapshot.date})</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {displayValues.map((v, i) => {
-          const label = PARAM_LABELS[v.parameter_code] || v.parameter_name || v.parameter_code;
-          const statLabel = STAT_LABELS[v.statistic_id] || "";
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+            {displayValues.map((v, i) => {
+              const val = parseFloat(v.value);
+              const stats = getStats(v.parameter_code);
+              return (
+                <div key={i} className="flex items-center gap-1.5">
+                  {getParamIcon(v.parameter_code)}
+                  <span className="text-sm font-semibold text-foreground">
+                    {v.value}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{v.unit}</span>
+                  {stats?.p10 != null && stats?.p90 != null && !isNaN(val) && (
+                    <RangeBar value={val} p10={stats.p10} p90={stats.p90} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      </CollapsibleTrigger>
 
-          return (
-            <div
-              key={i}
-              className="flex flex-col p-3 rounded-xl bg-card border border-border/50"
-            >
-              <span className="text-xs text-muted-foreground">
-                {label}{statLabel ? ` (${statLabel})` : ""}
-              </span>
-              <span className="text-lg font-semibold text-foreground">
-                {v.value}
-                <span className="text-xs font-normal text-muted-foreground ml-1">{v.unit}</span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {locationName && (
-        <p className="text-xs text-muted-foreground truncate">
-          Station: {locationName}
-        </p>
-      )}
-    </div>
+      <CollapsibleContent>
+        {chartData.length > 2 && (
+          <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+            <p className="text-[10px] text-muted-foreground mb-1">Stream flow (100 day)</p>
+            <ResponsiveContainer width="100%" height={120}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 11,
+                  }}
+                  formatter={(val: number) => [`${val} cfs`, "Discharge"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={1.5}
+                  fill="url(#flowGrad)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {existingSnapshot.monitoring_location_name && (
+          <p className="mt-1 text-[10px] text-muted-foreground truncate px-1">
+            {existingSnapshot.monitoring_location_name}
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
