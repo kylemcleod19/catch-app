@@ -218,11 +218,16 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
   const dischargeSeries = existingSnapshot.historical?.discharge?.series || [];
   const chartData = dischargeSeries
     .map((p) => ({
+      fullDate: p.date || "",
       date: p.date?.slice(5, 10) || "",
       value: parseFloat(p.value),
     }))
     .filter((d) => !isNaN(d.value))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
+
+  // Find max and min points for indicators
+  const maxPoint = chartData.length > 0 ? chartData.reduce((a, b) => b.value > a.value ? b : a) : null;
+  const minPoint = chartData.length > 0 ? chartData.reduce((a, b) => b.value < a.value ? b : a) : null;
   const hasCompactValues = displayValues.length > 0;
   const emptyMessage = existingSnapshot.daily_values.length === 0
     ? "No USGS daily values were returned for this site and date."
