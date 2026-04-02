@@ -508,7 +508,7 @@ const FullScreenMapStep = ({
 
           {/* Search bar - only in navigate mode */}
           {isNavigate && (
-            <PlacesAutocomplete map={mapRef.current} onPlaceSelected={onPlaceSelected} />
+            <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
           )}
 
           {/* Pin list - only in pin mode */}
