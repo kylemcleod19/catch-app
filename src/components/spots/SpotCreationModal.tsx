@@ -9,11 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHomeState } from "@/hooks/useHomeState";
 import { toast } from "sonner";
 import { US_STATES, getStateName } from "@/lib/us-states";
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search, Navigation } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search, Navigation, Layers, Lock, Move } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
-import { useLongPress } from "./useLongPress";
 
 interface SpotPoint {
   label: string;
@@ -44,7 +43,8 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "usgs" | "homebase" | "holes" | "naming";
+type Step = "state" | "water" | "usgs" | "map" | "naming";
+type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
 
@@ -71,18 +71,16 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [loadingUsgs, setLoadingUsgs] = useState(false);
   const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
-  // Step 4: Home Base
-  const [spotName, setSpotName] = useState("");
-  const [homeBasePoint, setHomeBasePoint] = useState<SpotPoint | null>(null);
+  // Map step
+  const [mapStage, setMapStage] = useState<MapStage>("navigate");
+  const [pins, setPins] = useState<SpotPoint[]>([]);
+  const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
-  // Step 5: Holes
-  const [holes, setHoles] = useState<SpotPoint[]>([]);
-  const [pendingHoleCoords, setPendingHoleCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [editingHoleIdx, setEditingHoleIdx] = useState<number | null>(null);
-  const holesMapRef = useRef<google.maps.Map | null>(null);
+  // Naming step
+  const [spotName, setSpotName] = useState("");
 
   // Fetch Google Maps API key
   useEffect(() => {
@@ -116,14 +114,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSelectedWater("");
       setCustomWater("");
       setSpotName("");
-      setHomeBasePoint(null);
-      setHoles([]);
+      setPins([]);
       setMapCenter(null);
       setSaveAsHome(false);
       setSelectedUsgs(null);
       setUsgsLocations([]);
-      setPendingHoleCoords(null);
-      setEditingHoleIdx(null);
+      setPendingPinCoords(null);
+      setMapStage("navigate");
     }
   }, [open, initialStateCode, homeState]);
 
@@ -151,42 +148,27 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const handlePlaceSelected = (place: { name: string; lat: number; lng: number }) => {
-    if (!spotName) setSpotName(place.name);
-    setHomeBasePoint({ label: "Home Base", latitude: place.lat, longitude: place.lng });
     mapRef.current?.panTo({ lat: place.lat, lng: place.lng });
     mapRef.current?.setZoom(15);
   };
 
-  const handleHomeBaseLongPress = useCallback((coords: { lat: number; lng: number }) => {
-    setHomeBasePoint({ label: "Home Base", latitude: coords.lat, longitude: coords.lng });
-  }, []);
-
-  const handleClearHomeBase = () => {
-    setHomeBasePoint(null);
-  };
-
-  const handleHoleLongPress = useCallback((coords: { lat: number; lng: number }) => {
-    setPendingHoleCoords(coords);
-  }, []);
-
-  const confirmHole = (label: string) => {
-    if (pendingHoleCoords) {
-      setHoles((prev) => [...prev, { label, latitude: pendingHoleCoords.lat, longitude: pendingHoleCoords.lng }]);
-      setPendingHoleCoords(null);
+  const confirmPin = (label: string) => {
+    if (pendingPinCoords) {
+      setPins((prev) => [...prev, { label, latitude: pendingPinCoords.lat, longitude: pendingPinCoords.lng }]);
+      setPendingPinCoords(null);
     }
   };
 
-  const cancelHole = () => setPendingHoleCoords(null);
+  const cancelPin = () => setPendingPinCoords(null);
+  const removePin = (idx: number) => setPins((prev) => prev.filter((_, i) => i !== idx));
 
-  const removeHole = (idx: number) => setHoles((prev) => prev.filter((_, i) => i !== idx));
-
-  const handleLocateMe = (ref: React.MutableRefObject<google.maps.Map | null>) => {
+  const handleLocateMe = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        ref.current?.panTo(loc);
-        ref.current?.setZoom(14);
+        mapRef.current?.panTo(loc);
+        mapRef.current?.setZoom(14);
       },
       () => {}
     );
@@ -210,10 +192,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         .single();
       if (error) throw error;
 
-      const allPoints = [...(homeBasePoint ? [homeBasePoint] : []), ...holes];
-      if (allPoints.length > 0) {
+      if (pins.length > 0) {
         const { error: ptErr } = await supabase.from("spot_points").insert(
-          allPoints.map((p) => ({ spot_id: spot.id, label: p.label, latitude: p.latitude, longitude: p.longitude })) as any
+          pins.map((p) => ({ spot_id: spot.id, label: p.label, latitude: p.latitude, longitude: p.longitude })) as any
         );
         if (ptErr) throw ptErr;
       }
@@ -225,7 +206,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         body_of_water: effectiveWater,
         state_code: stateCode,
         site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
-        points: allPoints,
+        points: pins,
       });
       onOpenChange(false);
     } catch (err: any) {
@@ -241,6 +222,35 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
   const hasUsgsData = waterBodies.length > 0;
 
+  // Full-screen map step
+  if (step === "map") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-none w-screen h-screen p-0 m-0 border-0 rounded-none [&>button]:hidden">
+          <FullScreenMapStep
+            mapStage={mapStage}
+            setMapStage={setMapStage}
+            pins={pins}
+            pendingPinCoords={pendingPinCoords}
+            setPendingPinCoords={setPendingPinCoords}
+            apiKey={apiKey}
+            mapCenter={mapCenter}
+            mapRef={mapRef}
+            effectiveWater={effectiveWater}
+            stateCode={stateCode}
+            onPlaceSelected={handlePlaceSelected}
+            onConfirmPin={confirmPin}
+            onCancelPin={cancelPin}
+            onRemovePin={removePin}
+            onLocateMe={handleLocateMe}
+            onBack={() => setStep("usgs")}
+            onFinish={() => setStep("naming")}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -249,11 +259,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
             {step === "usgs" && "Link USGS Location"}
-            {step === "homebase" && "Set Home Base"}
-            {step === "holes" && "Add Fishing Holes"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
-          {/* Show current state context on non-state steps */}
           {step !== "state" && stateCode && (
             <button
               type="button"
@@ -394,47 +401,14 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             )}
             <div className="flex justify-between">
               <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("water")}><ChevronLeft className="w-4 h-4" /> Back</Button>
-              <Button onClick={() => setStep("homebase")} className="rounded-xl gap-1">{selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" /></Button>
+              <Button onClick={() => { setMapStage("navigate"); setStep("map"); }} className="rounded-xl gap-1">
+                {selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Home Base */}
-        {step === "homebase" && (
-          <HomeBaseStep
-            effectiveWater={effectiveWater}
-            homeBasePoint={homeBasePoint}
-            apiKey={apiKey}
-            mapCenter={mapCenter}
-            mapRef={mapRef}
-            onPlaceSelected={handlePlaceSelected}
-            onLongPress={handleHomeBaseLongPress}
-            onClearHomeBase={handleClearHomeBase}
-            onLocateMe={() => handleLocateMe(mapRef)}
-            onBack={() => setStep("usgs")}
-            onNext={() => setStep("holes")}
-          />
-        )}
-
-        {/* Step 5: Holes */}
-        {step === "holes" && (
-          <HolesStep
-            homeBasePoint={homeBasePoint}
-            holes={holes}
-            pendingHoleCoords={pendingHoleCoords}
-            apiKey={apiKey}
-            holesMapRef={holesMapRef}
-            onLongPress={handleHoleLongPress}
-            onConfirmHole={confirmHole}
-            onCancelHole={cancelHole}
-            onRemoveHole={removeHole}
-            onLocateMe={() => handleLocateMe(holesMapRef)}
-            onBack={() => setStep("homebase")}
-            onNext={() => setStep("naming")}
-          />
-        )}
-
-        {/* Step 6: Naming (optional) */}
+        {/* Step: Naming */}
         {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -458,20 +432,15 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             <div className="bg-muted rounded-xl p-3 space-y-1.5 text-sm">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Summary</p>
               <p className="text-foreground">{effectiveWater} · {getStateName(stateCode)}</p>
-              {homeBasePoint && (
+              {pins.length > 0 && (
                 <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <MapPin className="w-3 h-3 text-primary" /> Home Base set
-                </div>
-              )}
-              {holes.length > 0 && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <MapPin className="w-3 h-3 text-primary" /> {holes.length} hole{holes.length !== 1 ? "s" : ""}
+                  <MapPin className="w-3 h-3 text-primary" /> {pins.length} pin{pins.length !== 1 ? "s" : ""}
                 </div>
               )}
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("holes")}>
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => { setMapStage("pin"); setStep("map"); }}>
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-1">
@@ -486,286 +455,206 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   );
 };
 
-/* ─── Home Base Step ─── */
+/* ─── Full-Screen Map Step ─── */
 
-const HomeBaseStep = ({
-  effectiveWater, homeBasePoint, apiKey, mapCenter, mapRef,
-  onPlaceSelected, onLongPress, onClearHomeBase, onLocateMe, onBack, onNext,
+const FullScreenMapStep = ({
+  mapStage, setMapStage, pins, pendingPinCoords, setPendingPinCoords,
+  apiKey, mapCenter, mapRef, effectiveWater, stateCode,
+  onPlaceSelected, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish,
 }: {
-  effectiveWater: string;
-  homeBasePoint: SpotPoint | null;
+  mapStage: MapStage;
+  setMapStage: (s: MapStage) => void;
+  pins: SpotPoint[];
+  pendingPinCoords: { lat: number; lng: number } | null;
+  setPendingPinCoords: (c: { lat: number; lng: number } | null) => void;
   apiKey: string | null;
   mapCenter: { lat: number; lng: number } | null;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
+  effectiveWater: string;
+  stateCode: string;
   onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
-  onClearHomeBase: () => void;
+  onConfirmPin: (label: string) => void;
+  onCancelPin: () => void;
+  onRemovePin: (idx: number) => void;
   onLocateMe: () => void;
   onBack: () => void;
-  onNext: () => void;
+  onFinish: () => void;
 }) => {
+  const isNavigate = mapStage === "navigate";
+
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        on <span className="font-semibold text-foreground">{effectiveWater}</span>
-      </p>
+    <div className="relative w-full h-full flex flex-col">
+      {/* Top bar */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
+        <div className="px-3 pt-2 pb-2 space-y-2">
+          {/* Header row */}
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{effectiveWater}</p>
+              <p className="text-xs text-muted-foreground">{getStateName(stateCode)}</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {isNavigate ? (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <Move className="w-3 h-3" /> Navigate
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
+                  <MapPin className="w-3 h-3" /> Add Pins
+                </span>
+              )}
+            </div>
+          </div>
 
-      <PlacesAutocomplete map={mapRef.current} onPlaceSelected={onPlaceSelected} />
+          {/* Search bar - only in navigate mode */}
+          {isNavigate && (
+            <PlacesAutocomplete map={mapRef.current} onPlaceSelected={onPlaceSelected} />
+          )}
 
-      <p className="text-xs text-muted-foreground">
-        Search above or hold on the map to set your entry point / parking.
-      </p>
+          {/* Pin list - only in pin mode */}
+          {!isNavigate && pins.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+              {pins.map((p, i) => (
+                <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-foreground">
+                  <MapPin className="w-3 h-3 text-primary" />
+                  {p.label}
+                  <button type="button" onClick={() => onRemovePin(i)} className="text-muted-foreground hover:text-destructive p-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
-      <div className="flex justify-end mb-1">
-        <Button type="button" variant="outline" size="sm" className="rounded-xl gap-1 text-xs" onClick={onLocateMe}>
-          <MapPin className="w-3.5 h-3.5" /> My location
-        </Button>
-      </div>
-
-      <HomeBaseMap
-        apiKey={apiKey}
-        homeBasePoint={homeBasePoint}
-        initialCenter={mapCenter}
-        mapRef={mapRef}
-        onLongPress={onLongPress}
-      />
-
-      {homeBasePoint && (
-        <div className="flex items-center gap-2 px-2 py-1.5 bg-muted rounded-lg text-sm">
-          <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="flex-1 font-medium text-foreground">Home Base</span>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {homeBasePoint.latitude.toFixed(4)}, {homeBasePoint.longitude.toFixed(4)}
-          </span>
-          <button type="button" onClick={onClearHomeBase} className="text-muted-foreground hover:text-destructive p-0.5">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          {!isNavigate && pins.length === 0 && (
+            <p className="text-xs text-muted-foreground">Tap the map to drop a pin</p>
+          )}
         </div>
-      )}
-
-      <div className="flex justify-between">
-        <Button variant="outline" className="rounded-xl gap-1" onClick={onBack}><ChevronLeft className="w-4 h-4" /> Back</Button>
-        <Button onClick={onNext} className="rounded-xl gap-1">Next <ChevronRight className="w-4 h-4" /></Button>
-      </div>
-    </div>
-  );
-};
-
-/* ─── Home Base Map ─── */
-
-const HomeBaseMap = ({
-  apiKey, homeBasePoint, initialCenter, mapRef, onLongPress,
-}: {
-  apiKey: string | null;
-  homeBasePoint: SpotPoint | null;
-  initialCenter: { lat: number; lng: number } | null;
-  mapRef: React.MutableRefObject<google.maps.Map | null>;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
-}) => {
-  if (!apiKey) return <MapUnavailable />;
-  return <HomeBaseMapInner apiKey={apiKey} homeBasePoint={homeBasePoint} initialCenter={initialCenter} mapRef={mapRef} onLongPress={onLongPress} />;
-};
-
-const HomeBaseMapInner = ({
-  apiKey, homeBasePoint, initialCenter, mapRef, onLongPress,
-}: {
-  apiKey: string;
-  homeBasePoint: SpotPoint | null;
-  initialCenter: { lat: number; lng: number } | null;
-  mapRef: React.MutableRefObject<google.maps.Map | null>;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
-}) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
-  const longPress = useLongPress(onLongPress);
-
-  const center = homeBasePoint
-    ? { lat: homeBasePoint.latitude, lng: homeBasePoint.longitude }
-    : initialCenter || { lat: 32.87, lng: -97.34 };
-  const zoom = homeBasePoint ? 15 : initialCenter ? 14 : 10;
-
-  if (!isLoaded) return <MapLoading />;
-
-  return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={center}
-      zoom={zoom}
-      onMouseDown={longPress.onMouseDown}
-      onMouseUp={longPress.onMouseUp}
-      onLoad={(map) => { mapRef.current = map; }}
-      options={mapOptions}
-    >
-      {homeBasePoint && (
-        <Marker
-          position={{ lat: homeBasePoint.latitude, lng: homeBasePoint.longitude }}
-          title="Home Base"
-          icon={{
-            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-          }}
-        />
-      )}
-    </GoogleMap>
-  );
-};
-
-/* ─── Holes Step ─── */
-
-const HolesStep = ({
-  homeBasePoint, holes, pendingHoleCoords, apiKey, holesMapRef,
-  onLongPress, onConfirmHole, onCancelHole, onRemoveHole, onLocateMe, onBack, onNext, saving,
-}: {
-  homeBasePoint: SpotPoint | null;
-  holes: SpotPoint[];
-  pendingHoleCoords: { lat: number; lng: number } | null;
-  apiKey: string | null;
-  holesMapRef: React.MutableRefObject<google.maps.Map | null>;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
-  onConfirmHole: (label: string) => void;
-  onCancelHole: () => void;
-  onRemoveHole: (idx: number) => void;
-  onLocateMe: () => void;
-  onBack: () => void;
-  onNext: () => void;
-  saving?: boolean;
-}) => {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Hold on the map to drop fishing holes. You can skip this step.
-      </p>
-
-      <div className="flex justify-end mb-1">
-        <Button type="button" variant="outline" size="sm" className="rounded-xl gap-1 text-xs" onClick={onLocateMe}>
-          <MapPin className="w-3.5 h-3.5" /> My location
-        </Button>
       </div>
 
-      <div className="relative">
-        <HolesMap
-          apiKey={apiKey}
-          homeBasePoint={homeBasePoint}
-          holes={holes}
-          holesMapRef={holesMapRef}
-          onLongPress={onLongPress}
-        />
-        {pendingHoleCoords && (
-          <HoleNamingPrompt
-            holeCount={holes.length}
-            onConfirm={onConfirmHole}
-            onCancel={onCancelHole}
+      {/* Map */}
+      <div className="flex-1">
+        {apiKey ? (
+          <FullScreenMap
+            apiKey={apiKey}
+            mapRef={mapRef}
+            initialCenter={mapCenter}
+            pins={pins}
+            isNavigate={isNavigate}
+            onMapClick={(coords) => {
+              if (!isNavigate) {
+                setPendingPinCoords(coords);
+              }
+            }}
+            onLocateMe={onLocateMe}
           />
+        ) : (
+          <div className="w-full h-full bg-muted flex items-center justify-center text-sm text-muted-foreground">
+            Map unavailable
+          </div>
         )}
       </div>
 
-      {holes.length > 0 && (
-        <div className="space-y-1.5">
-          {holes.map((p, i) => (
-            <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-muted rounded-lg text-sm">
-              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="flex-1 truncate font-medium text-foreground">{p.label}</span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
-              </span>
-              <button type="button" onClick={() => onRemoveHole(i)} className="text-muted-foreground hover:text-destructive p-0.5">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
+      {/* Naming prompt overlay */}
+      {pendingPinCoords && !isNavigate && (
+        <HoleNamingPrompt
+          holeCount={pins.length}
+          onConfirm={onConfirmPin}
+          onCancel={onCancelPin}
+        />
       )}
 
-      <div className="flex justify-between">
-        <Button variant="outline" className="rounded-xl gap-1" onClick={onBack}><ChevronLeft className="w-4 h-4" /> Back</Button>
-        <Button onClick={onNext} className="rounded-xl gap-1">
-          Next <ChevronRight className="w-4 h-4" />
-        </Button>
+      {/* Bottom bar */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-t border-border/50 safe-area-bottom">
+        <div className="px-3 py-3 flex items-center justify-between">
+          {isNavigate ? (
+            <>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={onBack}>
+                <ChevronLeft className="w-4 h-4" /> State
+              </Button>
+              <Button size="sm" className="rounded-xl gap-1" onClick={() => setMapStage("pin")}>
+                Add Pins <ChevronRight className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={() => setMapStage("navigate")}>
+                <Move className="w-4 h-4" /> Zoom
+              </Button>
+              <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
+                {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-/* ─── Holes Map ─── */
+/* ─── Full Screen Map Inner ─── */
 
-const HolesMap = ({
-  apiKey, homeBasePoint, holes, holesMapRef, onLongPress,
-}: {
-  apiKey: string | null;
-  homeBasePoint: SpotPoint | null;
-  holes: SpotPoint[];
-  holesMapRef: React.MutableRefObject<google.maps.Map | null>;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
-}) => {
-  if (!apiKey) return <MapUnavailable />;
-  return <HolesMapInner apiKey={apiKey} homeBasePoint={homeBasePoint} holes={holes} holesMapRef={holesMapRef} onLongPress={onLongPress} />;
-};
-
-const HolesMapInner = ({
-  apiKey, homeBasePoint, holes, holesMapRef, onLongPress,
+const FullScreenMap = ({
+  apiKey, mapRef, initialCenter, pins, isNavigate, onMapClick, onLocateMe,
 }: {
   apiKey: string;
-  homeBasePoint: SpotPoint | null;
-  holes: SpotPoint[];
-  holesMapRef: React.MutableRefObject<google.maps.Map | null>;
-  onLongPress: (coords: { lat: number; lng: number }) => void;
+  mapRef: React.MutableRefObject<google.maps.Map | null>;
+  initialCenter: { lat: number; lng: number } | null;
+  pins: SpotPoint[];
+  isNavigate: boolean;
+  onMapClick: (coords: { lat: number; lng: number }) => void;
+  onLocateMe: () => void;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
-  const longPress = useLongPress(onLongPress);
 
-  const center = homeBasePoint
-    ? { lat: homeBasePoint.latitude, lng: homeBasePoint.longitude }
-    : holes.length > 0
-      ? { lat: holes[holes.length - 1].latitude, lng: holes[holes.length - 1].longitude }
-      : { lat: 32.87, lng: -97.34 };
+  const center = initialCenter || { lat: 32.87, lng: -97.34 };
+  const zoom = initialCenter ? 14 : 10;
 
-  if (!isLoaded) return <MapLoading />;
+  if (!isLoaded) {
+    return (
+      <div className="w-full h-full bg-muted flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const navigateOptions: google.maps.MapOptions = {
+    gestureHandling: "greedy",
+    zoomControl: true,
+    mapTypeControl: true,
+    streetViewControl: false,
+    fullscreenControl: false,
+  };
+
+  const pinOptions: google.maps.MapOptions = {
+    gestureHandling: "none",
+    zoomControl: false,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    draggable: false,
+    scrollwheel: false,
+    disableDoubleClickZoom: true,
+  };
 
   return (
     <GoogleMap
-      mapContainerStyle={mapContainerStyle}
+      mapContainerStyle={{ width: "100%", height: "100%" }}
       center={center}
-      zoom={homeBasePoint ? 15 : 10}
-      onMouseDown={longPress.onMouseDown}
-      onMouseUp={longPress.onMouseUp}
-      onLoad={(map) => { holesMapRef.current = map; }}
-      options={mapOptions}
+      zoom={zoom}
+      onLoad={(map) => { mapRef.current = map; }}
+      onClick={(e) => {
+        if (!isNavigate && e.latLng) {
+          onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+        }
+      }}
+      options={isNavigate ? navigateOptions : pinOptions}
     >
-      {homeBasePoint && (
-        <Marker
-          position={{ lat: homeBasePoint.latitude, lng: homeBasePoint.longitude }}
-          title="Home Base"
-          icon={{ url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
-          opacity={0.5}
-        />
-      )}
-      {holes.map((p, i) => (
+      {pins.map((p, i) => (
         <Marker key={i} position={{ lat: p.latitude, lng: p.longitude }} title={p.label} />
       ))}
     </GoogleMap>
   );
 };
-
-/* ─── Shared ─── */
-
-const mapContainerStyle = { width: "100%", height: "max(50vh, 300px)", borderRadius: "0.75rem" };
-
-const mapOptions: google.maps.MapOptions = {
-  gestureHandling: "greedy",
-  zoomControl: true,
-  mapTypeControl: true,
-  streetViewControl: false,
-  fullscreenControl: false,
-};
-
-const MapUnavailable = () => (
-  <div className="rounded-xl bg-muted flex items-center justify-center text-sm text-muted-foreground" style={{ height: "max(50vh, 300px)" }}>
-    Map unavailable
-  </div>
-);
-
-const MapLoading = () => (
-  <div className="rounded-xl bg-muted flex items-center justify-center" style={{ height: "max(50vh, 300px)" }}>
-    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-  </div>
-);
 
 export default SpotCreationModal;
