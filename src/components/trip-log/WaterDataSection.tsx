@@ -216,81 +216,84 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors"
-        >
-          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-            {displayValues.map((v, i) => {
-              const val = parseFloat(v.value);
-              const stats = getStats(v.parameter_code);
-              return (
-                <div key={i} className="flex items-center gap-1.5">
-                  {getParamIcon(v.parameter_code)}
-                  <span className="text-sm font-semibold text-foreground">
-                    {v.value}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">{v.unit}</span>
-                  {stats?.p10 != null && stats?.p90 != null && !isNaN(val) && (
-                    <RangeBar value={val} p10={stats.p10} p90={stats.p90} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-        </button>
-      </CollapsibleTrigger>
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+        className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+          {displayValues.map((v, i) => {
+            const val = parseFloat(v.value);
+            const stats = getStats(v.parameter_code);
+            return (
+              <div key={i} className="flex items-center gap-1.5">
+                {getParamIcon(v.parameter_code)}
+                <span className="text-sm font-semibold text-foreground">
+                  {v.value}
+                </span>
+                <span className="text-[10px] text-muted-foreground">{v.unit}</span>
+                {stats?.p10 != null && stats?.p90 != null && !isNaN(val) && (
+                  <RangeBar value={val} p10={stats.p10} p90={stats.p90} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+      </div>
 
-      <CollapsibleContent>
-        {chartData.length > 2 && (
-          <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
-            <p className="text-[10px] text-muted-foreground mb-1">Stream flow (100 day)</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis hide domain={["dataMin", "dataMax"]} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 11,
-                  }}
-                  formatter={(val: number) => [`${val} cfs`, "Discharge"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={1.5}
-                  fill="url(#flowGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        {existingSnapshot.monitoring_location_name && (
-          <p className="mt-1 text-[10px] text-muted-foreground truncate px-1">
-            {existingSnapshot.monitoring_location_name}
-          </p>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+      {expanded && (
+        <>
+          {chartData.length > 2 && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+              <p className="text-[10px] text-muted-foreground mb-1">Stream flow (100 day)</p>
+              <ResponsiveContainer width="100%" height={120}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis hide domain={["dataMin", "dataMax"]} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize: 11,
+                    }}
+                    formatter={(val: number) => [`${val} cfs`, "Discharge"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1.5}
+                    fill="url(#flowGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {existingSnapshot.monitoring_location_name && (
+            <p className="mt-1 text-[10px] text-muted-foreground truncate px-1">
+              {existingSnapshot.monitoring_location_name}
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 };
 
