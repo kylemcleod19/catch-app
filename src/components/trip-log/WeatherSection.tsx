@@ -224,32 +224,34 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
       </div>
 
       {expanded && (
-        {hourly.length > 0 && (
-          <div className="mt-2 p-3 rounded-xl bg-card border border-border/50 overflow-x-auto">
-            <div className="flex gap-4 min-w-max">
-              {hourly.map((h, i) => (
-                <div key={i} className="flex flex-col items-center gap-1 min-w-[44px]">
-                  <span className="text-[10px] text-muted-foreground">{formatHour(h.time)}</span>
-                  <span className="text-base">{getWeatherIcon(h.conditions)}</span>
-                  <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°</span>
-                  {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
-                    <span className="text-[10px] text-accent">{h.precip_probability_pct}%</span>
-                  )}
-                  {h.wind_speed_kmh != null && (
-                    <span className="text-[10px] text-muted-foreground">{kmhToMph(h.wind_speed_kmh)}</span>
-                  )}
-                </div>
-              ))}
+        <>
+          {hourly.length > 0 && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50 overflow-x-auto">
+              <div className="flex gap-4 min-w-max">
+                {hourly.map((h, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 min-w-[44px]">
+                    <span className="text-[10px] text-muted-foreground">{formatHour(h.time)}</span>
+                    <span className="text-base">{getWeatherIcon(h.conditions)}</span>
+                    <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°</span>
+                    {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
+                      <span className="text-[10px] text-accent">{h.precip_probability_pct}%</span>
+                    )}
+                    {h.wind_speed_kmh != null && (
+                      <span className="text-[10px] text-muted-foreground">{kmhToMph(h.wind_speed_kmh)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        {hourly.length === 0 && s.short_forecast && (
-          <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
-            <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
-          </div>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+          )}
+          {hourly.length === 0 && s.short_forecast && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+              <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 };
 
