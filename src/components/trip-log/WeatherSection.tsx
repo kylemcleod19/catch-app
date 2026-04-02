@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Cloud, Droplets, Loader2, Sun, Thermometer, Wind, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,8 +8,10 @@ export interface WeatherSnapshot {
   lon: number;
   date: string;
   fetched_at: string;
+  data_gaps?: string[];
   location?: { city?: string; state?: string };
   given_day?: {
+    data_gaps?: string[];
     summary?: {
       temp_high_c?: number;
       temp_low_c?: number;
@@ -74,7 +76,26 @@ function getWeatherIcon(conditions?: string): string {
   return "☀️";
 }
 
-const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChange }: WeatherSectionProps) => {
+function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
+  if (!snapshot) return false;
+
+  const summary = snapshot.given_day?.summary;
+  const hasSummaryValues = Boolean(
+    summary && (
+      summary.temp_high_c != null ||
+      summary.temp_low_c != null ||
+      summary.temp_avg_c != null ||
+      summary.precip_mm != null ||
+      summary.wind_speed_kmh != null ||
+      summary.conditions ||
+      summary.short_forecast
+    )
+  );
+
+  return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
+}
+
+const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId, tripId, date, existingSnapshot, onSnapshotChange }, ref) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -86,7 +107,7 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
 
     const dateStr = date.toISOString().split("T")[0];
 
-    if (existingSnapshot && existingSnapshot.date === dateStr) {
+    if (existingSnapshot && existingSnapshot.date === dateStr && hasWeatherContent(existingSnapshot)) {
       return;
     }
 
@@ -181,47 +202,63 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
     );
   }
 
-  if (!existingSnapshot?.given_day?.summary) return null;
+  if (!existingSnapshot) return null;
 
-  const s = existingSnapshot.given_day.summary;
+  const s = existingSnapshot.given_day?.summary || {};
   const hourly = existingSnapshot.given_day.hourly || [];
+  const hasCompactValues =
+    s.temp_high_c != null ||
+    s.temp_low_c != null ||
+    s.wind_speed_kmh != null ||
+    (s.precip_mm != null && s.precip_mm > 0) ||
+    Boolean(s.conditions);
+  const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
+    ? "No historical weather was returned for this date."
+    : "Weather details aren't available for this date.";
 
   return (
-    <div>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+    <div ref={ref}>
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
         className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {s.temp_high_c != null && s.temp_low_c != null && (
-            <div className="flex items-center gap-1">
-              <Thermometer className="w-3.5 h-3.5 text-destructive" />
-              <span className="text-sm font-semibold text-foreground">
-                {cToF(s.temp_high_c)}°/{cToF(s.temp_low_c)}°
-              </span>
+          {hasCompactValues ? (
+            <>
+              {s.temp_high_c != null && s.temp_low_c != null && (
+                <div className="flex items-center gap-1">
+                  <Thermometer className="w-3.5 h-3.5 text-destructive" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {cToF(s.temp_high_c)}°/{cToF(s.temp_low_c)}°
+                  </span>
+                </div>
+              )}
+              {s.wind_speed_kmh != null && (
+                <div className="flex items-center gap-1">
+                  <Wind className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-sm text-foreground">{kmhToMph(s.wind_speed_kmh)} mph</span>
+                </div>
+              )}
+              {s.precip_mm != null && s.precip_mm > 0 && (
+                <div className="flex items-center gap-1">
+                  <Droplets className="w-3.5 h-3.5 text-accent" />
+                  <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
+                </div>
+              )}
+              {s.conditions && (
+                <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <Cloud className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground truncate">No weather data for this date</span>
             </div>
-          )}
-          {s.wind_speed_kmh != null && (
-            <div className="flex items-center gap-1">
-              <Wind className="w-3.5 h-3.5 text-primary" />
-              <span className="text-sm text-foreground">{kmhToMph(s.wind_speed_kmh)} mph</span>
-            </div>
-          )}
-          {s.precip_mm != null && s.precip_mm > 0 && (
-            <div className="flex items-center gap-1">
-              <Droplets className="w-3.5 h-3.5 text-accent" />
-              <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
-            </div>
-          )}
-          {s.conditions && (
-            <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
           )}
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-      </div>
+      </button>
 
       {expanded && (
         <>
@@ -249,10 +286,17 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
               <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
             </div>
           )}
+          {hourly.length === 0 && !s.short_forecast && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+              <p className="text-xs text-muted-foreground">{emptyMessage}</p>
+            </div>
+          )}
         </>
       )}
     </div>
   );
-};
+});
+
+WeatherSection.displayName = "WeatherSection";
 
 export default WeatherSection;

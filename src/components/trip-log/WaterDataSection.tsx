@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -76,7 +76,17 @@ function RangeBar({ value, p10, p90 }: { value: number; p10: number; p90: number
   );
 }
 
-const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: WaterDataSectionProps) => {
+function hasWaterContent(snapshot: WaterFlowSnapshot | null): boolean {
+  if (!snapshot) return false;
+
+  return (
+    snapshot.daily_values.length > 0 ||
+    (snapshot.historical?.discharge?.series?.length || 0) > 0 ||
+    (snapshot.historical?.gage_height?.series?.length || 0) > 0
+  );
+}
+
+const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ spotId, date, existingSnapshot, onSnapshotChange }, ref) => {
   const [loading, setLoading] = useState(false);
   const [usgsSiteId, setUsgsSiteId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -92,7 +102,7 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
       .from("spots")
       .select("usgs_site_id")
       .eq("id", spotId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         const siteId = data?.usgs_site_id || null;
         setUsgsSiteId(siteId);
@@ -108,7 +118,8 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     if (
       existingSnapshot &&
       existingSnapshot.monitoring_location_id === usgsSiteId &&
-      existingSnapshot.date === dateStr
+      existingSnapshot.date === dateStr &&
+      hasWaterContent(existingSnapshot)
     ) {
       return;
     }
@@ -155,7 +166,7 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
           .from("usgs_monitoring_locations")
           .select("monitoring_location_name")
           .eq("site_id", usgsSiteId.replace("USGS-", ""))
-          .single();
+          .maybeSingle();
 
         const snapshot: WaterFlowSnapshot = {
           monitoring_location_id: usgsSiteId,
@@ -189,9 +200,7 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     );
   }
 
-  if (!existingSnapshot || existingSnapshot.daily_values.length === 0) {
-    return null;
-  }
+  if (!existingSnapshot) return null;
 
   // Get mean values for compact display
   const meanValues = existingSnapshot.daily_values.filter((v) => v.statistic_id === "00003");
@@ -214,36 +223,45 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
     }))
     .filter((d) => !isNaN(d.value))
     .sort((a, b) => a.date.localeCompare(b.date));
+  const hasCompactValues = displayValues.length > 0;
+  const emptyMessage = existingSnapshot.daily_values.length === 0
+    ? "No USGS daily values were returned for this site and date."
+    : "No stream flow history is available for this site.";
 
   return (
-    <div>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+    <div ref={ref}>
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
         className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-          {displayValues.map((v, i) => {
-            const val = parseFloat(v.value);
-            const stats = getStats(v.parameter_code);
-            return (
-              <div key={i} className="flex items-center gap-1.5">
-                {getParamIcon(v.parameter_code)}
-                <span className="text-sm font-semibold text-foreground">
-                  {v.value}
-                </span>
-                <span className="text-[10px] text-muted-foreground">{v.unit}</span>
-                {stats?.p10 != null && stats?.p90 != null && !isNaN(val) && (
-                  <RangeBar value={val} p10={stats.p10} p90={stats.p90} />
-                )}
-              </div>
-            );
-          })}
+          {hasCompactValues ? (
+            displayValues.map((v, i) => {
+              const val = parseFloat(v.value);
+              const stats = getStats(v.parameter_code);
+              return (
+                <div key={i} className="flex items-center gap-1.5">
+                  {getParamIcon(v.parameter_code)}
+                  <span className="text-sm font-semibold text-foreground">
+                    {v.value}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{v.unit}</span>
+                  {stats?.p10 != null && stats?.p90 != null && !isNaN(val) && (
+                    <RangeBar value={val} p10={stats.p10} p90={stats.p90} />
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <Droplets className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground truncate">No USGS flow data for this date</span>
+            </div>
+          )}
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-      </div>
+      </button>
 
       {expanded && (
         <>
@@ -286,6 +304,11 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
               </ResponsiveContainer>
             </div>
           )}
+          {chartData.length <= 2 && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+              <p className="text-xs text-muted-foreground">{emptyMessage}</p>
+            </div>
+          )}
           {existingSnapshot.monitoring_location_name && (
             <p className="mt-1 text-[10px] text-muted-foreground truncate px-1">
               {existingSnapshot.monitoring_location_name}
@@ -295,6 +318,8 @@ const WaterDataSection = ({ spotId, date, existingSnapshot, onSnapshotChange }: 
       )}
     </div>
   );
-};
+});
+
+WaterDataSection.displayName = "WaterDataSection";
 
 export default WaterDataSection;
