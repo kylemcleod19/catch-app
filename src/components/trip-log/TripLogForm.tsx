@@ -67,6 +67,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           if (data.water_flow_snapshot) {
             setWaterSnapshot(data.water_flow_snapshot as unknown as WaterFlowSnapshot);
           }
+          if (data.weather_snapshot) {
+            setWeatherSnapshot(data.weather_snapshot as unknown as WeatherSnapshot);
+          }
         }
         setLoadingTrip(false);
       });
