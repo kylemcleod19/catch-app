@@ -106,6 +106,13 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Prevent iOS zoom on input focus — inputs must be ≥16px */
+  @media screen and (max-width: 767px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 @layer utilities {
