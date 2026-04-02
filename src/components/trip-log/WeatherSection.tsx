@@ -211,7 +211,7 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
             )}
             {s.precip_mm != null && s.precip_mm > 0 && (
               <div className="flex items-center gap-1">
-                <Droplets className="w-3.5 h-3.5 text-blue-500" />
+                <Droplets className="w-3.5 h-3.5 text-accent" />
                 <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
               </div>
             )}
