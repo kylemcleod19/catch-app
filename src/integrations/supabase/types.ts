@@ -368,6 +368,44 @@ export type Database = {
         }
         Relationships: []
       }
+      weather_data_cache: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          lat: number
+          lon: number
+          response_json: Json
+          spot_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          lat: number
+          lon: number
+          response_json: Json
+          spot_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          lat?: number
+          lon?: number
+          response_json?: Json
+          spot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weather_data_cache_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
