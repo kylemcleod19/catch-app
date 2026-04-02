@@ -187,43 +187,43 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
   const hourly = existingSnapshot.given_day.hourly || [];
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors"
-        >
-          {/* Compact weather summary */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {s.temp_high_c != null && s.temp_low_c != null && (
-              <div className="flex items-center gap-1">
-                <Thermometer className="w-3.5 h-3.5 text-destructive" />
-                <span className="text-sm font-semibold text-foreground">
-                  {cToF(s.temp_high_c)}°/{cToF(s.temp_low_c)}°
-                </span>
-              </div>
-            )}
-            {s.wind_speed_kmh != null && (
-              <div className="flex items-center gap-1">
-                <Wind className="w-3.5 h-3.5 text-primary" />
-                <span className="text-sm text-foreground">{kmhToMph(s.wind_speed_kmh)} mph</span>
-              </div>
-            )}
-            {s.precip_mm != null && s.precip_mm > 0 && (
-              <div className="flex items-center gap-1">
-                <Droplets className="w-3.5 h-3.5 text-accent" />
-                <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
-              </div>
-            )}
-            {s.conditions && (
-              <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
-            )}
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-        </button>
-      </CollapsibleTrigger>
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+        className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {s.temp_high_c != null && s.temp_low_c != null && (
+            <div className="flex items-center gap-1">
+              <Thermometer className="w-3.5 h-3.5 text-destructive" />
+              <span className="text-sm font-semibold text-foreground">
+                {cToF(s.temp_high_c)}°/{cToF(s.temp_low_c)}°
+              </span>
+            </div>
+          )}
+          {s.wind_speed_kmh != null && (
+            <div className="flex items-center gap-1">
+              <Wind className="w-3.5 h-3.5 text-primary" />
+              <span className="text-sm text-foreground">{kmhToMph(s.wind_speed_kmh)} mph</span>
+            </div>
+          )}
+          {s.precip_mm != null && s.precip_mm > 0 && (
+            <div className="flex items-center gap-1">
+              <Droplets className="w-3.5 h-3.5 text-accent" />
+              <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
+            </div>
+          )}
+          {s.conditions && (
+            <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
+          )}
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+      </div>
 
-      <CollapsibleContent>
+      {expanded && (
         {hourly.length > 0 && (
           <div className="mt-2 p-3 rounded-xl bg-card border border-border/50 overflow-x-auto">
             <div className="flex gap-4 min-w-max">
