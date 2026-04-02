@@ -14,6 +14,7 @@ import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
+import WeatherSection, { WeatherSnapshot } from "./WeatherSection";
 
 interface TripLogFormProps {
   tripId: string;
@@ -32,6 +33,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
+  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
@@ -64,6 +66,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           setNotes(data.notes || "");
           if (data.water_flow_snapshot) {
             setWaterSnapshot(data.water_flow_snapshot as unknown as WaterFlowSnapshot);
+          }
+          if (data.weather_snapshot) {
+            setWeatherSnapshot(data.weather_snapshot as unknown as WeatherSnapshot);
           }
         }
         setLoadingTrip(false);
@@ -301,6 +306,15 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         date={date}
         existingSnapshot={waterSnapshot}
         onSnapshotChange={setWaterSnapshot}
+      />
+
+      {/* Weather */}
+      <WeatherSection
+        spotId={spotId}
+        tripId={tripId}
+        date={date}
+        existingSnapshot={weatherSnapshot}
+        onSnapshotChange={setWeatherSnapshot}
       />
 
       {/* Catches */}
