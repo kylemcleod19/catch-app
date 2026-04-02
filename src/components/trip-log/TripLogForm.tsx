@@ -308,6 +308,15 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onSnapshotChange={setWaterSnapshot}
       />
 
+      {/* Weather */}
+      <WeatherSection
+        spotId={spotId}
+        tripId={tripId}
+        date={date}
+        existingSnapshot={weatherSnapshot}
+        onSnapshotChange={setWeatherSnapshot}
+      />
+
       {/* Catches */}
       {user && <CatchLogger ref={catchLoggerRef} tripId={tripId} userId={user.id} />}
 
