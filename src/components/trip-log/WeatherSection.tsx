@@ -233,7 +233,7 @@ const WeatherSection = ({ spotId, tripId, date, existingSnapshot, onSnapshotChan
                   <span className="text-base">{getWeatherIcon(h.conditions)}</span>
                   <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°</span>
                   {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
-                    <span className="text-[10px] text-blue-500">{h.precip_probability_pct}%</span>
+                    <span className="text-[10px] text-accent">{h.precip_probability_pct}%</span>
                   )}
                   {h.wind_speed_kmh != null && (
                     <span className="text-[10px] text-muted-foreground">{kmhToMph(h.wind_speed_kmh)}</span>
