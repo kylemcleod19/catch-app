@@ -377,6 +377,7 @@ export type Database = {
           lon: number
           response_json: Json
           spot_id: string | null
+          trip_id: string | null
         }
         Insert: {
           created_at?: string
@@ -386,6 +387,7 @@ export type Database = {
           lon: number
           response_json: Json
           spot_id?: string | null
+          trip_id?: string | null
         }
         Update: {
           created_at?: string
@@ -395,6 +397,7 @@ export type Database = {
           lon?: number
           response_json?: Json
           spot_id?: string | null
+          trip_id?: string | null
         }
         Relationships: [
           {
@@ -402,6 +405,13 @@ export type Database = {
             columns: ["spot_id"]
             isOneToOne: false
             referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weather_data_cache_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "fishing_trips"
             referencedColumns: ["id"]
           },
         ]

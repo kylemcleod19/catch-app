@@ -1,0 +1,1 @@
+ALTER TABLE public.weather_data_cache ADD COLUMN trip_id uuid REFERENCES public.fishing_trips(id) ON DELETE SET NULL;
