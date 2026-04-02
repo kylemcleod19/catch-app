@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot } from "recharts";
 
 interface DailyValue {
   parameter_code: string;
