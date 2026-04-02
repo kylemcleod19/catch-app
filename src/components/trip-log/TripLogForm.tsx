@@ -14,6 +14,7 @@ import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
+import WeatherSection, { WeatherSnapshot } from "./WeatherSection";
 
 interface TripLogFormProps {
   tripId: string;
