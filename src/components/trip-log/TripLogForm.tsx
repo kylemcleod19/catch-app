@@ -33,6 +33,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [spotId, setSpotId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
+  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
