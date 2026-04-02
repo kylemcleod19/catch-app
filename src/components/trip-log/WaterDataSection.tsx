@@ -305,6 +305,26 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                     strokeWidth={1.5}
                     fill="url(#flowGrad)"
                   />
+                  {maxPoint && (
+                    <ReferenceDot
+                      x={maxPoint.date}
+                      y={maxPoint.value}
+                      r={3}
+                      fill="hsl(var(--destructive))"
+                      stroke="hsl(var(--destructive))"
+                      label={{ value: `▲ ${maxPoint.value}`, position: "top", fontSize: 9, fill: "hsl(var(--destructive))" }}
+                    />
+                  )}
+                  {minPoint && (
+                    <ReferenceDot
+                      x={minPoint.date}
+                      y={minPoint.value}
+                      r={3}
+                      fill="hsl(var(--accent))"
+                      stroke="hsl(var(--accent))"
+                      label={{ value: `▼ ${minPoint.value}`, position: "bottom", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
