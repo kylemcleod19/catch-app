@@ -137,7 +137,7 @@ async function handleAiPass(supabase: any, lovableApiKey: string) {
   const { data: dirtyRows, error } = await supabase
     .from("usgs_monitoring_locations")
     .select("id, monitoring_location_name, normalized_water_body")
-    .or("normalized_water_body.like.%Site %,normalized_water_body.like.% @ %,normalized_water_body.like.%Mile%,normalized_water_body.like.%Rmi%,normalized_water_body.like.% Nr %,normalized_water_body.like.% Near %,normalized_water_body.like.% Above %,normalized_water_body.like.% Below %,normalized_water_body.like.% at %,normalized_water_body.like.% nr %,normalized_water_body.like.% near %,normalized_water_body.like.% above %,normalized_water_body.like.% below %")
+    .or("normalized_water_body.like.%Site %,normalized_water_body.like.% @ %,normalized_water_body.like.%Mile%,normalized_water_body.like.%Rmi%,normalized_water_body.like.% Nr %,normalized_water_body.like.% Near %,normalized_water_body.like.% Above %,normalized_water_body.like.% Below %,normalized_water_body.like.% at %,normalized_water_body.like.% nr %,normalized_water_body.like.% near %,normalized_water_body.like.% above %,normalized_water_body.like.% below %,normalized_water_body.like.0%,normalized_water_body.like.1%,normalized_water_body.like.2%,normalized_water_body.like.3%,normalized_water_body.like.4%,normalized_water_body.like.5%,normalized_water_body.like.6%,normalized_water_body.like.7%,normalized_water_body.like.8%,normalized_water_body.like.9%")
     .limit(AI_BATCH_SIZE);
 
   if (error) throw new Error(`DB error: ${error.message}`);
