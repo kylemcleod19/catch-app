@@ -460,10 +460,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_fishing_water_bodies: {
-        Args: { keep_ids: string[] }
-        Returns: undefined
-      }
       get_distinct_water_bodies: {
         Args: { _site_type: string; _state_code: string }
         Returns: {
