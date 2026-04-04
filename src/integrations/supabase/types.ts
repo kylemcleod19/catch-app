@@ -14,18 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _keep_fishing_sites: {
-        Row: {
-          site_id: string
-        }
-        Insert: {
-          site_id: string
-        }
-        Update: {
-          site_id?: string
-        }
-        Relationships: []
-      }
       catches: {
         Row: {
           caught_at: string
