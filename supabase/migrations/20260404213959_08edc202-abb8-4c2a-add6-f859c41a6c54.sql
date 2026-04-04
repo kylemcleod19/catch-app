@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public._keep_fishing_sites;
