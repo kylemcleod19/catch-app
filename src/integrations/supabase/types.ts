@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _staging_water_bodies: {
+        Row: {
+          normalized_water_body: string | null
+          site_id: string
+        }
+        Insert: {
+          normalized_water_body?: string | null
+          site_id: string
+        }
+        Update: {
+          normalized_water_body?: string | null
+          site_id?: string
+        }
+        Relationships: []
+      }
       catches: {
         Row: {
           caught_at: string
