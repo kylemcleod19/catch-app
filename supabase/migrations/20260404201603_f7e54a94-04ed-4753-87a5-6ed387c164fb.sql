@@ -1,0 +1,4 @@
+CREATE TABLE public._staging_water_bodies (
+  site_id TEXT NOT NULL,
+  normalized_water_body TEXT
+);
