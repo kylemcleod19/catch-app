@@ -62,7 +62,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
 
-  const [siteType, setSiteType] = useState<"Stream" | "Lake, Reservoir, Impoundment">("Stream");
   const [waterBodies, setWaterBodies] = useState<string[]>([]);
   const [loadingWater, setLoadingWater] = useState(false);
   const [waterInput, setWaterInput] = useState("");
