@@ -40,6 +40,11 @@ interface UsgsLocation {
   available_params?: string[];
 }
 
+interface MapView {
+  center: { lat: number; lng: number };
+  zoom: number;
+}
+
 interface SpotCreationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,7 +80,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [pins, setPins] = useState<SpotPoint[]>([]);
   const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapView, setMapView] = useState<MapView | null>(null);
   const [autoSearchQuery, setAutoSearchQuery] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -113,7 +118,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setShowSuggestions(false);
       setSpotName("");
       setPins([]);
-      setMapCenter(null);
+      setMapView(null);
       setAutoSearchQuery(null);
       setSaveAsHome(false);
       setSelectedUsgs(null);
@@ -206,9 +211,25 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   }, [isUsgsWater, waterInput, stateCode, pins]);
 
   const handlePlaceSelected = (place: { name: string; lat: number; lng: number }) => {
+    setMapView({ center: { lat: place.lat, lng: place.lng }, zoom: 15 });
     mapRef.current?.panTo({ lat: place.lat, lng: place.lng });
     mapRef.current?.setZoom(15);
   };
+
+  const handleMapViewChange = useCallback((nextView: MapView) => {
+    setMapView((prev) => {
+      if (
+        prev &&
+        prev.zoom === nextView.zoom &&
+        Math.abs(prev.center.lat - nextView.center.lat) < 0.000001 &&
+        Math.abs(prev.center.lng - nextView.center.lng) < 0.000001
+      ) {
+        return prev;
+      }
+
+      return nextView;
+    });
+  }, []);
 
   const confirmPin = (label: string) => {
     if (pendingPinCoords) {
@@ -234,8 +255,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
   const handleGoToMap = () => {
     if (saveAsHome && stateCode) updateHomeState(stateCode);
+    setMapView(null);
     setMapStage("navigate");
-    // Set auto-search query so the map auto-centers on entry
     const stateName = getStateName(stateCode);
     setAutoSearchQuery(`${waterInput}, ${stateName}`);
     setStep("map");
@@ -305,13 +326,14 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             pendingPinCoords={pendingPinCoords}
             setPendingPinCoords={setPendingPinCoords}
             apiKey={apiKey}
-            mapCenter={mapCenter}
+            mapView={mapView}
             mapRef={mapRef}
             effectiveWater={waterInput}
             stateCode={stateCode}
             autoSearchQuery={autoSearchQuery}
             onAutoSearchDone={() => setAutoSearchQuery(null)}
             onPlaceSelected={handlePlaceSelected}
+            onMapViewChange={handleMapViewChange}
             onConfirmPin={confirmPin}
             onCancelPin={cancelPin}
             onRemovePin={removePin}
@@ -648,9 +670,9 @@ const UsgsSelectionMap = ({
 
 const FullScreenMapStep = ({
   mapStage, setMapStage, pins, pendingPinCoords, setPendingPinCoords,
-  apiKey, mapCenter, mapRef, effectiveWater, stateCode,
+  apiKey, mapView, mapRef, effectiveWater, stateCode,
   autoSearchQuery, onAutoSearchDone,
-  onPlaceSelected, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish,
+  onPlaceSelected, onMapViewChange, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish,
 }: {
   mapStage: MapStage;
   setMapStage: (s: MapStage) => void;
@@ -658,13 +680,14 @@ const FullScreenMapStep = ({
   pendingPinCoords: { lat: number; lng: number } | null;
   setPendingPinCoords: (c: { lat: number; lng: number } | null) => void;
   apiKey: string | null;
-  mapCenter: { lat: number; lng: number } | null;
+  mapView: MapView | null;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   effectiveWater: string;
   stateCode: string;
   autoSearchQuery: string | null;
   onAutoSearchDone: () => void;
   onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
+  onMapViewChange: (view: MapView) => void;
   onConfirmPin: (label: string) => void;
   onCancelPin: () => void;
   onRemovePin: (idx: number) => void;
@@ -723,12 +746,12 @@ const FullScreenMapStep = ({
           <FullScreenMap
             apiKey={apiKey}
             mapRef={mapRef}
-            initialCenter={mapCenter}
+            initialView={mapView}
             pins={pins}
             isNavigate={isNavigate}
             autoSearchQuery={autoSearchQuery}
             onAutoSearchDone={onAutoSearchDone}
-            onPlaceSelected={onPlaceSelected}
+            onMapViewChange={onMapViewChange}
             onMapClick={(coords) => {
               if (!isNavigate) setPendingPinCoords(coords);
             }}
@@ -779,21 +802,26 @@ const FullScreenMapStep = ({
 /* ─── Full Screen Map Inner ─── */
 
 const FullScreenMap = ({
-  apiKey, mapRef, initialCenter, pins, isNavigate, autoSearchQuery, onAutoSearchDone, onPlaceSelected, onMapClick, onLocateMe,
+  apiKey, mapRef, initialView, pins, isNavigate, autoSearchQuery, onAutoSearchDone, onMapViewChange, onMapClick, onLocateMe,
 }: {
   apiKey: string;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
-  initialCenter: { lat: number; lng: number } | null;
+  initialView: MapView | null;
   pins: SpotPoint[];
   isNavigate: boolean;
   autoSearchQuery: string | null;
   onAutoSearchDone: () => void;
-  onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
+  onMapViewChange: (view: MapView) => void;
   onMapClick: (coords: { lat: number; lng: number }) => void;
   onLocateMe: () => void;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
   const didAutoSearch = useRef(false);
+
+  const baseView = initialView ?? {
+    center: { lat: 39.8283, lng: -98.5795 },
+    zoom: 5,
+  };
 
   // Apply options imperatively when stage changes — no re-render needed
   useEffect(() => {
@@ -823,31 +851,44 @@ const FullScreenMap = ({
     }
   }, [isNavigate, mapRef]);
 
-  // Auto-search on first load
+  useEffect(() => {
+    didAutoSearch.current = false;
+  }, [autoSearchQuery]);
+
   useEffect(() => {
     if (!isLoaded || !autoSearchQuery || didAutoSearch.current) return;
     didAutoSearch.current = true;
 
-    const timer = setTimeout(() => {
-      if (!window.google?.maps?.places) return;
-      const service = new google.maps.places.PlacesService(document.createElement("div"));
-      service.findPlaceFromQuery(
-        { query: autoSearchQuery, fields: ["geometry", "name"] },
-        (results, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && results?.[0]?.geometry?.location) {
-            const loc = results[0].geometry.location;
-            const lat = loc.lat();
-            const lng = loc.lng();
-            mapRef.current?.panTo({ lat, lng });
-            mapRef.current?.setZoom(13);
-            onPlaceSelected({ name: results[0].name || autoSearchQuery, lat, lng });
-          }
-          onAutoSearchDone();
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: autoSearchQuery }, (results, status) => {
+      const firstResult = results?.[0];
+
+      if (status === "OK" && firstResult?.geometry?.location) {
+        const location = firstResult.geometry.location;
+        const nextCenter = { lat: location.lat(), lng: location.lng() };
+
+        if (firstResult.geometry.viewport && mapRef.current) {
+          mapRef.current.fitBounds(firstResult.geometry.viewport);
+          window.setTimeout(() => {
+            const center = mapRef.current?.getCenter();
+            const zoom = mapRef.current?.getZoom();
+            if (center && typeof zoom === "number") {
+              onMapViewChange({
+                center: { lat: center.lat(), lng: center.lng() },
+                zoom,
+              });
+            }
+          }, 0);
+        } else {
+          mapRef.current?.panTo(nextCenter);
+          mapRef.current?.setZoom(13);
+          onMapViewChange({ center: nextCenter, zoom: 13 });
         }
-      );
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [isLoaded, autoSearchQuery, onAutoSearchDone, onPlaceSelected, mapRef]);
+      }
+
+      onAutoSearchDone();
+    });
+  }, [isLoaded, autoSearchQuery, onAutoSearchDone, onMapViewChange, mapRef]);
 
   if (!isLoaded) {
     return (
@@ -857,24 +898,36 @@ const FullScreenMap = ({
     );
   }
 
-  const defaultCenter = initialCenter || { lat: 32.87, lng: -97.34 };
-  const defaultZoom = initialCenter ? 14 : 6;
-
   return (
     <GoogleMap
       mapContainerStyle={{ width: "100%", height: "100%" }}
-      center={defaultCenter}
-      zoom={defaultZoom}
       onLoad={(map) => {
         mapRef.current = map;
-        // Apply initial options
+        map.setCenter(baseView.center);
+        map.setZoom(baseView.zoom);
         map.setOptions({
-          gestureHandling: "greedy",
-          zoomControl: true,
-          mapTypeControl: true,
+          gestureHandling: isNavigate ? "greedy" : "none",
+          zoomControl: isNavigate,
+          mapTypeControl: isNavigate,
           streetViewControl: false,
           fullscreenControl: false,
+          draggable: isNavigate,
+          scrollwheel: isNavigate,
+          disableDoubleClickZoom: !isNavigate,
         });
+      }}
+      onUnmount={() => {
+        mapRef.current = null;
+      }}
+      onIdle={() => {
+        const center = mapRef.current?.getCenter();
+        const zoom = mapRef.current?.getZoom();
+        if (center && typeof zoom === "number") {
+          onMapViewChange({
+            center: { lat: center.lat(), lng: center.lng() },
+            zoom,
+          });
+        }
       }}
       onClick={(e) => {
         if (!isNavigate && e.latLng) {
