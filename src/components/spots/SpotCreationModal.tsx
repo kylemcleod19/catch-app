@@ -275,7 +275,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         name: spotName || null,
         body_of_water: waterInput.trim(),
         state_code: stateCode,
-        site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
+        site_type: "Stream",
         points: pins,
       });
       onOpenChange(false);
