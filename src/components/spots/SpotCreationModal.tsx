@@ -105,7 +105,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       const defaultState = initialStateCode ?? homeState ?? "";
       setStep(defaultState ? "water" : "state");
       setStateCode(defaultState);
-      setSiteType("Stream");
       setWaterInput("");
       setIsUsgsWater(false);
       setShowSuggestions(false);
