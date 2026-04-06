@@ -92,13 +92,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     if (!stateCode) return;
     setLoadingWater(true);
     supabase
-      .rpc("get_distinct_water_bodies", { _state_code: stateCode, _site_type: siteType })
+      .rpc("get_distinct_water_bodies", { _state_code: stateCode })
       .then(({ data }) => {
         const bodies = (data || []).map((d: any) => d.normalized_water_body as string).filter(Boolean);
         setWaterBodies(bodies);
         setLoadingWater(false);
       });
-  }, [stateCode, siteType]);
+  }, [stateCode]);
 
   useEffect(() => {
     if (open) {
