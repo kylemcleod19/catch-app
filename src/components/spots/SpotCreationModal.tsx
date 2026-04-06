@@ -9,7 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHomeState } from "@/hooks/useHomeState";
 import { toast } from "sonner";
 import { US_STATES, getStateName } from "@/lib/us-states";
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search, Navigation, Layers, Lock, Move } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
+  Navigation, Move, Flag,
+} from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
@@ -34,6 +37,7 @@ interface UsgsLocation {
   monitoring_location_name: string;
   latitude: number | null;
   longitude: number | null;
+  available_params?: string[];
 }
 
 interface SpotCreationModalProps {
@@ -43,10 +47,12 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "usgs" | "map" | "naming";
+type Step = "state" | "water" | "map" | "usgs_select" | "naming";
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
+
+const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"]; // red, blue, green
 
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
@@ -58,18 +64,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
 
-  // Step 2: Water body
+  // Step 2: Water body (combo field)
   const [siteType, setSiteType] = useState<"Stream" | "Lake, Reservoir, Impoundment">("Stream");
   const [waterBodies, setWaterBodies] = useState<string[]>([]);
   const [loadingWater, setLoadingWater] = useState(false);
-  const [selectedWater, setSelectedWater] = useState("");
-  const [customWater, setCustomWater] = useState("");
-  const [waterSearch, setWaterSearch] = useState("");
-
-  // Step 2.5: USGS
-  const [usgsLocations, setUsgsLocations] = useState<UsgsLocation[]>([]);
-  const [loadingUsgs, setLoadingUsgs] = useState(false);
-  const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
+  const [waterInput, setWaterInput] = useState("");
+  const [isUsgsWater, setIsUsgsWater] = useState(false); // whether the selected water body is from USGS
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Map step
   const [mapStage, setMapStage] = useState<MapStage>("navigate");
@@ -78,6 +79,11 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+
+  // USGS site selection (post-map)
+  const [nearbyUsgs, setNearbyUsgs] = useState<UsgsLocation[]>([]);
+  const [loadingUsgs, setLoadingUsgs] = useState(false);
+  const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
   // Naming step
   const [spotName, setSpotName] = useState("");
@@ -89,12 +95,10 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     });
   }, []);
 
-  // Fetch water bodies
+  // Fetch water bodies for autocomplete
   useEffect(() => {
     if (!stateCode) return;
     setLoadingWater(true);
-    setSelectedWater("");
-    setWaterSearch("");
     supabase
       .rpc("get_distinct_water_bodies", { _state_code: stateCode, _site_type: siteType })
       .then(({ data }) => {
@@ -111,41 +115,110 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setStep(defaultState ? "water" : "state");
       setStateCode(defaultState);
       setSiteType("Stream");
-      setSelectedWater("");
-      setCustomWater("");
+      setWaterInput("");
+      setIsUsgsWater(false);
+      setShowSuggestions(false);
       setSpotName("");
       setPins([]);
       setMapCenter(null);
       setSaveAsHome(false);
       setSelectedUsgs(null);
-      setUsgsLocations([]);
+      setNearbyUsgs([]);
       setPendingPinCoords(null);
       setMapStage("navigate");
     }
   }, [open, initialStateCode, homeState]);
 
-  const effectiveWater = customWater.trim() || selectedWater;
+  // Filtered suggestions
+  const suggestions = waterInput.trim().length >= 2
+    ? waterBodies.filter((w) => w.toLowerCase().includes(waterInput.toLowerCase())).slice(0, 20)
+    : [];
 
-  const fetchUsgsLocations = useCallback(async () => {
-    if (!effectiveWater || !stateCode) return;
+  const handleSelectSuggestion = (body: string) => {
+    setWaterInput(body);
+    setIsUsgsWater(true);
+    setShowSuggestions(false);
+  };
+
+  const handleWaterInputChange = (val: string) => {
+    setWaterInput(val);
+    // If user modifies away from exact USGS match, mark as custom
+    if (isUsgsWater && val !== waterInput) {
+      setIsUsgsWater(waterBodies.includes(val));
+    } else {
+      setIsUsgsWater(waterBodies.includes(val));
+    }
+    setShowSuggestions(val.trim().length >= 2);
+  };
+
+  // After map, find nearest USGS sites
+  const findNearbyUsgs = useCallback(async () => {
+    if (!isUsgsWater || !waterInput || !stateCode) return false;
     setLoadingUsgs(true);
+
+    // Get all USGS locations for this water body
     const { data } = await supabase
-      .from("usgs_monitoring_locations")
+      .from("usgs_fishing_water_bodies")
       .select("site_id, monitoring_location_name, latitude, longitude")
       .eq("state_code", stateCode)
-      .eq("normalized_water_body", effectiveWater)
+      .eq("normalized_water_body", waterInput)
       .not("latitude", "is", null)
-      .not("longitude", "is", null)
-      .order("monitoring_location_name");
-    setUsgsLocations((data as UsgsLocation[]) || []);
-    setLoadingUsgs(false);
-  }, [effectiveWater, stateCode]);
+      .not("longitude", "is", null);
 
-  const handleNextToUsgs = async () => {
-    if (saveAsHome && stateCode) await updateHomeState(stateCode);
-    await fetchUsgsLocations();
-    setStep("usgs");
-  };
+    if (!data || data.length === 0) {
+      setLoadingUsgs(false);
+      return false;
+    }
+
+    // Find the nearest 3 to the user's pins (or map center)
+    let refLat: number, refLng: number;
+    if (pins.length > 0) {
+      refLat = pins.reduce((s, p) => s + p.latitude, 0) / pins.length;
+      refLng = pins.reduce((s, p) => s + p.longitude, 0) / pins.length;
+    } else if (mapRef.current) {
+      const c = mapRef.current.getCenter();
+      refLat = c?.lat() ?? 32;
+      refLng = c?.lng() ?? -97;
+    } else {
+      refLat = 32; refLng = -97;
+    }
+
+    const withDist = data.map((loc) => ({
+      ...loc,
+      dist: Math.sqrt(
+        Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)
+      ),
+    }));
+    withDist.sort((a, b) => a.dist - b.dist);
+    const top3 = withDist.slice(0, 3) as UsgsLocation[];
+
+    // Query available parameters for each site
+    const enriched = await Promise.all(
+      top3.map(async (loc) => {
+        try {
+          const resp = await fetch(
+            `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${loc.site_id}&siteStatus=all&period=PT2H`
+          );
+          if (resp.ok) {
+            const json = await resp.json();
+            const ts = json?.value?.timeSeries || [];
+            const params = ts.map((t: any) => {
+              const name = t?.variable?.variableName || "";
+              return name.split(",")[0].trim();
+            }).filter(Boolean);
+            return { ...loc, available_params: [...new Set(params)] as string[] };
+          }
+        } catch {
+          // ignore
+        }
+        return { ...loc, available_params: [] };
+      })
+    );
+
+    setNearbyUsgs(enriched);
+    setLoadingUsgs(false);
+    return enriched.length > 0;
+  }, [isUsgsWater, waterInput, stateCode, pins]);
 
   const handlePlaceSelected = (place: { name: string; lat: number; lng: number }) => {
     mapRef.current?.panTo({ lat: place.lat, lng: place.lng });
@@ -174,8 +247,20 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     );
   };
 
+  const handleMapFinish = async () => {
+    // After map, check if we should show USGS selection
+    if (isUsgsWater) {
+      const hasUsgs = await findNearbyUsgs();
+      if (hasUsgs) {
+        setStep("usgs_select");
+        return;
+      }
+    }
+    setStep("naming");
+  };
+
   const handleSave = async () => {
-    if (!user || !effectiveWater || !stateCode) return;
+    if (!user || !waterInput.trim() || !stateCode) return;
     setSaving(true);
     try {
       const { data: spot, error } = await supabase
@@ -183,7 +268,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         .insert({
           user_id: user.id,
           name: spotName || null,
-          body_of_water: effectiveWater,
+          body_of_water: waterInput.trim(),
           state_code: stateCode,
           site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
           usgs_site_id: selectedUsgs?.site_id || null,
@@ -203,7 +288,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       onSpotCreated({
         id: spot.id,
         name: spotName || null,
-        body_of_water: effectiveWater,
+        body_of_water: waterInput.trim(),
         state_code: stateCode,
         site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
         points: pins,
@@ -215,12 +300,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSaving(false);
     }
   };
-
-  const filteredWaterBodies = waterSearch
-    ? waterBodies.filter((w) => w.toLowerCase().includes(waterSearch.toLowerCase()))
-    : waterBodies;
-
-  const hasUsgsData = waterBodies.length > 0;
 
   // Full-screen map step
   if (step === "map") {
@@ -236,15 +315,15 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             apiKey={apiKey}
             mapCenter={mapCenter}
             mapRef={mapRef}
-            effectiveWater={effectiveWater}
+            effectiveWater={waterInput}
             stateCode={stateCode}
             onPlaceSelected={handlePlaceSelected}
             onConfirmPin={confirmPin}
             onCancelPin={cancelPin}
             onRemovePin={removePin}
             onLocateMe={handleLocateMe}
-            onBack={() => setStep("usgs")}
-            onFinish={() => setStep("naming")}
+            onBack={() => setStep("water")}
+            onFinish={handleMapFinish}
           />
         </DialogContent>
       </Dialog>
@@ -258,7 +337,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           <DialogTitle className="text-lg font-bold">
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
-            {step === "usgs" && "Link USGS Location"}
+            {step === "usgs_select" && "Link Monitoring Station"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
           {step !== "state" && stateCode && (
@@ -314,7 +393,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
-        {/* Step 2: Body of Water */}
+        {/* Step 2: Water body combo field */}
         {step === "water" && (
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -325,83 +404,135 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 Lake
               </Button>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-foreground">Name of water body</label>
-              <Input
-                placeholder="e.g. Brushy Creek, My Private Pond"
-                value={customWater}
-                onChange={(e) => { setCustomWater(e.target.value); if (e.target.value.trim()) setSelectedWater(""); }}
-                className="rounded-xl"
-              />
+
+            <div className="space-y-1 relative">
+              <label className="text-sm font-medium text-foreground">Water body name</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Type to search or enter a custom name..."
+                  value={waterInput}
+                  onChange={(e) => handleWaterInputChange(e.target.value)}
+                  onFocus={() => waterInput.trim().length >= 2 && setShowSuggestions(true)}
+                  className="rounded-xl pl-9"
+                  autoFocus
+                />
+              </div>
+              {isUsgsWater && (
+                <p className="text-xs text-primary flex items-center gap-1">
+                  <Navigation className="w-3 h-3" /> USGS monitored water body
+                </p>
+              )}
+              {!isUsgsWater && waterInput.trim().length > 0 && (
+                <p className="text-xs text-muted-foreground">Custom water body (no USGS data)</p>
+              )}
+
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border">
+                  {loadingWater ? (
+                    <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+                  ) : (
+                    suggestions.map((w) => (
+                      <button
+                        key={w}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-foreground transition-colors"
+                        onClick={() => handleSelectSuggestion(w)}
+                      >
+                        {w}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            {hasUsgsData && !customWater.trim() && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground">or choose from USGS data</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Search water bodies..." value={waterSearch} onChange={(e) => setWaterSearch(e.target.value)} className="rounded-xl pl-9" />
-                </div>
-                {loadingWater ? (
-                  <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto border border-border rounded-xl divide-y divide-border">
-                    {filteredWaterBodies.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-3 text-center">No matches</p>
-                    ) : (
-                      filteredWaterBodies.map((w) => (
-                        <button key={w} type="button" className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedWater === w ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-foreground"}`} onClick={() => { setSelectedWater(w); setCustomWater(""); }}>
-                          {w}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </>
-            )}
+
             <div className="flex justify-between">
               <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("state")}>
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
-              <Button onClick={handleNextToUsgs} disabled={!effectiveWater} className="rounded-xl gap-1">
+              <Button
+                onClick={() => {
+                  if (saveAsHome && stateCode) updateHomeState(stateCode);
+                  setMapStage("navigate");
+                  setStep("map");
+                }}
+                disabled={!waterInput.trim()}
+                className="rounded-xl gap-1"
+              >
                 Next <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 2.5: USGS */}
-        {step === "usgs" && (
+        {/* Step: USGS Site Selection (post-map) */}
+        {step === "usgs_select" && (
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">Optionally link a USGS monitoring station for water flow data. Skip if unsure.</p>
+            <p className="text-xs text-muted-foreground">
+              We found {nearbyUsgs.length} USGS monitoring station{nearbyUsgs.length !== 1 ? "s" : ""} near your spots on <span className="font-medium text-foreground">{waterInput}</span>. Select one for water flow data.
+            </p>
+
             {loadingUsgs ? (
               <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-            ) : usgsLocations.length === 0 ? (
-              <div className="text-center py-6 text-sm text-muted-foreground">No USGS stations found for {effectiveWater}.</div>
             ) : (
-              <div className="max-h-64 overflow-y-auto border border-border rounded-xl divide-y divide-border">
-                {usgsLocations.map((loc) => (
-                  <button key={loc.site_id} type="button" className={`w-full text-left px-3 py-2.5 transition-colors ${selectedUsgs?.site_id === loc.site_id ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"}`}
-                    onClick={() => {
-                      setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc);
-                      if (loc.latitude && loc.longitude) setMapCenter({ lat: loc.latitude, lng: loc.longitude });
-                    }}
-                  >
-                    <p className="text-sm font-medium truncate">{loc.monitoring_location_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      <Navigation className="w-3 h-3 inline mr-1" />{loc.site_id}
-                      {loc.latitude && loc.longitude && <span className="ml-2 tabular-nums">{loc.latitude.toFixed(3)}, {loc.longitude.toFixed(3)}</span>}
-                    </p>
-                  </button>
-                ))}
-              </div>
+              <>
+                {/* Map showing pins + USGS locations */}
+                {apiKey && (
+                  <UsgsSelectionMap
+                    apiKey={apiKey}
+                    userPins={pins}
+                    usgsLocations={nearbyUsgs}
+                    selectedUsgs={selectedUsgs}
+                  />
+                )}
+
+                {/* Numbered buttons */}
+                <div className="space-y-2">
+                  {nearbyUsgs.map((loc, idx) => (
+                    <button
+                      key={loc.site_id}
+                      type="button"
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                        selectedUsgs?.site_id === loc.site_id
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-muted"
+                      }`}
+                      onClick={() => setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc)}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
+                          style={{ backgroundColor: USGS_FLAG_COLORS[idx] || "#718096" }}
+                        >
+                          {idx + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{loc.monitoring_location_name}</p>
+                          <p className="text-xs text-muted-foreground">Site {loc.site_id}</p>
+                          {loc.available_params && loc.available_params.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {loc.available_params.map((p) => (
+                                <span key={p} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                  {p}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
+
             <div className="flex justify-between">
-              <Button variant="outline" className="rounded-xl gap-1" onClick={() => setStep("water")}><ChevronLeft className="w-4 h-4" /> Back</Button>
-              <Button onClick={() => { setMapStage("navigate"); setStep("map"); }} className="rounded-xl gap-1">
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => { setMapStage("pin"); setStep("map"); }}>
+                <ChevronLeft className="w-4 h-4" /> Back
+              </Button>
+              <Button onClick={() => setStep("naming")} className="rounded-xl gap-1">
                 {selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
@@ -412,7 +543,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              on <span className="font-semibold text-foreground">{effectiveWater}</span>
+              on <span className="font-semibold text-foreground">{waterInput}</span>
             </p>
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">Spot name (optional)</label>
@@ -431,16 +562,28 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             {/* Summary */}
             <div className="bg-muted rounded-xl p-3 space-y-1.5 text-sm">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Summary</p>
-              <p className="text-foreground">{effectiveWater} · {getStateName(stateCode)}</p>
+              <p className="text-foreground">{waterInput} · {getStateName(stateCode)}</p>
               {pins.length > 0 && (
                 <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                   <MapPin className="w-3 h-3 text-primary" /> {pins.length} pin{pins.length !== 1 ? "s" : ""}
                 </div>
               )}
+              {selectedUsgs && (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <Navigation className="w-3 h-3 text-primary" /> {selectedUsgs.monitoring_location_name}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" className="rounded-xl gap-1" onClick={() => { setMapStage("pin"); setStep("map"); }}>
+              <Button variant="outline" className="rounded-xl gap-1" onClick={() => {
+                if (nearbyUsgs.length > 0) {
+                  setStep("usgs_select");
+                } else {
+                  setMapStage("pin");
+                  setStep("map");
+                }
+              }}>
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-1">
@@ -452,6 +595,96 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         )}
       </DialogContent>
     </Dialog>
+  );
+};
+
+/* ─── USGS Selection Map ─── */
+
+const UsgsSelectionMap = ({
+  apiKey,
+  userPins,
+  usgsLocations,
+  selectedUsgs,
+}: {
+  apiKey: string;
+  userPins: SpotPoint[];
+  usgsLocations: UsgsLocation[];
+  selectedUsgs: UsgsLocation | null;
+}) => {
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const mapRef = useRef<google.maps.Map | null>(null);
+
+  // Fit bounds to all markers
+  const onLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+    const bounds = new google.maps.LatLngBounds();
+    userPins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+    usgsLocations.forEach((l) => {
+      if (l.latitude && l.longitude) bounds.extend({ lat: l.latitude, lng: l.longitude });
+    });
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 60);
+    }
+  }, [userPins, usgsLocations]);
+
+  if (!isLoaded) {
+    return (
+      <div className="h-[200px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <GoogleMap
+      mapContainerStyle={{ width: "100%", height: "200px", borderRadius: "0.75rem" }}
+      center={{ lat: 32, lng: -97 }}
+      zoom={8}
+      onLoad={onLoad}
+      options={{
+        gestureHandling: "cooperative",
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+      }}
+    >
+      {/* User pins */}
+      {userPins.map((p, i) => (
+        <Marker
+          key={`pin-${i}`}
+          position={{ lat: p.latitude, lng: p.longitude }}
+          title={p.label}
+          icon={{
+            url: "data:image/svg+xml," + encodeURIComponent(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(142,71%,45%)" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`
+            ),
+            scaledSize: new google.maps.Size(28, 28),
+          }}
+        />
+      ))}
+      {/* USGS numbered flags */}
+      {usgsLocations.map((loc, idx) => (
+        loc.latitude && loc.longitude && (
+          <Marker
+            key={`usgs-${loc.site_id}`}
+            position={{ lat: loc.latitude, lng: loc.longitude }}
+            title={`${idx + 1}: ${loc.monitoring_location_name}`}
+            icon={{
+              url: "data:image/svg+xml," + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+                  <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="${USGS_FLAG_COLORS[idx] || '#718096'}"/>
+                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial">${idx + 1}</text>
+                </svg>`
+              ),
+              scaledSize: new google.maps.Size(32, 40),
+              anchor: new google.maps.Point(16, 40),
+            }}
+            zIndex={selectedUsgs?.site_id === loc.site_id ? 100 : 50}
+          />
+        )
+      ))}
+    </GoogleMap>
   );
 };
 
@@ -487,7 +720,6 @@ const FullScreenMapStep = ({
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
         <div className="px-3 pt-2 pb-2 space-y-2">
-          {/* Header row */}
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{effectiveWater}</p>
@@ -506,12 +738,8 @@ const FullScreenMapStep = ({
             </div>
           </div>
 
-          {/* Search bar - only in navigate mode */}
-          {isNavigate && (
-            <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
-          )}
+          {isNavigate && <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />}
 
-          {/* Pin list - only in pin mode */}
           {!isNavigate && pins.length > 0 && (
             <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {pins.map((p, i) => (
@@ -555,7 +783,6 @@ const FullScreenMapStep = ({
         )}
       </div>
 
-      {/* Naming prompt overlay */}
       {pendingPinCoords && !isNavigate && (
         <HoleNamingPrompt
           holeCount={pins.length}
@@ -570,7 +797,7 @@ const FullScreenMapStep = ({
           {isNavigate ? (
             <>
               <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={onBack}>
-                <ChevronLeft className="w-4 h-4" /> State
+                <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button size="sm" className="rounded-xl gap-1" onClick={() => setMapStage("pin")}>
                 Add Pins <ChevronRight className="w-4 h-4" />
