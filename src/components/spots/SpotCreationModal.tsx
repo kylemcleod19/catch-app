@@ -53,6 +53,9 @@ type MapStage = "navigate" | "pin";
 const LIBRARIES: ("places")[] = ["places"];
 const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
 
+// Simple cache for USGS site available parameters
+const usgsParamsCache = new Map<string, string[]>();
+
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
