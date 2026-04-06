@@ -177,6 +177,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
+        // Check cache first
+        const cached = usgsParamsCache.get(loc.site_id);
+        if (cached) return { ...loc, available_params: cached };
         try {
           const resp = await fetch(
             `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${loc.site_id}&siteStatus=all&period=PT2H`
@@ -184,14 +187,16 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           if (resp.ok) {
             const json = await resp.json();
             const ts = json?.value?.timeSeries || [];
-            const params = ts.map((t: any) => {
+            const params = [...new Set(ts.map((t: any) => {
               const name = t?.variable?.variableName || "";
               return name.split(",")[0].trim();
-            }).filter(Boolean);
-            return { ...loc, available_params: [...new Set(params)] as string[] };
+            }).filter(Boolean))] as string[];
+            usgsParamsCache.set(loc.site_id, params);
+            return { ...loc, available_params: params };
           }
         } catch { /* ignore */ }
-        return { ...loc, available_params: [] };
+        usgsParamsCache.set(loc.site_id, []);
+        return { ...loc, available_params: [] as string[] };
       })
     );
 
