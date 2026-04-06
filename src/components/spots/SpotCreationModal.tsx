@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { US_STATES, getStateName } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
-  Navigation, Move, Flag,
+  Navigation, Move,
 } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
@@ -51,8 +51,7 @@ type Step = "state" | "water" | "map" | "usgs_select" | "naming";
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
-
-const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"]; // red, blue, green
+const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
 
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
@@ -60,42 +59,36 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [step, setStep] = useState<Step>("state");
   const [saving, setSaving] = useState(false);
 
-  // Step 1: State
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
 
-  // Step 2: Water body (combo field)
   const [siteType, setSiteType] = useState<"Stream" | "Lake, Reservoir, Impoundment">("Stream");
   const [waterBodies, setWaterBodies] = useState<string[]>([]);
   const [loadingWater, setLoadingWater] = useState(false);
   const [waterInput, setWaterInput] = useState("");
-  const [isUsgsWater, setIsUsgsWater] = useState(false); // whether the selected water body is from USGS
+  const [isUsgsWater, setIsUsgsWater] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Map step
   const [mapStage, setMapStage] = useState<MapStage>("navigate");
   const [pins, setPins] = useState<SpotPoint[]>([]);
   const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [autoSearchQuery, setAutoSearchQuery] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
-  // USGS site selection (post-map)
   const [nearbyUsgs, setNearbyUsgs] = useState<UsgsLocation[]>([]);
   const [loadingUsgs, setLoadingUsgs] = useState(false);
   const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
-  // Naming step
   const [spotName, setSpotName] = useState("");
 
-  // Fetch Google Maps API key
   useEffect(() => {
     supabase.functions.invoke("google-maps-key").then(({ data, error }) => {
       if (!error && data?.key) setApiKey(data.key);
     });
   }, []);
 
-  // Fetch water bodies for autocomplete
   useEffect(() => {
     if (!stateCode) return;
     setLoadingWater(true);
@@ -108,7 +101,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       });
   }, [stateCode, siteType]);
 
-  // Reset on open
   useEffect(() => {
     if (open) {
       const defaultState = initialStateCode ?? homeState ?? "";
@@ -121,6 +113,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSpotName("");
       setPins([]);
       setMapCenter(null);
+      setAutoSearchQuery(null);
       setSaveAsHome(false);
       setSelectedUsgs(null);
       setNearbyUsgs([]);
@@ -129,7 +122,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     }
   }, [open, initialStateCode, homeState]);
 
-  // Filtered suggestions
   const suggestions = waterInput.trim().length >= 2
     ? waterBodies.filter((w) => w.toLowerCase().includes(waterInput.toLowerCase())).slice(0, 20)
     : [];
@@ -142,21 +134,14 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
   const handleWaterInputChange = (val: string) => {
     setWaterInput(val);
-    // If user modifies away from exact USGS match, mark as custom
-    if (isUsgsWater && val !== waterInput) {
-      setIsUsgsWater(waterBodies.includes(val));
-    } else {
-      setIsUsgsWater(waterBodies.includes(val));
-    }
+    setIsUsgsWater(waterBodies.includes(val));
     setShowSuggestions(val.trim().length >= 2);
   };
 
-  // After map, find nearest USGS sites
   const findNearbyUsgs = useCallback(async () => {
     if (!isUsgsWater || !waterInput || !stateCode) return false;
     setLoadingUsgs(true);
 
-    // Get all USGS locations for this water body
     const { data } = await supabase
       .from("usgs_fishing_water_bodies")
       .select("site_id, monitoring_location_name, latitude, longitude")
@@ -170,7 +155,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       return false;
     }
 
-    // Find the nearest 3 to the user's pins (or map center)
     let refLat: number, refLng: number;
     if (pins.length > 0) {
       refLat = pins.reduce((s, p) => s + p.latitude, 0) / pins.length;
@@ -185,14 +169,11 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
     const withDist = data.map((loc) => ({
       ...loc,
-      dist: Math.sqrt(
-        Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)
-      ),
+      dist: Math.sqrt(Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)),
     }));
     withDist.sort((a, b) => a.dist - b.dist);
     const top3 = withDist.slice(0, 3) as UsgsLocation[];
 
-    // Query available parameters for each site
     const enriched = await Promise.all(
       top3.map(async (loc) => {
         try {
@@ -208,9 +189,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             }).filter(Boolean);
             return { ...loc, available_params: [...new Set(params)] as string[] };
           }
-        } catch {
-          // ignore
-        }
+        } catch { /* ignore */ }
         return { ...loc, available_params: [] };
       })
     );
@@ -247,8 +226,16 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     );
   };
 
+  const handleGoToMap = () => {
+    if (saveAsHome && stateCode) updateHomeState(stateCode);
+    setMapStage("navigate");
+    // Set auto-search query so the map auto-centers on entry
+    const stateName = getStateName(stateCode);
+    setAutoSearchQuery(`${waterInput}, ${stateName}`);
+    setStep("map");
+  };
+
   const handleMapFinish = async () => {
-    // After map, check if we should show USGS selection
     if (isUsgsWater) {
       const hasUsgs = await findNearbyUsgs();
       if (hasUsgs) {
@@ -301,7 +288,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     }
   };
 
-  // Full-screen map step
   if (step === "map") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,6 +303,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             mapRef={mapRef}
             effectiveWater={waterInput}
             stateCode={stateCode}
+            autoSearchQuery={autoSearchQuery}
+            onAutoSearchDone={() => setAutoSearchQuery(null)}
             onPlaceSelected={handlePlaceSelected}
             onConfirmPin={confirmPin}
             onCancelPin={cancelPin}
@@ -353,7 +341,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           )}
         </DialogHeader>
 
-        {/* Step 1: State */}
         {step === "state" && (
           <div className="space-y-4">
             {homeState && (
@@ -393,7 +380,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
-        {/* Step 2: Water body combo field */}
         {step === "water" && (
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -427,7 +413,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 <p className="text-xs text-muted-foreground">Custom water body (no USGS data)</p>
               )}
 
-              {/* Suggestions dropdown */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border">
                   {loadingWater ? (
@@ -453,11 +438,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               <Button
-                onClick={() => {
-                  if (saveAsHome && stateCode) updateHomeState(stateCode);
-                  setMapStage("navigate");
-                  setStep("map");
-                }}
+                onClick={handleGoToMap}
                 disabled={!waterInput.trim()}
                 className="rounded-xl gap-1"
               >
@@ -467,7 +448,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
-        {/* Step: USGS Site Selection (post-map) */}
         {step === "usgs_select" && (
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
@@ -478,7 +458,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
             ) : (
               <>
-                {/* Map showing pins + USGS locations */}
                 {apiKey && (
                   <UsgsSelectionMap
                     apiKey={apiKey}
@@ -488,7 +467,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   />
                 )}
 
-                {/* Numbered buttons */}
                 <div className="space-y-2">
                   {nearbyUsgs.map((loc, idx) => (
                     <button
@@ -539,7 +517,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
-        {/* Step: Naming */}
         {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -559,7 +536,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               </p>
             </div>
 
-            {/* Summary */}
             <div className="bg-muted rounded-xl p-3 space-y-1.5 text-sm">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Summary</p>
               <p className="text-foreground">{waterInput} · {getStateName(stateCode)}</p>
@@ -601,10 +577,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 /* ─── USGS Selection Map ─── */
 
 const UsgsSelectionMap = ({
-  apiKey,
-  userPins,
-  usgsLocations,
-  selectedUsgs,
+  apiKey, userPins, usgsLocations, selectedUsgs,
 }: {
   apiKey: string;
   userPins: SpotPoint[];
@@ -612,27 +585,20 @@ const UsgsSelectionMap = ({
   selectedUsgs: UsgsLocation | null;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const localMapRef = useRef<google.maps.Map | null>(null);
 
-  // Fit bounds to all markers
   const onLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
+    localMapRef.current = map;
     const bounds = new google.maps.LatLngBounds();
     userPins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
     usgsLocations.forEach((l) => {
       if (l.latitude && l.longitude) bounds.extend({ lat: l.latitude, lng: l.longitude });
     });
-    if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, 60);
-    }
+    if (!bounds.isEmpty()) map.fitBounds(bounds, 60);
   }, [userPins, usgsLocations]);
 
   if (!isLoaded) {
-    return (
-      <div className="h-[200px] rounded-xl bg-muted flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <div className="h-[200px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
@@ -641,15 +607,8 @@ const UsgsSelectionMap = ({
       center={{ lat: 32, lng: -97 }}
       zoom={8}
       onLoad={onLoad}
-      options={{
-        gestureHandling: "cooperative",
-        zoomControl: true,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-      }}
+      options={{ gestureHandling: "cooperative", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
     >
-      {/* User pins */}
       {userPins.map((p, i) => (
         <Marker
           key={`pin-${i}`}
@@ -663,7 +622,6 @@ const UsgsSelectionMap = ({
           }}
         />
       ))}
-      {/* USGS numbered flags */}
       {usgsLocations.map((loc, idx) => (
         loc.latitude && loc.longitude && (
           <Marker
@@ -693,6 +651,7 @@ const UsgsSelectionMap = ({
 const FullScreenMapStep = ({
   mapStage, setMapStage, pins, pendingPinCoords, setPendingPinCoords,
   apiKey, mapCenter, mapRef, effectiveWater, stateCode,
+  autoSearchQuery, onAutoSearchDone,
   onPlaceSelected, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish,
 }: {
   mapStage: MapStage;
@@ -705,6 +664,8 @@ const FullScreenMapStep = ({
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   effectiveWater: string;
   stateCode: string;
+  autoSearchQuery: string | null;
+  onAutoSearchDone: () => void;
   onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
   onConfirmPin: (label: string) => void;
   onCancelPin: () => void;
@@ -717,7 +678,6 @@ const FullScreenMapStep = ({
 
   return (
     <div className="relative w-full h-full flex flex-col">
-      {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
         <div className="px-3 pt-2 pb-2 space-y-2">
           <div className="flex items-center justify-between">
@@ -760,7 +720,6 @@ const FullScreenMapStep = ({
         </div>
       </div>
 
-      {/* Map */}
       <div className="flex-1">
         {apiKey ? (
           <FullScreenMap
@@ -769,10 +728,11 @@ const FullScreenMapStep = ({
             initialCenter={mapCenter}
             pins={pins}
             isNavigate={isNavigate}
+            autoSearchQuery={autoSearchQuery}
+            onAutoSearchDone={onAutoSearchDone}
+            onPlaceSelected={onPlaceSelected}
             onMapClick={(coords) => {
-              if (!isNavigate) {
-                setPendingPinCoords(coords);
-              }
+              if (!isNavigate) setPendingPinCoords(coords);
             }}
             onLocateMe={onLocateMe}
           />
@@ -791,7 +751,6 @@ const FullScreenMapStep = ({
         />
       )}
 
-      {/* Bottom bar */}
       <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-t border-border/50 safe-area-bottom">
         <div className="px-3 py-3 flex items-center justify-between">
           {isNavigate ? (
@@ -822,20 +781,49 @@ const FullScreenMapStep = ({
 /* ─── Full Screen Map Inner ─── */
 
 const FullScreenMap = ({
-  apiKey, mapRef, initialCenter, pins, isNavigate, onMapClick, onLocateMe,
+  apiKey, mapRef, initialCenter, pins, isNavigate, autoSearchQuery, onAutoSearchDone, onPlaceSelected, onMapClick, onLocateMe,
 }: {
   apiKey: string;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   initialCenter: { lat: number; lng: number } | null;
   pins: SpotPoint[];
   isNavigate: boolean;
+  autoSearchQuery: string | null;
+  onAutoSearchDone: () => void;
+  onPlaceSelected: (place: { name: string; lat: number; lng: number }) => void;
   onMapClick: (coords: { lat: number; lng: number }) => void;
   onLocateMe: () => void;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const initialCenterRef = useRef(initialCenter);
+  const didAutoSearch = useRef(false);
 
-  const center = initialCenter || { lat: 32.87, lng: -97.34 };
-  const zoom = initialCenter ? 14 : 10;
+  // Auto-search on first load
+  useEffect(() => {
+    if (!isLoaded || !autoSearchQuery || didAutoSearch.current) return;
+    didAutoSearch.current = true;
+
+    // Wait a bit for Places service to be available
+    const timer = setTimeout(() => {
+      if (!window.google?.maps?.places) return;
+      const service = new google.maps.places.PlacesService(document.createElement("div"));
+      service.findPlaceFromQuery(
+        { query: autoSearchQuery, fields: ["geometry", "name"] },
+        (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && results?.[0]?.geometry?.location) {
+            const loc = results[0].geometry.location;
+            const lat = loc.lat();
+            const lng = loc.lng();
+            mapRef.current?.panTo({ lat, lng });
+            mapRef.current?.setZoom(13);
+            onPlaceSelected({ name: results[0].name || autoSearchQuery, lat, lng });
+          }
+          onAutoSearchDone();
+        }
+      );
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [isLoaded, autoSearchQuery, onAutoSearchDone, onPlaceSelected, mapRef]);
 
   if (!isLoaded) {
     return (
@@ -844,6 +832,9 @@ const FullScreenMap = ({
       </div>
     );
   }
+
+  const center = initialCenterRef.current || { lat: 32.87, lng: -97.34 };
+  const zoom = initialCenterRef.current ? 14 : 6;
 
   const navigateOptions: google.maps.MapOptions = {
     gestureHandling: "greedy",
