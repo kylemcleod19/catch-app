@@ -53,6 +53,9 @@ type MapStage = "navigate" | "pin";
 const LIBRARIES: ("places")[] = ["places"];
 const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
 
+// Simple cache for USGS site available parameters
+const usgsParamsCache = new Map<string, string[]>();
+
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
@@ -62,7 +65,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
 
-  const [siteType, setSiteType] = useState<"Stream" | "Lake, Reservoir, Impoundment">("Stream");
   const [waterBodies, setWaterBodies] = useState<string[]>([]);
   const [loadingWater, setLoadingWater] = useState(false);
   const [waterInput, setWaterInput] = useState("");
@@ -93,20 +95,19 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     if (!stateCode) return;
     setLoadingWater(true);
     supabase
-      .rpc("get_distinct_water_bodies", { _state_code: stateCode, _site_type: siteType })
+      .rpc("get_distinct_water_bodies", { _state_code: stateCode })
       .then(({ data }) => {
         const bodies = (data || []).map((d: any) => d.normalized_water_body as string).filter(Boolean);
         setWaterBodies(bodies);
         setLoadingWater(false);
       });
-  }, [stateCode, siteType]);
+  }, [stateCode]);
 
   useEffect(() => {
     if (open) {
       const defaultState = initialStateCode ?? homeState ?? "";
       setStep(defaultState ? "water" : "state");
       setStateCode(defaultState);
-      setSiteType("Stream");
       setWaterInput("");
       setIsUsgsWater(false);
       setShowSuggestions(false);
@@ -176,6 +177,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
+        // Check cache first
+        const cached = usgsParamsCache.get(loc.site_id);
+        if (cached) return { ...loc, available_params: cached };
         try {
           const resp = await fetch(
             `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${loc.site_id}&siteStatus=all&period=PT2H`
@@ -183,14 +187,16 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           if (resp.ok) {
             const json = await resp.json();
             const ts = json?.value?.timeSeries || [];
-            const params = ts.map((t: any) => {
+            const params = [...new Set(ts.map((t: any) => {
               const name = t?.variable?.variableName || "";
               return name.split(",")[0].trim();
-            }).filter(Boolean);
-            return { ...loc, available_params: [...new Set(params)] as string[] };
+            }).filter(Boolean))] as string[];
+            usgsParamsCache.set(loc.site_id, params);
+            return { ...loc, available_params: params };
           }
         } catch { /* ignore */ }
-        return { ...loc, available_params: [] };
+        usgsParamsCache.set(loc.site_id, []);
+        return { ...loc, available_params: [] as string[] };
       })
     );
 
@@ -257,7 +263,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           name: spotName || null,
           body_of_water: waterInput.trim(),
           state_code: stateCode,
-          site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
+          site_type: "Stream",
           usgs_site_id: selectedUsgs?.site_id || null,
         } as any)
         .select("id")
@@ -277,7 +283,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         name: spotName || null,
         body_of_water: waterInput.trim(),
         state_code: stateCode,
-        site_type: siteType === "Lake, Reservoir, Impoundment" ? "Lake" : "Stream",
+        site_type: "Stream",
         points: pins,
       });
       onOpenChange(false);
@@ -382,14 +388,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
         {step === "water" && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button type="button" variant={siteType === "Stream" ? "default" : "outline"} size="sm" className="rounded-xl flex-1" onClick={() => setSiteType("Stream")}>
-                Stream / River
-              </Button>
-              <Button type="button" variant={siteType === "Lake, Reservoir, Impoundment" ? "default" : "outline"} size="sm" className="rounded-xl flex-1" onClick={() => setSiteType("Lake, Reservoir, Impoundment")}>
-                Lake
-              </Button>
-            </div>
 
             <div className="space-y-1 relative">
               <label className="text-sm font-medium text-foreground">Water body name</label>
@@ -795,15 +793,41 @@ const FullScreenMap = ({
   onLocateMe: () => void;
 }) => {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
-  const initialCenterRef = useRef(initialCenter);
   const didAutoSearch = useRef(false);
+
+  // Apply options imperatively when stage changes — no re-render needed
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (isNavigate) {
+      mapRef.current.setOptions({
+        gestureHandling: "greedy",
+        zoomControl: true,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: false,
+        draggable: true,
+        scrollwheel: true,
+        disableDoubleClickZoom: false,
+      });
+    } else {
+      mapRef.current.setOptions({
+        gestureHandling: "none",
+        zoomControl: false,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        draggable: false,
+        scrollwheel: false,
+        disableDoubleClickZoom: true,
+      });
+    }
+  }, [isNavigate, mapRef]);
 
   // Auto-search on first load
   useEffect(() => {
     if (!isLoaded || !autoSearchQuery || didAutoSearch.current) return;
     didAutoSearch.current = true;
 
-    // Wait a bit for Places service to be available
     const timer = setTimeout(() => {
       if (!window.google?.maps?.places) return;
       const service = new google.maps.places.PlacesService(document.createElement("div"));
@@ -821,7 +845,7 @@ const FullScreenMap = ({
           onAutoSearchDone();
         }
       );
-    }, 500);
+    }, 800);
     return () => clearTimeout(timer);
   }, [isLoaded, autoSearchQuery, onAutoSearchDone, onPlaceSelected, mapRef]);
 
@@ -833,40 +857,30 @@ const FullScreenMap = ({
     );
   }
 
-  const center = initialCenterRef.current || { lat: 32.87, lng: -97.34 };
-  const zoom = initialCenterRef.current ? 14 : 6;
-
-  const navigateOptions: google.maps.MapOptions = {
-    gestureHandling: "greedy",
-    zoomControl: true,
-    mapTypeControl: true,
-    streetViewControl: false,
-    fullscreenControl: false,
-  };
-
-  const pinOptions: google.maps.MapOptions = {
-    gestureHandling: "none",
-    zoomControl: false,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    draggable: false,
-    scrollwheel: false,
-    disableDoubleClickZoom: true,
-  };
+  const defaultCenter = initialCenter || { lat: 32.87, lng: -97.34 };
+  const defaultZoom = initialCenter ? 14 : 6;
 
   return (
     <GoogleMap
       mapContainerStyle={{ width: "100%", height: "100%" }}
-      center={center}
-      zoom={zoom}
-      onLoad={(map) => { mapRef.current = map; }}
+      center={defaultCenter}
+      zoom={defaultZoom}
+      onLoad={(map) => {
+        mapRef.current = map;
+        // Apply initial options
+        map.setOptions({
+          gestureHandling: "greedy",
+          zoomControl: true,
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+      }}
       onClick={(e) => {
         if (!isNavigate && e.latLng) {
           onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() });
         }
       }}
-      options={isNavigate ? navigateOptions : pinOptions}
     >
       {pins.map((p, i) => (
         <Marker key={i} position={{ lat: p.latitude, lng: p.longitude }} title={p.label} />

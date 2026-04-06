@@ -461,7 +461,7 @@ export type Database = {
     }
     Functions: {
       get_distinct_water_bodies: {
-        Args: { _site_type: string; _state_code: string }
+        Args: { _site_type?: string; _state_code: string }
         Returns: {
           normalized_water_body: string
         }[]
