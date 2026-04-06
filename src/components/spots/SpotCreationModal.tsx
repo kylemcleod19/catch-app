@@ -380,14 +380,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
         {step === "water" && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button type="button" variant={siteType === "Stream" ? "default" : "outline"} size="sm" className="rounded-xl flex-1" onClick={() => setSiteType("Stream")}>
-                Stream / River
-              </Button>
-              <Button type="button" variant={siteType === "Lake, Reservoir, Impoundment" ? "default" : "outline"} size="sm" className="rounded-xl flex-1" onClick={() => setSiteType("Lake, Reservoir, Impoundment")}>
-                Lake
-              </Button>
-            </div>
 
             <div className="space-y-1 relative">
               <label className="text-sm font-medium text-foreground">Water body name</label>
