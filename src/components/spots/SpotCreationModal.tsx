@@ -191,7 +191,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       dist: Math.sqrt(Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)),
     }));
     withDist.sort((a, b) => a.dist - b.dist);
-    const top3 = withDist.slice(0, 3) as UsgsLocation[];
+    const top3 = withDist.slice(0, 2) as UsgsLocation[];
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
