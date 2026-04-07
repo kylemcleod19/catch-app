@@ -359,6 +359,27 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     );
   }
 
+  if (step === "usgs_select") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-none w-screen h-screen p-0 m-0 border-0 rounded-none [&>button]:hidden">
+          <FullScreenUsgsStep
+            apiKey={apiKey}
+            userPins={pins}
+            usgsLocations={nearbyUsgs}
+            selectedUsgs={selectedUsgs}
+            setSelectedUsgs={setSelectedUsgs}
+            loadingUsgs={loadingUsgs}
+            waterName={waterInput}
+            stateName={getStateName(stateCode)}
+            onBack={() => { setStep("map"); }}
+            onFinish={() => setStep("naming")}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
