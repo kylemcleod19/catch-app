@@ -57,6 +57,19 @@ type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
 const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
+const PIN_COLORS = [
+  "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
+  "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
+];
+const getPinColor = (idx: number) => PIN_COLORS[idx % PIN_COLORS.length];
+
+const pinSvgIcon = (color: string, label: string) =>
+  "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+      <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="${color}"/>
+      <text x="16" y="20" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="Arial">${label}</text>
+    </svg>`
+  );
 
 // Simple cache for USGS site available parameters
 const usgsParamsCache = new Map<string, string[]>();
