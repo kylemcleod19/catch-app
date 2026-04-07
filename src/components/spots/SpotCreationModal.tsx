@@ -726,12 +726,12 @@ const FullScreenMapStep = ({
           <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
 
           {pins.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {pins.map((p, i) => (
-                <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-foreground">
-                  <MapPin className="w-3 h-3 text-primary" />
+                <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-xs text-white" style={{ backgroundColor: getPinColor(i) }}>
+                  <MapPin className="w-3 h-3" />
                   {p.label}
-                  <button type="button" onClick={() => onRemovePin(i)} className="text-muted-foreground hover:text-destructive p-0.5">
+                  <button type="button" onClick={() => onRemovePin(i)} className="text-white/70 hover:text-white p-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
