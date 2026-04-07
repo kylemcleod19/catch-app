@@ -585,7 +585,7 @@ const FullScreenUsgsStep = ({
   const onLoad = useCallback((map: google.maps.Map) => {
     localMapRef.current = map;
     const bounds = new google.maps.LatLngBounds();
-    userPins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+    if (userPins.length > 0) bounds.extend({ lat: userPins[0].latitude, lng: userPins[0].longitude });
     usgsLocations.forEach((l) => {
       if (l.latitude && l.longitude) bounds.extend({ lat: l.latitude, lng: l.longitude });
     });
