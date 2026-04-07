@@ -962,7 +962,17 @@ const FullScreenMap = ({
       }}
     >
       {pins.map((p, i) => (
-        <Marker key={i} position={{ lat: p.latitude, lng: p.longitude }} title={p.label} />
+        <Marker
+          key={i}
+          position={{ lat: p.latitude, lng: p.longitude }}
+          title={p.label}
+          icon={{
+            url: pinSvgIcon(getPinColor(i), String(i + 1)),
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          }}
+        />
+      ))}
       ))}
     </GoogleMap>
   );
