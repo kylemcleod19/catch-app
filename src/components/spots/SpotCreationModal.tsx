@@ -195,7 +195,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
-        // Check cache first
         const cached = usgsParamsCache.get(loc.site_id);
         if (cached) return { ...loc, available_params: cached };
         try {
@@ -211,8 +210,12 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             }).filter(Boolean))] as string[];
             usgsParamsCache.set(loc.site_id, params);
             return { ...loc, available_params: params };
+          } else {
+            console.warn(`USGS param fetch ${loc.site_id} status: ${resp.status}`);
           }
-        } catch { /* ignore */ }
+        } catch (e) {
+          console.warn(`USGS param fetch failed for ${loc.site_id}:`, e);
+        }
         usgsParamsCache.set(loc.site_id, []);
         return { ...loc, available_params: [] as string[] };
       })
@@ -582,7 +585,7 @@ const FullScreenUsgsStep = ({
   const onLoad = useCallback((map: google.maps.Map) => {
     localMapRef.current = map;
     const bounds = new google.maps.LatLngBounds();
-    userPins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+    if (userPins.length > 0) bounds.extend({ lat: userPins[0].latitude, lng: userPins[0].longitude });
     usgsLocations.forEach((l) => {
       if (l.latitude && l.longitude) bounds.extend({ lat: l.latitude, lng: l.longitude });
     });
@@ -619,19 +622,27 @@ const FullScreenUsgsStep = ({
             onLoad={onLoad}
             options={{ gestureHandling: "greedy", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
           >
-            {userPins.map((p, i) => (
+            {/* Show only first user pin as a fish icon */}
+            {userPins.length > 0 && (
               <Marker
-                key={`pin-${i}`}
-                position={{ lat: p.latitude, lng: p.longitude }}
-                title={p.label}
+                key="fish-pin"
+                position={{ lat: userPins[0].latitude, lng: userPins[0].longitude }}
+                title={userPins[0].label}
                 icon={{
-                  url: pinSvgIcon(getPinColor(i), String(i + 1)),
-                  scaledSize: new google.maps.Size(28, 35),
-                  anchor: new google.maps.Point(14, 35),
+                  url: "data:image/svg+xml," + encodeURIComponent(
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="%23155e75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="11" fill="white" stroke="%23155e75" stroke-width="1.5"/>
+                      <path d="M6.5 12c3-6 9-6 11-2-2 4-8 4-11-2z" fill="%230ea5e9" stroke="%23155e75" stroke-width="1"/>
+                      <circle cx="15" cy="11.5" r="0.8" fill="%23155e75"/>
+                      <path d="M4 12c0 0 1.5-1.5 2.5 0s-2.5 0-2.5 0z" fill="%230ea5e9" stroke="%23155e75" stroke-width="0.8"/>
+                    </svg>`
+                  ),
+                  scaledSize: new google.maps.Size(36, 36),
+                  anchor: new google.maps.Point(18, 18),
                 }}
                 zIndex={10}
               />
-            ))}
+            )}
             {usgsLocations.map((loc, idx) => (
               loc.latitude && loc.longitude && (
                 <Marker
