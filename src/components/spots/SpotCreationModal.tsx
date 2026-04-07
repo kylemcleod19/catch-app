@@ -501,6 +501,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
+        {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               on <span className="font-semibold text-foreground">{waterInput}</span>
