@@ -195,7 +195,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
-        // Check cache first
         const cached = usgsParamsCache.get(loc.site_id);
         if (cached) return { ...loc, available_params: cached };
         try {
@@ -211,8 +210,12 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             }).filter(Boolean))] as string[];
             usgsParamsCache.set(loc.site_id, params);
             return { ...loc, available_params: params };
+          } else {
+            console.warn(`USGS param fetch ${loc.site_id} status: ${resp.status}`);
           }
-        } catch { /* ignore */ }
+        } catch (e) {
+          console.warn(`USGS param fetch failed for ${loc.site_id}:`, e);
+        }
         usgsParamsCache.set(loc.site_id, []);
         return { ...loc, available_params: [] as string[] };
       })
