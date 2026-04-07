@@ -56,7 +56,7 @@ type Step = "state" | "water" | "map" | "usgs_select" | "naming";
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
-const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
+const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE"];
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
   "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
