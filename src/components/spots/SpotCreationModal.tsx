@@ -56,7 +56,7 @@ type Step = "state" | "water" | "map" | "usgs_select" | "naming";
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
-const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
+const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE"];
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
   "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
@@ -191,7 +191,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       dist: Math.sqrt(Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)),
     }));
     withDist.sort((a, b) => a.dist - b.dist);
-    const top3 = withDist.slice(0, 3) as UsgsLocation[];
+    const top3 = withDist.slice(0, 2) as UsgsLocation[];
 
     const enriched = await Promise.all(
       top3.map(async (loc) => {
@@ -616,8 +616,6 @@ const FullScreenUsgsStep = ({
         {apiKey && isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={{ lat: 32, lng: -97 }}
-            zoom={8}
             onLoad={onLoad}
             options={{ gestureHandling: "greedy", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
           >
