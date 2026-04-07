@@ -616,8 +616,6 @@ const FullScreenUsgsStep = ({
         {apiKey && isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={{ lat: 32, lng: -97 }}
-            zoom={8}
             onLoad={onLoad}
             options={{ gestureHandling: "greedy", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
           >
