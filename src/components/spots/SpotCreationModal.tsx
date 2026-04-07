@@ -387,7 +387,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           <DialogTitle className="text-lg font-bold">
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
-            {step === "usgs_select" && "Link Monitoring Station"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
           {step !== "state" && stateCode && (
