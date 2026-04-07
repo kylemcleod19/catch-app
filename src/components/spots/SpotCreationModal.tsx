@@ -57,6 +57,19 @@ type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
 const USGS_FLAG_COLORS = ["#E53E3E", "#3182CE", "#38A169"];
+const PIN_COLORS = [
+  "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
+  "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
+];
+const getPinColor = (idx: number) => PIN_COLORS[idx % PIN_COLORS.length];
+
+const pinSvgIcon = (color: string, label: string) =>
+  "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+      <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="${color}"/>
+      <text x="16" y="20" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="Arial">${label}</text>
+    </svg>`
+  );
 
 // Simple cache for USGS site available parameters
 const usgsParamsCache = new Map<string, string[]>();
@@ -346,6 +359,27 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     );
   }
 
+  if (step === "usgs_select") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-none w-screen h-screen p-0 m-0 border-0 rounded-none [&>button]:hidden">
+          <FullScreenUsgsStep
+            apiKey={apiKey}
+            userPins={pins}
+            usgsLocations={nearbyUsgs}
+            selectedUsgs={selectedUsgs}
+            setSelectedUsgs={setSelectedUsgs}
+            loadingUsgs={loadingUsgs}
+            waterName={waterInput}
+            stateName={getStateName(stateCode)}
+            onBack={() => { setStep("map"); }}
+            onFinish={() => setStep("naming")}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -353,7 +387,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           <DialogTitle className="text-lg font-bold">
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
-            {step === "usgs_select" && "Link Monitoring Station"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
           {step !== "state" && stateCode && (
@@ -468,75 +501,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
-        {step === "usgs_select" && (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              We found {nearbyUsgs.length} USGS monitoring station{nearbyUsgs.length !== 1 ? "s" : ""} near your spots on <span className="font-medium text-foreground">{waterInput}</span>. Select one for water flow data.
-            </p>
-
-            {loadingUsgs ? (
-              <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-            ) : (
-              <>
-                {apiKey && (
-                  <UsgsSelectionMap
-                    apiKey={apiKey}
-                    userPins={pins}
-                    usgsLocations={nearbyUsgs}
-                    selectedUsgs={selectedUsgs}
-                  />
-                )}
-
-                <div className="space-y-2">
-                  {nearbyUsgs.map((loc, idx) => (
-                    <button
-                      key={loc.site_id}
-                      type="button"
-                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
-                        selectedUsgs?.site_id === loc.site_id
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:bg-muted"
-                      }`}
-                      onClick={() => setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc)}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
-                          style={{ backgroundColor: USGS_FLAG_COLORS[idx] || "#718096" }}
-                        >
-                          {idx + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">{loc.monitoring_location_name}</p>
-                          <p className="text-xs text-muted-foreground">Site {loc.site_id}</p>
-                          {loc.available_params && loc.available_params.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {loc.available_params.map((p) => (
-                                <span key={p} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                  {p}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div className="flex justify-between">
-              <Button variant="outline" className="rounded-xl gap-1" onClick={() => { setMapStage("pin"); setStep("map"); }}>
-                <ChevronLeft className="w-4 h-4" /> Back
-              </Button>
-              <Button onClick={() => setStep("naming")} className="rounded-xl gap-1">
-                {selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
         {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -594,18 +558,26 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   );
 };
 
-/* ─── USGS Selection Map ─── */
+/* ─── Full-Screen USGS Selection Step ─── */
 
-const UsgsSelectionMap = ({
-  apiKey, userPins, usgsLocations, selectedUsgs,
+const FullScreenUsgsStep = ({
+  apiKey, userPins, usgsLocations, selectedUsgs, setSelectedUsgs, loadingUsgs,
+  waterName, stateName, onBack, onFinish,
 }: {
-  apiKey: string;
+  apiKey: string | null;
   userPins: SpotPoint[];
   usgsLocations: UsgsLocation[];
   selectedUsgs: UsgsLocation | null;
+  setSelectedUsgs: (u: UsgsLocation | null) => void;
+  loadingUsgs: boolean;
+  waterName: string;
+  stateName: string;
+  onBack: () => void;
+  onFinish: () => void;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey || "", id: "google-map-script", libraries: LIBRARIES });
   const localMapRef = useRef<google.maps.Map | null>(null);
+  const [isSatellite, setIsSatellite] = useState(false);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     localMapRef.current = map;
@@ -614,55 +586,145 @@ const UsgsSelectionMap = ({
     usgsLocations.forEach((l) => {
       if (l.latitude && l.longitude) bounds.extend({ lat: l.latitude, lng: l.longitude });
     });
-    if (!bounds.isEmpty()) map.fitBounds(bounds, 60);
+    if (!bounds.isEmpty()) map.fitBounds(bounds, 80);
   }, [userPins, usgsLocations]);
 
-  if (!isLoaded) {
-    return <div className="h-[200px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
-  }
+  useEffect(() => {
+    if (!localMapRef.current) return;
+    localMapRef.current.setMapTypeId(isSatellite ? "satellite" : "roadmap");
+  }, [isSatellite]);
 
   return (
-    <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "200px", borderRadius: "0.75rem" }}
-      center={{ lat: 32, lng: -97 }}
-      zoom={8}
-      onLoad={onLoad}
-      options={{ gestureHandling: "cooperative", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
-    >
-      {userPins.map((p, i) => (
-        <Marker
-          key={`pin-${i}`}
-          position={{ lat: p.latitude, lng: p.longitude }}
-          title={p.label}
-          icon={{
-            url: "data:image/svg+xml," + encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(142,71%,45%)" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`
-            ),
-            scaledSize: new google.maps.Size(28, 28),
-          }}
-        />
-      ))}
-      {usgsLocations.map((loc, idx) => (
-        loc.latitude && loc.longitude && (
-          <Marker
-            key={`usgs-${loc.site_id}`}
-            position={{ lat: loc.latitude, lng: loc.longitude }}
-            title={`${idx + 1}: ${loc.monitoring_location_name}`}
-            icon={{
-              url: "data:image/svg+xml," + encodeURIComponent(
-                `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
-                  <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="${USGS_FLAG_COLORS[idx] || '#718096'}"/>
-                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial">${idx + 1}</text>
-                </svg>`
-              ),
-              scaledSize: new google.maps.Size(32, 40),
-              anchor: new google.maps.Point(16, 40),
-            }}
-            zIndex={selectedUsgs?.site_id === loc.site_id ? 100 : 50}
-          />
-        )
-      ))}
-    </GoogleMap>
+    <div className="relative w-full h-full flex flex-col">
+      {/* Top bar */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
+        <div className="px-3 pt-2 pb-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Link Monitoring Station</p>
+              <p className="text-xs text-muted-foreground">{waterName} · {stateName}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Select a USGS station for water flow data. Tap a numbered marker or button below.
+          </p>
+        </div>
+      </div>
+
+      {/* Map */}
+      <div className="flex-1">
+        {apiKey && isLoaded ? (
+          <GoogleMap
+            mapContainerStyle={{ width: "100%", height: "100%" }}
+            center={{ lat: 32, lng: -97 }}
+            zoom={8}
+            onLoad={onLoad}
+            options={{ gestureHandling: "greedy", zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+          >
+            {userPins.map((p, i) => (
+              <Marker
+                key={`pin-${i}`}
+                position={{ lat: p.latitude, lng: p.longitude }}
+                title={p.label}
+                icon={{
+                  url: pinSvgIcon(getPinColor(i), String(i + 1)),
+                  scaledSize: new google.maps.Size(28, 35),
+                  anchor: new google.maps.Point(14, 35),
+                }}
+                zIndex={10}
+              />
+            ))}
+            {usgsLocations.map((loc, idx) => (
+              loc.latitude && loc.longitude && (
+                <Marker
+                  key={`usgs-${loc.site_id}`}
+                  position={{ lat: loc.latitude, lng: loc.longitude }}
+                  title={`${idx + 1}: ${loc.monitoring_location_name}`}
+                  icon={{
+                    url: "data:image/svg+xml," + encodeURIComponent(
+                      `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+                        <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z" fill="${selectedUsgs?.site_id === loc.site_id ? '#F59E0B' : USGS_FLAG_COLORS[idx] || '#718096'}" stroke="white" stroke-width="2"/>
+                        <text x="18" y="22" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="Arial">${idx + 1}</text>
+                      </svg>`
+                    ),
+                    scaledSize: new google.maps.Size(36, 44),
+                    anchor: new google.maps.Point(18, 44),
+                  }}
+                  zIndex={selectedUsgs?.site_id === loc.site_id ? 100 : 50}
+                  onClick={() => setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc)}
+                />
+              )
+            ))}
+          </GoogleMap>
+        ) : (
+          <div className="w-full h-full bg-muted flex items-center justify-center">
+            {loadingUsgs ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <span className="text-sm text-muted-foreground">Map unavailable</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom panel with station list */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/95 backdrop-blur-md border-t border-border/50 safe-area-bottom">
+        <div className="px-3 pt-2 pb-3 space-y-2">
+          {loadingUsgs ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {usgsLocations.map((loc, idx) => (
+                <button
+                  key={loc.site_id}
+                  type="button"
+                  className={`w-full text-left px-3 py-2 rounded-xl border transition-colors ${
+                    selectedUsgs?.site_id === loc.site_id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:bg-muted"
+                  }`}
+                  onClick={() => setSelectedUsgs(selectedUsgs?.site_id === loc.site_id ? null : loc)}
+                >
+                  <div className="flex items-start gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                      style={{ backgroundColor: selectedUsgs?.site_id === loc.site_id ? '#F59E0B' : USGS_FLAG_COLORS[idx] || "#718096" }}
+                    >
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{loc.monitoring_location_name}</p>
+                      {loc.available_params && loc.available_params.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {loc.available_params.map((p) => (
+                            <span key={p} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={onBack}>
+              <ChevronLeft className="w-4 h-4" /> Back
+            </Button>
+            <Button
+              variant={isSatellite ? "default" : "outline"}
+              size="sm"
+              className="rounded-xl text-xs px-2.5"
+              onClick={() => setIsSatellite(!isSatellite)}
+            >
+              {isSatellite ? "Map" : "Satellite"}
+            </Button>
+            <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
+              {selectedUsgs ? "Next" : "Skip"} <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -713,12 +775,12 @@ const FullScreenMapStep = ({
           <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
 
           {pins.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {pins.map((p, i) => (
-                <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-foreground">
-                  <MapPin className="w-3 h-3 text-primary" />
+                <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-xs text-white" style={{ backgroundColor: getPinColor(i) }}>
+                  <MapPin className="w-3 h-3" />
                   {p.label}
-                  <button type="button" onClick={() => onRemovePin(i)} className="text-muted-foreground hover:text-destructive p-0.5">
+                  <button type="button" onClick={() => onRemovePin(i)} className="text-white/70 hover:text-white p-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -949,7 +1011,16 @@ const FullScreenMap = ({
       }}
     >
       {pins.map((p, i) => (
-        <Marker key={i} position={{ lat: p.latitude, lng: p.longitude }} title={p.label} />
+        <Marker
+          key={i}
+          position={{ lat: p.latitude, lng: p.longitude }}
+          title={p.label}
+          icon={{
+            url: pinSvgIcon(getPinColor(i), String(i + 1)),
+            scaledSize: new google.maps.Size(32, 40),
+            anchor: new google.maps.Point(16, 40),
+          }}
+        />
       ))}
     </GoogleMap>
   );
