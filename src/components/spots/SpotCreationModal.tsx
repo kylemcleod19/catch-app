@@ -696,9 +696,11 @@ const FullScreenMapStep = ({
   onFinish: () => void;
 }) => {
   const isNavigate = mapStage === "navigate";
+  const [isSatellite, setIsSatellite] = useState(false);
 
   return (
     <div className="relative w-full h-full flex flex-col">
+      {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
         <div className="px-3 pt-2 pb-2 space-y-2">
           <div className="flex items-center justify-between">
@@ -706,22 +708,11 @@ const FullScreenMapStep = ({
               <p className="text-sm font-semibold text-foreground truncate">{effectiveWater}</p>
               <p className="text-xs text-muted-foreground">{getStateName(stateCode)}</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              {isNavigate ? (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  <Move className="w-3 h-3" /> Navigate
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
-                  <MapPin className="w-3 h-3" /> Add Pins
-                </span>
-              )}
-            </div>
           </div>
 
-          {isNavigate && <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />}
+          <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
 
-          {!isNavigate && pins.length > 0 && (
+          {pins.length > 0 && (
             <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {pins.map((p, i) => (
                 <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-foreground">
@@ -734,13 +725,10 @@ const FullScreenMapStep = ({
               ))}
             </div>
           )}
-
-          {!isNavigate && pins.length === 0 && (
-            <p className="text-xs text-muted-foreground">Tap the map to drop a pin</p>
-          )}
         </div>
       </div>
 
+      {/* Map */}
       <div className="flex-1">
         {apiKey ? (
           <FullScreenMap
@@ -749,6 +737,7 @@ const FullScreenMapStep = ({
             initialView={mapView}
             pins={pins}
             isNavigate={isNavigate}
+            isSatellite={isSatellite}
             autoSearchQuery={autoSearchQuery}
             onAutoSearchDone={onAutoSearchDone}
             onMapViewChange={onMapViewChange}
@@ -764,35 +753,51 @@ const FullScreenMapStep = ({
         )}
       </div>
 
+      {/* Naming prompt overlay */}
       {pendingPinCoords && !isNavigate && (
         <HoleNamingPrompt
           holeCount={pins.length}
-          onConfirm={onConfirmPin}
+          onConfirm={(label) => {
+            onConfirmPin(label);
+            setMapStage("navigate"); // go back to navigate after adding pin
+          }}
           onCancel={onCancelPin}
         />
       )}
 
+      {/* Bottom bar */}
       <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-t border-border/50 safe-area-bottom">
         <div className="px-3 py-3 flex items-center justify-between">
-          {isNavigate ? (
-            <>
-              <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={onBack}>
-                <ChevronLeft className="w-4 h-4" /> Back
-              </Button>
+          <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={onBack}>
+            <ChevronLeft className="w-4 h-4" /> Back
+          </Button>
+
+          <div className="flex items-center gap-1.5">
+            {/* Satellite toggle */}
+            <Button
+              variant={isSatellite ? "default" : "outline"}
+              size="sm"
+              className="rounded-xl text-xs px-2.5"
+              onClick={() => setIsSatellite(!isSatellite)}
+            >
+              {isSatellite ? "Map" : "Satellite"}
+            </Button>
+
+            {/* Mode toggle */}
+            {isNavigate ? (
               <Button size="sm" className="rounded-xl gap-1" onClick={() => setMapStage("pin")}>
-                Add Pins <ChevronRight className="w-4 h-4" />
+                <Plus className="w-4 h-4" /> Add Pin
               </Button>
-            </>
-          ) : (
-            <>
+            ) : (
               <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={() => setMapStage("navigate")}>
-                <Move className="w-4 h-4" /> Zoom
+                <Move className="w-4 h-4" /> Pan
               </Button>
-              <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
-                {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
-              </Button>
-            </>
-          )}
+            )}
+          </div>
+
+          <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
+            {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </div>
@@ -802,13 +807,14 @@ const FullScreenMapStep = ({
 /* ─── Full Screen Map Inner ─── */
 
 const FullScreenMap = ({
-  apiKey, mapRef, initialView, pins, isNavigate, autoSearchQuery, onAutoSearchDone, onMapViewChange, onMapClick, onLocateMe,
+  apiKey, mapRef, initialView, pins, isNavigate, isSatellite, autoSearchQuery, onAutoSearchDone, onMapViewChange, onMapClick, onLocateMe,
 }: {
   apiKey: string;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   initialView: MapView | null;
   pins: SpotPoint[];
   isNavigate: boolean;
+  isSatellite: boolean;
   autoSearchQuery: string | null;
   onAutoSearchDone: () => void;
   onMapViewChange: (view: MapView) => void;
@@ -823,14 +829,20 @@ const FullScreenMap = ({
     zoom: 5,
   };
 
-  // Apply options imperatively when stage changes — no re-render needed
+  // Apply map type when satellite toggle changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.setMapTypeId(isSatellite ? "satellite" : "roadmap");
+  }, [isSatellite, mapRef]);
+
+  // Apply options imperatively when stage changes
   useEffect(() => {
     if (!mapRef.current) return;
     if (isNavigate) {
       mapRef.current.setOptions({
         gestureHandling: "greedy",
         zoomControl: true,
-        mapTypeControl: true,
+        mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
         draggable: true,
@@ -905,10 +917,11 @@ const FullScreenMap = ({
         mapRef.current = map;
         map.setCenter(baseView.center);
         map.setZoom(baseView.zoom);
+        map.setMapTypeId(isSatellite ? "satellite" : "roadmap");
         map.setOptions({
           gestureHandling: isNavigate ? "greedy" : "none",
           zoomControl: isNavigate,
-          mapTypeControl: isNavigate,
+          mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
           draggable: isNavigate,
