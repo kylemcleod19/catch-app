@@ -139,32 +139,29 @@ const SpotsPage = () => {
             <div key={spot.id} className="catch-card space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm text-card-foreground truncate">
-                      {spot.name || spot.body_of_water}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
-                    </p>
+                  <p className="font-semibold text-sm text-card-foreground truncate">
+                    {spot.name || spot.body_of_water}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
+                  </p>
                 </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { const next = expandedId === spot.id ? null : spot.id; setExpandedId(next); if (next) setEditName(spot.name || ""); }}
+                    className="text-muted-foreground hover:text-primary p-1"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(spot.id)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                {editingId !== spot.id && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => { const next = expandedId === spot.id ? null : spot.id; setExpandedId(next); if (next) setEditName(spot.name || ""); }}
-                      className="text-muted-foreground hover:text-primary p-1"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(spot.id)}
-                      className="text-muted-foreground hover:text-destructive p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Expanded edit view */}
