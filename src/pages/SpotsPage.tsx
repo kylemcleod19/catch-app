@@ -29,6 +29,7 @@ const SpotsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingPointSpotId, setAddingPointSpotId] = useState<string | null>(null);
   const [newPointLabel, setNewPointLabel] = useState("New spot");
   const [apiKey, setApiKey] = useState<string | null>(null);
