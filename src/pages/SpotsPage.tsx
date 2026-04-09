@@ -5,7 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Check, X } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, X } from "lucide-react";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
