@@ -5,7 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Check, X } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, X } from "lucide-react";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
@@ -29,6 +29,7 @@ const SpotsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingPointSpotId, setAddingPointSpotId] = useState<string | null>(null);
   const [newPointLabel, setNewPointLabel] = useState("New spot");
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -138,108 +139,114 @@ const SpotsPage = () => {
             <div key={spot.id} className="catch-card space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  {editingId === spot.id ? (
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Spot name"
-                        className="h-8 rounded-lg text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleRename(spot.id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                      />
-                      <button type="button" onClick={() => handleRename(spot.id)} className="text-primary p-1">
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button type="button" onClick={() => setEditingId(null)} className="text-muted-foreground p-1">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="font-semibold text-sm text-card-foreground truncate">
-                        {spot.name || spot.body_of_water}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
-                      </p>
-                    </>
-                  )}
+                  <p className="font-semibold text-sm text-card-foreground truncate">
+                    {spot.name || spot.body_of_water}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
+                  </p>
                 </div>
-                {editingId !== spot.id && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => { setEditingId(spot.id); setEditName(spot.name || ""); }}
-                      className="text-muted-foreground hover:text-primary p-1"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(spot.id)}
-                      className="text-muted-foreground hover:text-destructive p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { const next = expandedId === spot.id ? null : spot.id; setExpandedId(next); if (next) setEditName(spot.name || ""); }}
+                    className="text-muted-foreground hover:text-primary p-1"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(spot.id)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Points */}
-              {spot.spot_points.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {spot.spot_points.map((p) => (
-                    <span
-                      key={p.id}
-                      className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-muted-foreground group"
+              {/* Expanded edit view */}
+              {expandedId === spot.id && (
+                <div className="space-y-3 pt-1 border-t border-border/50">
+                  {/* Rename */}
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Spot name"
+                      className="h-8 rounded-lg text-sm flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRename(spot.id);
+                      }}
+                    />
+                    <Button size="sm" variant="outline" className="rounded-lg h-8 text-xs" onClick={() => handleRename(spot.id)}>
+                      Rename
+                    </Button>
+                  </div>
+
+                  {/* Points */}
+                  {spot.spot_points.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {spot.spot_points.map((p) => (
+                        <span
+                          key={p.id}
+                          className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs text-muted-foreground group"
+                        >
+                          <MapPin className="w-3 h-3 text-primary" /> {p.label}
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePoint(p.id)}
+                            className="text-muted-foreground/50 hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add point */}
+                  {addingPointSpotId === spot.id ? (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Label (e.g. new hole)"
+                        value={newPointLabel}
+                        onChange={(e) => setNewPointLabel(e.target.value)}
+                        className="rounded-xl text-sm h-9"
+                      />
+                      <p className="text-xs text-muted-foreground">Tap the map to place the point</p>
+                      <AddPointMap
+                        apiKey={apiKey}
+                        existingPoints={spot.spot_points}
+                        onMapClick={(e) => handleAddPoint(e, spot.id)}
+                        mapRef={mapRef}
+                      />
+                      <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setAddingPointSpotId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-xs text-primary"
+                      onClick={() => setAddingPointSpotId(spot.id)}
                     >
-                      <MapPin className="w-3 h-3 text-primary" /> {p.label}
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePoint(p.id)}
-                        className="text-muted-foreground/50 hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
+                      <Plus className="w-3.5 h-3.5" /> Add a point
+                    </Button>
+                  )}
                 </div>
               )}
 
-              {/* Add point */}
-              {addingPointSpotId === spot.id ? (
-                <div className="space-y-2">
-                  <Input
-                    placeholder="Label (e.g. new hole)"
-                    value={newPointLabel}
-                    onChange={(e) => setNewPointLabel(e.target.value)}
-                    className="rounded-xl text-sm h-9"
-                  />
-                  <p className="text-xs text-muted-foreground">Tap the map to place the point</p>
-                  <AddPointMap
-                    apiKey={apiKey}
-                    existingPoints={spot.spot_points}
-                    onMapClick={(e) => handleAddPoint(e, spot.id)}
-                    mapRef={mapRef}
-                  />
-                  <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setAddingPointSpotId(null)}>
-                    Cancel
-                  </Button>
+              {/* Summary points when collapsed */}
+              {expandedId !== spot.id && spot.spot_points.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {spot.spot_points.map((p) => (
+                    <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs text-muted-foreground">
+                      <MapPin className="w-3 h-3 text-primary" /> {p.label}
+                    </span>
+                  ))}
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-xs text-primary"
-                  onClick={() => setAddingPointSpotId(spot.id)}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add a point
-                </Button>
               )}
             </div>
           ))

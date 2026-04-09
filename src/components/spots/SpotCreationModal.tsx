@@ -630,15 +630,13 @@ const FullScreenUsgsStep = ({
                 title={userPins[0].label}
                 icon={{
                   url: "data:image/svg+xml," + encodeURIComponent(
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="%23155e75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="11" fill="white" stroke="%23155e75" stroke-width="1.5"/>
-                      <path d="M6.5 12c3-6 9-6 11-2-2 4-8 4-11-2z" fill="%230ea5e9" stroke="%23155e75" stroke-width="1"/>
-                      <circle cx="15" cy="11.5" r="0.8" fill="%23155e75"/>
-                      <path d="M4 12c0 0 1.5-1.5 2.5 0s-2.5 0-2.5 0z" fill="%230ea5e9" stroke="%23155e75" stroke-width="0.8"/>
-                    </svg>`
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
+                    '<circle cx="20" cy="20" r="18" fill="white" stroke="#0369a1" stroke-width="2"/>' +
+                    '<text x="20" y="27" text-anchor="middle" font-size="22">🐟</text>' +
+                    '</svg>'
                   ),
-                  scaledSize: new google.maps.Size(36, 36),
-                  anchor: new google.maps.Point(18, 18),
+                  scaledSize: new google.maps.Size(40, 40),
+                  anchor: new google.maps.Point(20, 20),
                 }}
                 zIndex={10}
               />
