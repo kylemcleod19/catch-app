@@ -174,7 +174,7 @@ const SpotsPage = () => {
                   <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setExpandedId(expandedId === spot.id ? null : spot.id)}
+                      onClick={() => { const next = expandedId === spot.id ? null : spot.id; setExpandedId(next); if (next) setEditName(spot.name || ""); }}
                       className="text-muted-foreground hover:text-primary p-1"
                     >
                       <Pencil className="w-4 h-4" />
@@ -273,7 +273,7 @@ const SpotsPage = () => {
                     </span>
                   ))}
                 </div>
-              )
+              )}
             </div>
           ))
         )}
