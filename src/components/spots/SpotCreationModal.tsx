@@ -73,13 +73,14 @@ const pinSvgIcon = (color: string, label: string) =>
 
 const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="54" height="66" viewBox="0 0 54 66">' +
-  '<path d="M27 62 C27 62 4 40 4 22 C4 10 14 2 27 2 C40 2 50 10 50 22 C50 40 27 62 27 62Z" fill="#0369a1" stroke="#fff" stroke-width="2"/>' +
-  '<g transform="translate(15, 8)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M4 22l8-18"/>' +
-  '<path d="M12 4l4 0"/>' +
-  '<path d="M12 4c0 0 4 4 4 8"/>' +
-  '<path d="M16 12c0 0 2 4 0 6"/>' +
-  '<path d="M4 22c-2 0-3 1-3 2s1 2 3 2 3-1 3-2-1-2-3-2z"/>' +
+  '<path d="M27 62 C27 62 4 40 4 22 C4 10 14 2 27 2 C40 2 50 10 50 22 C50 40 27 62 27 62Z" fill="#F37920" stroke="#000" stroke-width="3"/>' +
+  '<g transform="translate(15, 10) scale(1)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/>' +
+  '<path d="M18 12v.5"/>' +
+  '<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/>' +
+  '<path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"/>' +
+  '<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/>' +
+  '<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98"/>' +
   '</g>' +
   '</svg>'
 );
