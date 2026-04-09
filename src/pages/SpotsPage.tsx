@@ -139,36 +139,13 @@ const SpotsPage = () => {
             <div key={spot.id} className="catch-card space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  {editingId === spot.id ? (
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Spot name"
-                        className="h-8 rounded-lg text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleRename(spot.id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                      />
-                      <button type="button" onClick={() => handleRename(spot.id)} className="text-primary p-1">
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button type="button" onClick={() => setEditingId(null)} className="text-muted-foreground p-1">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="font-semibold text-sm text-card-foreground truncate">
-                        {spot.name || spot.body_of_water}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
-                      </p>
-                    </>
-                  )}
+                    <p className="font-semibold text-sm text-card-foreground truncate">
+                      {spot.name || spot.body_of_water}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {spot.body_of_water} · {getStateName(spot.state_code)} · {spot.site_type}
+                    </p>
+                </div>
                 </div>
                 {editingId !== spot.id && (
                   <div className="flex items-center gap-0.5 shrink-0">
