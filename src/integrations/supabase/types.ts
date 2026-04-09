@@ -383,6 +383,33 @@ export type Database = {
         }
         Relationships: []
       }
+      usgs_water_bodies_available_data: {
+        Row: {
+          gage_height: boolean
+          last_updated: string | null
+          site_id: string
+          temp: boolean
+          turbidity: boolean
+          water_flow: boolean
+        }
+        Insert: {
+          gage_height?: boolean
+          last_updated?: string | null
+          site_id: string
+          temp?: boolean
+          turbidity?: boolean
+          water_flow?: boolean
+        }
+        Update: {
+          gage_height?: boolean
+          last_updated?: string | null
+          site_id?: string
+          temp?: boolean
+          turbidity?: boolean
+          water_flow?: boolean
+        }
+        Relationships: []
+      }
       water_data_cache: {
         Row: {
           created_at: string
