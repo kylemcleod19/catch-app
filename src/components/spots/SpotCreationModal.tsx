@@ -71,8 +71,15 @@ const pinSvgIcon = (color: string, label: string) =>
     </svg>`
   );
 
-// Simple cache for USGS site available parameters
-const usgsParamsCache = new Map<string, string[]>();
+const FISH_OUTLINE_ICON = "data:image/svg+xml," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.46-3.44 6-7 6-3.56 0-7.56-2.54-8.5-6Z"/>' +
+  '<path d="M18 12v.5"/>' +
+  '<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/>' +
+  '<path d="M2 10s2-2 3-2 3 2 3 2"/>' +
+  '<path d="M2 14s2 2 3 2 3-2 3-2"/>' +
+  '</svg>'
+);
 
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
@@ -193,33 +200,27 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     withDist.sort((a, b) => a.dist - b.dist);
     const top3 = withDist.slice(0, 2) as UsgsLocation[];
 
-    const enriched = await Promise.all(
-      top3.map(async (loc) => {
-        const cached = usgsParamsCache.get(loc.site_id);
-        if (cached) return { ...loc, available_params: cached };
-        try {
-          const resp = await fetch(
-            `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${loc.site_id}&siteStatus=all&period=PT2H`
-          );
-          if (resp.ok) {
-            const json = await resp.json();
-            const ts = json?.value?.timeSeries || [];
-            const params = [...new Set(ts.map((t: any) => {
-              const name = t?.variable?.variableName || "";
-              return name.split(",")[0].trim();
-            }).filter(Boolean))] as string[];
-            usgsParamsCache.set(loc.site_id, params);
-            return { ...loc, available_params: params };
-          } else {
-            console.warn(`USGS param fetch ${loc.site_id} status: ${resp.status}`);
-          }
-        } catch (e) {
-          console.warn(`USGS param fetch failed for ${loc.site_id}:`, e);
-        }
-        usgsParamsCache.set(loc.site_id, []);
-        return { ...loc, available_params: [] as string[] };
-      })
-    );
+    // Look up available data from cached table
+    const siteIds = top3.map((l) => l.site_id);
+    const { data: availData } = await supabase
+      .from("usgs_water_bodies_available_data")
+      .select("site_id, water_flow, gage_height, temp, turbidity")
+      .in("site_id", siteIds);
+
+    const availMap = new Map<string, string[]>();
+    (availData || []).forEach((row: any) => {
+      const params: string[] = [];
+      if (row.water_flow) params.push("Flow");
+      if (row.gage_height) params.push("Gage Height");
+      if (row.temp) params.push("Temp");
+      if (row.turbidity) params.push("Turbidity");
+      availMap.set(row.site_id, params);
+    });
+
+    const enriched = top3.map((loc) => ({
+      ...loc,
+      available_params: availMap.get(loc.site_id) || [],
+    }));
 
     setNearbyUsgs(enriched);
     setLoadingUsgs(false);
@@ -629,14 +630,9 @@ const FullScreenUsgsStep = ({
                 position={{ lat: userPins[0].latitude, lng: userPins[0].longitude }}
                 title={userPins[0].label}
                 icon={{
-                  url: "data:image/svg+xml," + encodeURIComponent(
-                    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
-                    '<circle cx="20" cy="20" r="18" fill="white" stroke="#0369a1" stroke-width="2"/>' +
-                    '<text x="20" y="27" text-anchor="middle" font-size="22">🐟</text>' +
-                    '</svg>'
-                  ),
-                  scaledSize: new google.maps.Size(40, 40),
-                  anchor: new google.maps.Point(20, 20),
+                  url: FISH_OUTLINE_ICON,
+                  scaledSize: new google.maps.Size(36, 36),
+                  anchor: new google.maps.Point(18, 18),
                 }}
                 zIndex={10}
               />
