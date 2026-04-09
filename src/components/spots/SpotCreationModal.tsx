@@ -633,9 +633,9 @@ const FullScreenUsgsStep = ({
                 position={{ lat: userPins[0].latitude, lng: userPins[0].longitude }}
                 title={userPins[0].label}
                 icon={{
-                  url: FISH_OUTLINE_ICON,
-                  scaledSize: new google.maps.Size(36, 36),
-                  anchor: new google.maps.Point(18, 18),
+                  url: FISHING_ROD_PIN_ICON,
+                  scaledSize: new google.maps.Size(54, 66),
+                  anchor: new google.maps.Point(27, 66),
                 }}
                 zIndex={10}
               />
