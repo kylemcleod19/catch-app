@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Activity, Ruler } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
