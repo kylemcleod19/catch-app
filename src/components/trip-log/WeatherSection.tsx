@@ -330,6 +330,42 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               <p className="text-xs text-muted-foreground">{emptyMessage}</p>
             </div>
           )}
+          {pressureSeries.length > 1 && (() => {
+            const data = pressureSeries.map((p) => ({
+              label: format(new Date(p.date), "MMM d"),
+              value: Math.round(p.value * 10) / 10,
+            }));
+            const min = Math.min(...data.map((d) => d.value));
+            const max = Math.max(...data.map((d) => d.value));
+            const grid = niceGridLines(min, max);
+            return (
+              <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+                <p className="text-[10px] text-muted-foreground mb-1">Pressure (3 day, hPa)</p>
+                <ResponsiveContainer width="100%" height={90}>
+                  <AreaChart data={data}>
+                    <defs>
+                      <linearGradient id="pressGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis hide domain={["dataMin", "dataMax"]} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }}
+                      formatter={(v: number) => [`${v} hPa`, "Pressure"]}
+                      labelFormatter={(lbl: string) => lbl}
+                    />
+                    {grid.map((y) => (
+                      <ReferenceLine key={y} y={y} stroke="hsl(var(--border))" strokeDasharray="2 3"
+                        label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                    ))}
+                    <Area type="monotone" dataKey="value" stroke="hsl(var(--secondary-foreground))" strokeWidth={1.5} fill="url(#pressGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
