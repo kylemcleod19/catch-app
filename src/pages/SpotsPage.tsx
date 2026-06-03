@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
+import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown } from "lucide-react";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
+
+const DRAFT_KEY = "draftTripId";
 
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
@@ -27,10 +32,13 @@ interface SpotRow {
 
 const SpotsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [spots, setSpots] = useState<SpotRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
+  const [conditionsOpen, setConditionsOpen] = useState<Record<string, boolean>>({});
+  const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
   const fetchSpots = useCallback(async () => {
     if (!user) return;
@@ -64,6 +72,37 @@ const SpotsPage = () => {
       toast.success("Spot deleted");
     }
   };
+
+  const handleStartTrip = async (spot: SpotRow) => {
+    if (!user) return;
+    if (localStorage.getItem(DRAFT_KEY)) {
+      toast.error("You already have a trip in progress. Finish or cancel it first.");
+      navigate("/");
+      return;
+    }
+    setStartingTripId(spot.id);
+    const { data, error } = await supabase
+      .from("fishing_trips")
+      .insert({
+        user_id: user.id,
+        title: `Trip to ${spot.name || spot.body_of_water}`,
+        status: "draft",
+        spot_id: spot.id,
+      } as any)
+      .select("id")
+      .single();
+    setStartingTripId(null);
+    if (error || !data) {
+      toast.error("Failed to start trip");
+      return;
+    }
+    localStorage.setItem(DRAFT_KEY, data.id);
+    toast.success("Trip started");
+    navigate("/");
+  };
+
+  const toggleConditions = (id: string) =>
+    setConditionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -134,10 +173,47 @@ const SpotsPage = () => {
                   ))}
                 </div>
               )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="catch"
+                  className="flex-1 h-9 gap-1.5 rounded-lg"
+                  disabled={startingTripId === spot.id}
+                  onClick={() => handleStartTrip(spot)}
+                >
+                  {startingTripId === spot.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Start Trip
+                </Button>
+                {spot.usgs_site_id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-9 gap-1.5 rounded-lg"
+                    onClick={() => toggleConditions(spot.id)}
+                  >
+                    <Droplets className="w-4 h-4" />
+                    Conditions
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${conditionsOpen[spot.id] ? "rotate-180" : ""}`}
+                    />
+                  </Button>
+                )}
+              </div>
+
+              {conditionsOpen[spot.id] && spot.usgs_site_id && (
+                <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
+              )}
             </div>
           ))
         )}
       </main>
+
 
       <SpotCreationModal open={createOpen} onOpenChange={setCreateOpen} onSpotCreated={() => fetchSpots()} />
       {editingSpot && (
