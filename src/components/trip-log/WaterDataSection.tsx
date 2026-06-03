@@ -79,11 +79,13 @@ function RangeBar({ value, p10, p90 }: { value: number; p10: number; p90: number
 function hasWaterContent(snapshot: WaterFlowSnapshot | null): boolean {
   if (!snapshot) return false;
 
-  return (
-    snapshot.daily_values.length > 0 ||
+  const hasHistorical =
     (snapshot.historical?.discharge?.series?.length || 0) > 0 ||
-    (snapshot.historical?.gage_height?.series?.length || 0) > 0
-  );
+    (snapshot.historical?.gage_height?.series?.length || 0) > 0;
+
+  // Require historical so older snapshots (saved before historical was added)
+  // get refreshed from cache/API and gain the 100-day chart data.
+  return snapshot.daily_values.length > 0 && hasHistorical;
 }
 
 const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ spotId, date, existingSnapshot, onSnapshotChange }, ref) => {
