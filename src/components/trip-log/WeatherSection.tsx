@@ -262,24 +262,10 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                   <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
                 </div>
               )}
-              {s.pressure_hpa_avg != null && (
-                <div className="flex items-center gap-1">
-                  <Gauge className="w-3.5 h-3.5 text-secondary-foreground" />
-                  <span className="text-sm text-foreground">{Math.round(s.pressure_hpa_avg)}</span>
-                  {s.pressure_trend_24h_hpa != null && (
-                    s.pressure_trend_24h_hpa <= -1 ? (
-                      <TrendingDown className="w-3 h-3 text-destructive" />
-                    ) : s.pressure_trend_24h_hpa >= 1 ? (
-                      <TrendingUp className="w-3 h-3 text-primary" />
-                    ) : (
-                      <Minus className="w-3 h-3 text-muted-foreground" />
-                    )
-                  )}
-                </div>
-              )}
               {s.conditions && (
                 <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
               )}
+
             </>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
