@@ -63,15 +63,13 @@ function mmToIn(mm: number): number {
 }
 
 function formatHour(timeStr: string): string {
-  try {
-    const d = new Date(timeStr);
-    const h = d.getHours();
-    if (h === 0) return "12a";
-    if (h === 12) return "12p";
-    return h > 12 ? `${h - 12}p` : `${h}a`;
-  } catch {
-    return "";
-  }
+  // Parse the clock portion directly so we honor the source's local time
+  // (NWS uses local offsets; Open-Meteo is requested with timezone=auto).
+  const h = parseInt(timeStr.slice(11, 13), 10);
+  if (Number.isNaN(h)) return "";
+  if (h === 0) return "12a";
+  if (h === 12) return "12p";
+  return h > 12 ? `${h - 12}p` : `${h}a`;
 }
 
 function getWeatherIcon(conditions?: string): string {
@@ -89,6 +87,10 @@ function getWeatherIcon(conditions?: string): string {
 function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
   if (!snapshot) return false;
 
+  // Force a refetch for old caches that pre-date the local-timezone fix
+  // so the hourly strip shows 2 AM – 10 PM at the spot's location.
+  if (snapshot.given_day && snapshot.given_day.tz_local !== true) return false;
+
   const summary = snapshot.given_day?.summary;
   const hasSummaryValues = Boolean(
     summary && (
@@ -104,8 +106,8 @@ function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
   return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
 }
 
-function hasPressureInResponse(_json: any): boolean {
-  return true;
+function hasPressureInResponse(json: any): boolean {
+  return json?.given_day?.tz_local === true;
 }
 
 
