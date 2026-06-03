@@ -108,6 +108,10 @@ const SpotsPage = () => {
   const toggleConditions = (id: string) =>
     setConditionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  const toggleForecast = (id: string) =>
+    setForecastOpen((prev) => ({ ...prev, [id]: !prev[id] }));
+
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-4">
