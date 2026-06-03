@@ -103,7 +103,12 @@ function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
     )
   );
 
-  return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
+  const hasPressure = summary?.pressure_hpa_avg != null || Boolean(summary?.narrative);
+  return (hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0) && hasPressure;
+}
+
+function hasPressureInResponse(json: any): boolean {
+  return json?.given_day?.summary?.pressure_hpa_avg != null || Boolean(json?.given_day?.summary?.narrative);
 }
 
 const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId, tripId, date, existingSnapshot, onSnapshotChange }, ref) => {
