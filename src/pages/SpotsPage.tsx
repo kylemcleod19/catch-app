@@ -40,6 +40,8 @@ const SpotsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
   const [conditionsOpen, setConditionsOpen] = useState<Record<string, boolean>>({});
+  const [forecastOpen, setForecastOpen] = useState<Record<string, boolean>>({});
+
   const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
   const fetchSpots = useCallback(async () => {
