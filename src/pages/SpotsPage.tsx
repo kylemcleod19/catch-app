@@ -32,10 +32,13 @@ interface SpotRow {
 
 const SpotsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [spots, setSpots] = useState<SpotRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
+  const [conditionsOpen, setConditionsOpen] = useState<Record<string, boolean>>({});
+  const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
   const fetchSpots = useCallback(async () => {
     if (!user) return;
