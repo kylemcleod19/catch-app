@@ -73,6 +73,37 @@ const SpotsPage = () => {
     }
   };
 
+  const handleStartTrip = async (spot: SpotRow) => {
+    if (!user) return;
+    if (localStorage.getItem(DRAFT_KEY)) {
+      toast.error("You already have a trip in progress. Finish or cancel it first.");
+      navigate("/");
+      return;
+    }
+    setStartingTripId(spot.id);
+    const { data, error } = await supabase
+      .from("fishing_trips")
+      .insert({
+        user_id: user.id,
+        title: `Trip to ${spot.name || spot.body_of_water}`,
+        status: "draft",
+        spot_id: spot.id,
+      } as any)
+      .select("id")
+      .single();
+    setStartingTripId(null);
+    if (error || !data) {
+      toast.error("Failed to start trip");
+      return;
+    }
+    localStorage.setItem(DRAFT_KEY, data.id);
+    toast.success("Trip started");
+    navigate("/");
+  };
+
+  const toggleConditions = (id: string) =>
+    setConditionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-4">
