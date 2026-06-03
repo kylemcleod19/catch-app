@@ -100,10 +100,13 @@ function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
       summary.short_forecast
     )
   );
-
-  const hasPressure = summary?.pressure_hpa_avg != null || Boolean(summary?.narrative);
-  return (hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0) && hasPressure;
+  return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
 }
+
+function hasPressureInResponse(_json: any): boolean {
+  return true;
+}
+
 
 function hasPressureInResponse(json: any): boolean {
   return json?.given_day?.summary?.pressure_hpa_avg != null || Boolean(json?.given_day?.summary?.narrative);
