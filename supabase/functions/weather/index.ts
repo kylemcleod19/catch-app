@@ -283,26 +283,84 @@ serve(async (req) => {
   }
 
   try {
-    const NCEI_TOKEN = Deno.env.get("NCEI_TOKEN");
-    if (!NCEI_TOKEN) throw new Error("NCEI_TOKEN is not configured");
-
     const url = new URL(req.url);
     const latStr = url.searchParams.get("lat");
     const lonStr = url.searchParams.get("lon");
     const date = url.searchParams.get("date");
+    const mode = url.searchParams.get("mode");
 
-    if (!latStr || !lonStr || !date) {
+    const lat = parseFloat(latStr || "");
+    const lon = parseFloat(lonStr || "");
+    if (!latStr || !lonStr || isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
       return new Response(
-        JSON.stringify({ error: "lat, lon, and date are required" }),
+        JSON.stringify({ error: "Invalid lat/lon values" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const lat = parseFloat(latStr);
-    const lon = parseFloat(lonStr);
-    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    // ── Forecast mode: 7-day daily forecast (NWS-only, no NCEI) ──
+    if (mode === "forecast") {
+      try {
+        const pointsData = await nwsFetch(`https://api.weather.gov/points/${lat},${lon}`);
+        const props = pointsData.properties;
+        const forecastUrl = props?.forecast;
+        if (!forecastUrl) throw new Error("No NWS forecast available for this location");
+        const forecastData = await nwsFetch(forecastUrl);
+        const periods: any[] = forecastData.properties?.periods || [];
+
+        // Group periods by date and combine day/night
+        const byDate: Record<string, any[]> = {};
+        for (const p of periods) {
+          const d = p.startTime?.slice(0, 10);
+          if (!d) continue;
+          (byDate[d] = byDate[d] || []).push(p);
+        }
+        const days = Object.keys(byDate).sort().slice(0, 7).map((d) => {
+          const ps = byDate[d];
+          const temps = ps.map((p) => p.temperature).filter((t: any) => t != null);
+          const high = temps.length ? Math.max(...temps) : null;
+          const low = temps.length ? Math.min(...temps) : null;
+          const dayP = ps.find((p) => p.isDaytime) || ps[0];
+          const precipProb = Math.max(
+            ...ps.map((p) => p.probabilityOfPrecipitation?.value ?? 0)
+          );
+          return {
+            date: d,
+            temp_high_f: high,
+            temp_low_f: low,
+            conditions: dayP?.shortForecast || null,
+            short_forecast: dayP?.shortForecast || null,
+            precip_probability_pct: isFinite(precipProb) ? precipProb : null,
+            wind_speed_kmh: dayP?.windSpeed ? parseWindSpeed(dayP.windSpeed) : null,
+          };
+        });
+
+        return new Response(
+          JSON.stringify({
+            location: {
+              lat,
+              lon,
+              city: props?.relativeLocation?.properties?.city || null,
+              state: props?.relativeLocation?.properties?.state || null,
+            },
+            forecast: days,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e: any) {
+        return new Response(
+          JSON.stringify({ error: e.message || "Forecast unavailable" }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const NCEI_TOKEN = Deno.env.get("NCEI_TOKEN");
+    if (!NCEI_TOKEN) throw new Error("NCEI_TOKEN is not configured");
+
+    if (!date) {
       return new Response(
-        JSON.stringify({ error: "Invalid lat/lon values" }),
+        JSON.stringify({ error: "date is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -313,6 +371,7 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     const todayStr = toDateStr(new Date());
     const maxForecastDate = addDays(todayStr, 7);
