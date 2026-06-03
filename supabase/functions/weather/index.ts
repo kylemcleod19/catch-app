@@ -204,7 +204,7 @@ async function fetchOpenMeteoArchive(
     `${OPEN_METEO_ARCHIVE}?latitude=${lat}&longitude=${lon}` +
     `&start_date=${startDate}&end_date=${endDate}` +
     `&hourly=temperature_2m,surface_pressure,pressure_msl,wind_speed_10m,precipitation` +
-    `&timezone=UTC&wind_speed_unit=kmh`;
+    `&timezone=auto&wind_speed_unit=kmh`;
   const resp = await fetch(url);
   if (!resp.ok) {
     throw new Error(`Open-Meteo archive ${resp.status}: ${await resp.text()}`);
@@ -225,7 +225,7 @@ async function fetchOpenMeteoArchive(
       byDate[d] = { date: d, hourly: [], pressure_avg: null, pressure_min: null, pressure_max: null, temp_avg: null };
     }
     byDate[d].hourly.push({
-      time: t + "Z",
+      time: t,
       temp_c: temps[i] ?? null,
       pressure_hpa: pmsl[i] ?? psurf[i] ?? null,
       wind_speed_kmh: winds[i] ?? null,
