@@ -1,6 +1,9 @@
 import { forwardRef, useEffect, useState } from "react";
-import { Cloud, Droplets, Loader2, Sun, Thermometer, Wind, ChevronDown } from "lucide-react";
+import { Cloud, Droplets, Gauge, Loader2, Sun, Thermometer, Wind, ChevronDown, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { niceGridLines } from "@/lib/chartGrid";
 
 
 export interface WeatherSnapshot {
@@ -21,6 +24,13 @@ export interface WeatherSnapshot {
       wind_direction_deg?: number;
       conditions?: string;
       short_forecast?: string;
+      pressure_hpa_avg?: number;
+      pressure_hpa_min?: number;
+      pressure_hpa_max?: number;
+      pressure_trend_24h_hpa?: number;
+      temp_change_24h_c?: number;
+      narrative?: string;
+      front_flag?: "cold_front" | "warm_front" | "stable" | "unsettled";
     };
     hourly?: Array<{
       time: string;
@@ -29,6 +39,7 @@ export interface WeatherSnapshot {
       wind_speed_kmh?: number;
       conditions?: string;
     }>;
+    pressure_series?: Array<{ date: string; value: number }>;
   };
 }
 
@@ -92,7 +103,12 @@ function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
     )
   );
 
-  return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
+  const hasPressure = summary?.pressure_hpa_avg != null || Boolean(summary?.narrative);
+  return (hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0) && hasPressure;
+}
+
+function hasPressureInResponse(json: any): boolean {
+  return json?.given_day?.summary?.pressure_hpa_avg != null || Boolean(json?.given_day?.summary?.narrative);
 }
 
 const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId, tripId, date, existingSnapshot, onSnapshotChange }, ref) => {
@@ -137,7 +153,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
         let result: any;
 
-        if (cached?.response_json) {
+        if (cached?.response_json && hasPressureInResponse(cached.response_json)) {
           result = cached.response_json;
         } else {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -211,7 +227,9 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     s.temp_low_c != null ||
     s.wind_speed_kmh != null ||
     (s.precip_mm != null && s.precip_mm > 0) ||
+    s.pressure_hpa_avg != null ||
     Boolean(s.conditions);
+  const pressureSeries = existingSnapshot.given_day?.pressure_series || [];
   const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
     ? "No historical weather was returned for this date."
     : "Weather details aren't available for this date.";
@@ -246,6 +264,21 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                   <span className="text-sm text-foreground">{mmToIn(s.precip_mm)} in</span>
                 </div>
               )}
+              {s.pressure_hpa_avg != null && (
+                <div className="flex items-center gap-1">
+                  <Gauge className="w-3.5 h-3.5 text-secondary-foreground" />
+                  <span className="text-sm text-foreground">{Math.round(s.pressure_hpa_avg)}</span>
+                  {s.pressure_trend_24h_hpa != null && (
+                    s.pressure_trend_24h_hpa <= -1 ? (
+                      <TrendingDown className="w-3 h-3 text-destructive" />
+                    ) : s.pressure_trend_24h_hpa >= 1 ? (
+                      <TrendingUp className="w-3 h-3 text-primary" />
+                    ) : (
+                      <Minus className="w-3 h-3 text-muted-foreground" />
+                    )
+                  )}
+                </div>
+              )}
               {s.conditions && (
                 <span className="text-xs text-muted-foreground truncate">{s.conditions}</span>
               )}
@@ -259,6 +292,12 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
       </button>
+
+      {s.narrative && (
+        <div className="mt-1 px-1">
+          <p className="text-[11px] italic text-muted-foreground">{s.narrative}</p>
+        </div>
+      )}
 
       {expanded && (
         <>
@@ -291,6 +330,42 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               <p className="text-xs text-muted-foreground">{emptyMessage}</p>
             </div>
           )}
+          {pressureSeries.length > 1 && (() => {
+            const data = pressureSeries.map((p) => ({
+              label: format(new Date(p.date), "MMM d"),
+              value: Math.round(p.value * 10) / 10,
+            }));
+            const min = Math.min(...data.map((d) => d.value));
+            const max = Math.max(...data.map((d) => d.value));
+            const grid = niceGridLines(min, max);
+            return (
+              <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+                <p className="text-[10px] text-muted-foreground mb-1">Pressure (3 day, hPa)</p>
+                <ResponsiveContainer width="100%" height={90}>
+                  <AreaChart data={data}>
+                    <defs>
+                      <linearGradient id="pressGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis hide domain={["dataMin", "dataMax"]} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }}
+                      formatter={(v: number) => [`${v} hPa`, "Pressure"]}
+                      labelFormatter={(lbl: string) => lbl}
+                    />
+                    {grid.map((y) => (
+                      <ReferenceLine key={y} y={y} stroke="hsl(var(--border))" strokeDasharray="2 3"
+                        label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                    ))}
+                    <Area type="monotone" dataKey="value" stroke="hsl(var(--secondary-foreground))" strokeWidth={1.5} fill="url(#pressGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
