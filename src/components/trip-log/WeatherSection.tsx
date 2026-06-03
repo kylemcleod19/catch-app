@@ -1,6 +1,9 @@
 import { forwardRef, useEffect, useState } from "react";
-import { Cloud, Droplets, Loader2, Sun, Thermometer, Wind, ChevronDown } from "lucide-react";
+import { Cloud, Droplets, Gauge, Loader2, Sun, Thermometer, Wind, ChevronDown, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { niceGridLines } from "@/lib/chartGrid";
 
 
 export interface WeatherSnapshot {
