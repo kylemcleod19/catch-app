@@ -414,6 +414,67 @@ serve(async (req) => {
       console.warn("NCEI history fetch failed:", e);
     }
 
+    // ── Step 4: Open-Meteo ERA5 enrichment (pressure, hourly backfill, narrative) ──
+    try {
+      const ercStart = addDays(date, -2);
+      const archive = await fetchOpenMeteoArchive(lat, lon, ercStart, date);
+      const today = archive[date];
+      const yesterday = archive[addDays(date, -1)];
+
+      if (today) {
+        givenDay.summary = givenDay.summary || {};
+        if (today.pressure_avg != null) {
+          givenDay.summary.pressure_hpa_avg = today.pressure_avg;
+          givenDay.summary.pressure_hpa_min = today.pressure_min;
+          givenDay.summary.pressure_hpa_max = today.pressure_max;
+        }
+        let pressureTrend: number | null = null;
+        let tempChange: number | null = null;
+        if (today.pressure_avg != null && yesterday?.pressure_avg != null) {
+          pressureTrend = Math.round((today.pressure_avg - yesterday.pressure_avg) * 10) / 10;
+          givenDay.summary.pressure_trend_24h_hpa = pressureTrend;
+        }
+        if (today.temp_avg != null && yesterday?.temp_avg != null) {
+          tempChange = Math.round((today.temp_avg - yesterday.temp_avg) * 10) / 10;
+          givenDay.summary.temp_change_24h_c = tempChange;
+        }
+        const narrative = buildNarrative({
+          pressureTrend,
+          tempChange,
+          pressureAvg: today.pressure_avg,
+          precipMm: givenDay.summary.precip_mm,
+        });
+        if (narrative.text) {
+          givenDay.summary.narrative = narrative.text;
+          givenDay.summary.front_flag = narrative.front_flag;
+        }
+
+        // Backfill hourly when NCEI returned none
+        if ((!givenDay.hourly || givenDay.hourly.length === 0) && today.hourly.length > 0) {
+          givenDay.hourly = today.hourly.map((h) => ({
+            time: h.time,
+            temp_c: h.temp_c ?? 0,
+            precip_probability_pct: null,
+            wind_speed_kmh: h.wind_speed_kmh,
+            conditions: null,
+          }));
+        }
+
+        // 3-day pressure series for the sparkline
+        const pressureSeries: Array<{ date: string; value: number }> = [];
+        for (let i = -2; i <= 0; i++) {
+          const d = addDays(date, i);
+          const day = archive[d];
+          if (day?.pressure_avg != null) pressureSeries.push({ date: d, value: day.pressure_avg });
+        }
+        if (pressureSeries.length > 0) {
+          givenDay.pressure_series = pressureSeries;
+        }
+      }
+    } catch (e) {
+      console.warn("Open-Meteo enrichment failed:", e);
+    }
+
     const response: any = {
       location: { lat, lon, city, state },
       given_day: givenDay,
