@@ -518,16 +518,23 @@ serve(async (req) => {
           givenDay.summary.front_flag = narrative.front_flag;
         }
 
-        // Backfill hourly when NCEI returned none
+        // Backfill hourly when NCEI returned none (filtered to 2 AM – 10 PM local)
         if ((!givenDay.hourly || givenDay.hourly.length === 0) && today.hourly.length > 0) {
-          givenDay.hourly = today.hourly.map((h) => ({
-            time: h.time,
-            temp_c: h.temp_c ?? 0,
-            precip_probability_pct: null,
-            wind_speed_kmh: h.wind_speed_kmh,
-            conditions: null,
-          }));
+          givenDay.hourly = today.hourly
+            .filter((h) => {
+              const hr = localHourFromTimeStr(h.time);
+              return hr >= 2 && hr <= 22;
+            })
+            .map((h) => ({
+              time: h.time,
+              temp_c: h.temp_c ?? 0,
+              precip_probability_pct: null,
+              wind_speed_kmh: h.wind_speed_kmh,
+              conditions: null,
+            }));
         }
+
+        givenDay.tz_local = true;
 
         // 3-day pressure series for the sparkline
         const pressureSeries: Array<{ date: string; value: number }> = [];
