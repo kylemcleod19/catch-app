@@ -153,6 +153,12 @@ function parseWindSpeed(windStr: string): number | null {
   return Math.round(parseInt(match[1]) * 1.60934);
 }
 
+function localHourFromTimeStr(t: string): number {
+  // Works for "YYYY-MM-DDTHH:..." regardless of trailing offset/Z;
+  // we only care about the clock portion as authored by the source.
+  return parseInt(t.slice(11, 13), 10);
+}
+
 function buildNwsHourly(periods: any[], date: string): any[] {
   return periods
     .filter((p: any) => p.startTime?.startsWith(date))
@@ -162,7 +168,11 @@ function buildNwsHourly(periods: any[], date: string): any[] {
       precip_probability_pct: p.probabilityOfPrecipitation?.value ?? null,
       wind_speed_kmh: p.windSpeed ? parseWindSpeed(p.windSpeed) : null,
       conditions: p.shortForecast || null,
-    }));
+    }))
+    .filter((h: any) => {
+      const hr = localHourFromTimeStr(h.time);
+      return hr >= 2 && hr <= 22;
+    });
 }
 
 // ── Open-Meteo ERA5 archive (historical hourly w/ pressure) ──
