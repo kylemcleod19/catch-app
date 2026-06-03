@@ -153,7 +153,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
         let result: any;
 
-        if (cached?.response_json) {
+        if (cached?.response_json && hasPressureInResponse(cached.response_json)) {
           result = cached.response_json;
         } else {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
