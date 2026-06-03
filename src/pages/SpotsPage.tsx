@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
+import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown } from "lucide-react";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
+
+const DRAFT_KEY = "draftTripId";
 
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
