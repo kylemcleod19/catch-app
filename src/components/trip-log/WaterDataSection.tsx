@@ -223,11 +223,15 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
   const chartData = dischargeSeries
     .map((p) => ({
       fullDate: p.date || "",
-      date: p.date?.slice(5, 10) || "",
+      date: p.date ? format(new Date(p.date), "MMM d") : "",
       value: parseFloat(p.value),
     }))
     .filter((d) => !isNaN(d.value))
     .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
+
+  const gridLines = chartData.length > 0
+    ? niceGridLines(Math.min(...chartData.map((d) => d.value)), Math.max(...chartData.map((d) => d.value)))
+    : [];
 
   // Find max and min points for indicators
   const maxPoint = chartData.length > 0 ? chartData.reduce((a, b) => b.value > a.value ? b : a) : null;
