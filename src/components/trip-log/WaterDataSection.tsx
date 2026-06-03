@@ -307,15 +307,6 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                     formatter={(val: number) => [`${val} cfs`, "Discharge"]}
                     labelFormatter={(lbl: string) => lbl}
                   />
-                  {gridLines.map((y) => (
-                    <ReferenceLine
-                      key={y}
-                      y={y}
-                      stroke="hsl(var(--border))"
-                      strokeDasharray="2 3"
-                      label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                    />
-                  ))}
                   <Area
                     type="monotone"
                     dataKey="value"
@@ -323,6 +314,17 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                     strokeWidth={1.5}
                     fill="url(#flowGrad)"
                   />
+                  {gridLines.map((y) => (
+                    <ReferenceLine
+                      key={y}
+                      y={y}
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeOpacity={0.4}
+                      strokeDasharray="2 3"
+                      ifOverflow="extendDomain"
+                      label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    />
+                  ))}
                   {maxPoint && (
                     <ReferenceDot
                       x={maxPoint.date}
@@ -343,6 +345,7 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                       label={{ value: `▼ ${minPoint.value}`, position: "bottom", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
                     />
                   )}
+
                 </AreaChart>
               </ResponsiveContainer>
             </div>
