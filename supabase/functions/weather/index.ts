@@ -165,7 +165,117 @@ function buildNwsHourly(periods: any[], date: string): any[] {
     }));
 }
 
-// ── Main handler ──
+// ── Open-Meteo ERA5 archive (historical hourly w/ pressure) ──
+
+const OPEN_METEO_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive";
+
+interface ErcDay {
+  date: string;
+  hourly: Array<{
+    time: string;
+    temp_c: number | null;
+    pressure_hpa: number | null;
+    wind_speed_kmh: number | null;
+    precip_mm: number | null;
+  }>;
+  pressure_avg: number | null;
+  pressure_min: number | null;
+  pressure_max: number | null;
+  temp_avg: number | null;
+}
+
+async function fetchOpenMeteoArchive(
+  lat: number,
+  lon: number,
+  startDate: string,
+  endDate: string
+): Promise<Record<string, ErcDay>> {
+  const url =
+    `${OPEN_METEO_ARCHIVE}?latitude=${lat}&longitude=${lon}` +
+    `&start_date=${startDate}&end_date=${endDate}` +
+    `&hourly=temperature_2m,surface_pressure,pressure_msl,wind_speed_10m,precipitation` +
+    `&timezone=UTC&wind_speed_unit=kmh`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`Open-Meteo archive ${resp.status}: ${await resp.text()}`);
+  }
+  const data = await resp.json();
+  const times: string[] = data?.hourly?.time || [];
+  const temps: (number | null)[] = data?.hourly?.temperature_2m || [];
+  const pmsl: (number | null)[] = data?.hourly?.pressure_msl || [];
+  const psurf: (number | null)[] = data?.hourly?.surface_pressure || [];
+  const winds: (number | null)[] = data?.hourly?.wind_speed_10m || [];
+  const precip: (number | null)[] = data?.hourly?.precipitation || [];
+
+  const byDate: Record<string, ErcDay> = {};
+  for (let i = 0; i < times.length; i++) {
+    const t = times[i];
+    const d = t.slice(0, 10);
+    if (!byDate[d]) {
+      byDate[d] = { date: d, hourly: [], pressure_avg: null, pressure_min: null, pressure_max: null, temp_avg: null };
+    }
+    byDate[d].hourly.push({
+      time: t + "Z",
+      temp_c: temps[i] ?? null,
+      pressure_hpa: pmsl[i] ?? psurf[i] ?? null,
+      wind_speed_kmh: winds[i] ?? null,
+      precip_mm: precip[i] ?? null,
+    });
+  }
+
+  for (const d of Object.values(byDate)) {
+    const ps = d.hourly.map((h) => h.pressure_hpa).filter((v): v is number => v != null);
+    const ts = d.hourly.map((h) => h.temp_c).filter((v): v is number => v != null);
+    if (ps.length) {
+      d.pressure_avg = Math.round((ps.reduce((a, b) => a + b, 0) / ps.length) * 10) / 10;
+      d.pressure_min = Math.round(Math.min(...ps) * 10) / 10;
+      d.pressure_max = Math.round(Math.max(...ps) * 10) / 10;
+    }
+    if (ts.length) {
+      d.temp_avg = Math.round((ts.reduce((a, b) => a + b, 0) / ts.length) * 10) / 10;
+    }
+  }
+  return byDate;
+}
+
+function buildNarrative(opts: {
+  pressureTrend?: number | null;
+  tempChange?: number | null;
+  pressureAvg?: number | null;
+  precipMm?: number | null;
+}): { text: string; front_flag: "cold_front" | "warm_front" | "stable" | "unsettled" } {
+  const { pressureTrend, tempChange, pressureAvg, precipMm } = opts;
+  const parts: string[] = [];
+  let flag: "cold_front" | "warm_front" | "stable" | "unsettled" = "stable";
+
+  if (pressureTrend != null && tempChange != null) {
+    if (pressureTrend <= -3 && tempChange <= -3) {
+      flag = "cold_front";
+      parts.push(`Cold front — pressure dropped ${Math.abs(Math.round(pressureTrend))} hPa, temp fell ${Math.abs(Math.round(tempChange))}°C in 24h.`);
+    } else if (pressureTrend >= 3 && tempChange >= 3) {
+      flag = "warm_front";
+      parts.push(`Warm front — pressure rose ${Math.round(pressureTrend)} hPa, temp climbed ${Math.round(tempChange)}°C in 24h.`);
+    } else if (Math.abs(pressureTrend) < 2 && Math.abs(tempChange) < 2) {
+      flag = "stable";
+      const high = pressureAvg != null && pressureAvg >= 1020;
+      const low = pressureAvg != null && pressureAvg <= 1005;
+      parts.push(high ? "Stable high pressure." : low ? "Stable low pressure." : "Stable conditions.");
+    } else {
+      flag = "unsettled";
+      const dir = pressureTrend < 0 ? "falling" : "rising";
+      parts.push(`Unsettled — pressure ${dir} ${Math.abs(Math.round(pressureTrend))} hPa, temp shift ${Math.round(tempChange)}°C.`);
+    }
+  } else if (pressureAvg != null) {
+    parts.push(
+      pressureAvg >= 1020 ? `High pressure (${Math.round(pressureAvg)} hPa).`
+      : pressureAvg <= 1005 ? `Low pressure (${Math.round(pressureAvg)} hPa).`
+      : `Pressure ${Math.round(pressureAvg)} hPa.`
+    );
+  }
+
+  if (precipMm != null && precipMm >= 5) parts.push(`${Math.round(precipMm)}mm precip.`);
+  return { text: parts.join(" ").trim(), front_flag: flag };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
