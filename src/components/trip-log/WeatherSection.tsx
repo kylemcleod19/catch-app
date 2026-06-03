@@ -13,6 +13,7 @@ export interface WeatherSnapshot {
   location?: { city?: string; state?: string };
   given_day?: {
     data_gaps?: string[];
+    tz_local?: boolean;
     summary?: {
       temp_high_c?: number;
       temp_low_c?: number;
