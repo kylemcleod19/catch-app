@@ -7,8 +7,10 @@ import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
+import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown, CloudSun } from "lucide-react";
+
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
