@@ -551,6 +551,10 @@ serve(async (req) => {
       console.warn("Open-Meteo enrichment failed:", e);
     }
 
+    if (givenDay) givenDay.tz_local = true;
+
+
+
     const response: any = {
       location: { lat, lon, city, state },
       given_day: givenDay,
