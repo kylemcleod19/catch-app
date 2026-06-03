@@ -13,6 +13,7 @@ export interface WeatherSnapshot {
   location?: { city?: string; state?: string };
   given_day?: {
     data_gaps?: string[];
+    tz_local?: boolean;
     summary?: {
       temp_high_c?: number;
       temp_low_c?: number;
@@ -62,15 +63,13 @@ function mmToIn(mm: number): number {
 }
 
 function formatHour(timeStr: string): string {
-  try {
-    const d = new Date(timeStr);
-    const h = d.getHours();
-    if (h === 0) return "12a";
-    if (h === 12) return "12p";
-    return h > 12 ? `${h - 12}p` : `${h}a`;
-  } catch {
-    return "";
-  }
+  // Parse the clock portion directly so we honor the source's local time
+  // (NWS uses local offsets; Open-Meteo is requested with timezone=auto).
+  const h = parseInt(timeStr.slice(11, 13), 10);
+  if (Number.isNaN(h)) return "";
+  if (h === 0) return "12a";
+  if (h === 12) return "12p";
+  return h > 12 ? `${h - 12}p` : `${h}a`;
 }
 
 function getWeatherIcon(conditions?: string): string {
@@ -88,6 +87,10 @@ function getWeatherIcon(conditions?: string): string {
 function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
   if (!snapshot) return false;
 
+  // Force a refetch for old caches that pre-date the local-timezone fix
+  // so the hourly strip shows 2 AM – 10 PM at the spot's location.
+  if (snapshot.given_day && snapshot.given_day.tz_local !== true) return false;
+
   const summary = snapshot.given_day?.summary;
   const hasSummaryValues = Boolean(
     summary && (
@@ -103,8 +106,8 @@ function hasWeatherContent(snapshot: WeatherSnapshot | null): boolean {
   return hasSummaryValues || (snapshot.given_day?.hourly?.length || 0) > 0;
 }
 
-function hasPressureInResponse(_json: any): boolean {
-  return true;
+function hasPressureInResponse(json: any): boolean {
+  return json?.given_day?.tz_local === true;
 }
 
 
@@ -291,12 +294,18 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                     <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
                       <span className="text-[10px] text-muted-foreground">{formatHour(h.time)}</span>
                       <span className="text-base">{getWeatherIcon(h.conditions)}</span>
-                      <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°</span>
+                      <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°F</span>
                       {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
-                        <span className="text-[10px] text-accent">{h.precip_probability_pct}%</span>
+                        <span className="text-[10px] text-accent flex items-center gap-0.5">
+                          <Droplets className="w-2.5 h-2.5" />
+                          {h.precip_probability_pct}%
+                        </span>
                       )}
                       {h.wind_speed_kmh != null && (
-                        <span className="text-[10px] text-muted-foreground">{kmhToMph(h.wind_speed_kmh)}</span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <Wind className="w-2.5 h-2.5" />
+                          {kmhToMph(h.wind_speed_kmh)} mph
+                        </span>
                       )}
                     </div>
                   ))}

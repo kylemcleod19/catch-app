@@ -153,6 +153,12 @@ function parseWindSpeed(windStr: string): number | null {
   return Math.round(parseInt(match[1]) * 1.60934);
 }
 
+function localHourFromTimeStr(t: string): number {
+  // Works for "YYYY-MM-DDTHH:..." regardless of trailing offset/Z;
+  // we only care about the clock portion as authored by the source.
+  return parseInt(t.slice(11, 13), 10);
+}
+
 function buildNwsHourly(periods: any[], date: string): any[] {
   return periods
     .filter((p: any) => p.startTime?.startsWith(date))
@@ -162,7 +168,11 @@ function buildNwsHourly(periods: any[], date: string): any[] {
       precip_probability_pct: p.probabilityOfPrecipitation?.value ?? null,
       wind_speed_kmh: p.windSpeed ? parseWindSpeed(p.windSpeed) : null,
       conditions: p.shortForecast || null,
-    }));
+    }))
+    .filter((h: any) => {
+      const hr = localHourFromTimeStr(h.time);
+      return hr >= 2 && hr <= 22;
+    });
 }
 
 // ── Open-Meteo ERA5 archive (historical hourly w/ pressure) ──
@@ -194,7 +204,7 @@ async function fetchOpenMeteoArchive(
     `${OPEN_METEO_ARCHIVE}?latitude=${lat}&longitude=${lon}` +
     `&start_date=${startDate}&end_date=${endDate}` +
     `&hourly=temperature_2m,surface_pressure,pressure_msl,wind_speed_10m,precipitation` +
-    `&timezone=UTC&wind_speed_unit=kmh`;
+    `&timezone=auto&wind_speed_unit=kmh`;
   const resp = await fetch(url);
   if (!resp.ok) {
     throw new Error(`Open-Meteo archive ${resp.status}: ${await resp.text()}`);
@@ -215,7 +225,7 @@ async function fetchOpenMeteoArchive(
       byDate[d] = { date: d, hourly: [], pressure_avg: null, pressure_min: null, pressure_max: null, temp_avg: null };
     }
     byDate[d].hourly.push({
-      time: t + "Z",
+      time: t,
       temp_c: temps[i] ?? null,
       pressure_hpa: pmsl[i] ?? psurf[i] ?? null,
       wind_speed_kmh: winds[i] ?? null,
@@ -508,16 +518,23 @@ serve(async (req) => {
           givenDay.summary.front_flag = narrative.front_flag;
         }
 
-        // Backfill hourly when NCEI returned none
+        // Backfill hourly when NCEI returned none (filtered to 2 AM – 10 PM local)
         if ((!givenDay.hourly || givenDay.hourly.length === 0) && today.hourly.length > 0) {
-          givenDay.hourly = today.hourly.map((h) => ({
-            time: h.time,
-            temp_c: h.temp_c ?? 0,
-            precip_probability_pct: null,
-            wind_speed_kmh: h.wind_speed_kmh,
-            conditions: null,
-          }));
+          givenDay.hourly = today.hourly
+            .filter((h) => {
+              const hr = localHourFromTimeStr(h.time);
+              return hr >= 2 && hr <= 22;
+            })
+            .map((h) => ({
+              time: h.time,
+              temp_c: h.temp_c ?? 0,
+              precip_probability_pct: null,
+              wind_speed_kmh: h.wind_speed_kmh,
+              conditions: null,
+            }));
         }
+
+        givenDay.tz_local = true;
 
         // 3-day pressure series for the sparkline
         const pressureSeries: Array<{ date: string; value: number }> = [];
@@ -533,6 +550,10 @@ serve(async (req) => {
     } catch (e) {
       console.warn("Open-Meteo enrichment failed:", e);
     }
+
+    if (givenDay) givenDay.tz_local = true;
+
+
 
     const response: any = {
       location: { lat, lon, city, state },
