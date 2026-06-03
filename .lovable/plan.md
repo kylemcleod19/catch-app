@@ -1,70 +1,46 @@
+## Weather: historical insights upgrade
 
+Goal: When a trip's weather is loaded (often a historical lookback), surface insights that anglers actually care about — pressure level + 24h trend, day-over-day temp swing, and a short AI-generated "what happened" narrative that calls out fronts.
 
-## Cleanup Plan for `normalized_water_body` Column
+### Data sources
 
-### Problem Scope
-- **180K rows** with normalized names, **87K distinct values** — many are dirty
-- ~5,700 rows prefixed with numbers (e.g., "13215 White River")
-- ~300 rows that are purely numeric (e.g., "38160")
-- ~8,600 rows prefixed with apostrophes (e.g., "'bull Shoals Lake")
-- Hundreds with agency prefixes like `(coe)`, `(usace)`, location suffixes like "Site WR", "@ Jimmie Creek", "1.0 Mi. West of Highway", river-mile markers, etc.
+- NWS forecast (already used) for recent/upcoming dates — has hourly + pressure.
+- NCEI historical (already used) — has daily highs/lows, precip, wind. No pressure, no hourly.
+- **New:** Open-Meteo ERA5 archive (`archive-api.open-meteo.com`) — free, no key, gives **hourly surface pressure**, temp, wind, precip back to 1940. Used only as a supplement when NCEI is the source (historical dates).
 
-### Approach: Two-Pass AI Re-normalization via Edge Function
+### Backend changes (`supabase/functions/weather/index.ts`)
 
-Rather than writing hundreds of SQL regex rules by hand, we reuse the same AI normalization approach already in `sync-usgs-locations` but run it as a bulk cleanup job. The AI model already understands the rules — it just missed some cases on first pass.
+1. When the requested date is historical (NCEI path) **or** when NWS response lacks pressure, also call Open-Meteo ERA5 for:
+   - The requested date (hourly pressure, temp, wind, precip)
+   - The 2 prior days (for trend/front detection)
+2. Compute and attach to `given_day.summary`:
+   - `pressure_hpa_avg`, `pressure_hpa_min`, `pressure_hpa_max`
+   - `pressure_trend_24h_hpa` (avg today − avg yesterday)
+   - `temp_change_24h_c` (avg today − avg yesterday)
+   - `front_flag`: `"cold_front" | "warm_front" | "stable"` based on simple thresholds (e.g., pressure drop >4 hPa + temp drop >5°C in 24h → cold front).
+3. Backfill `given_day.hourly` from ERA5 when NCEI returned none, so the existing expanded hourly strip works on historical trips.
 
-**Pass 1 — Deterministic SQL fixes** (fast, no AI needed):
-- Set purely numeric values to `NULL`
-- Strip leading apostrophes and fix capitalization (`'bull Shoals Lake` → `Bull Shoals Lake`)
-- Strip leading hyphens and junk codes (`-r3`, `-r4` → `NULL`)
-- Strip agency prefixes: `(coe)`, `(usace)`, `(COE)` etc.
-- Strip leading numeric prefixes: `13215 White River` → `White River`
-- Expand common abbreviations: `Lk` → `Lake`, `R.` → `River`, `Ck` → `Creek`, `Rv` → `River`
+### Frontend changes (`WeatherSection.tsx`)
 
-**Pass 2 — AI re-normalization for remaining messy rows:**
-- Query rows where `normalized_water_body` still contains patterns like `Site`, `@`, `Mile`, `Rmi`, `Mp`, `Fort`, location descriptions, or coordinate-style prefixes
-- Send them through the same Gemini Flash Lite normalizer in batches of 100
-- Update in place
+1. Compact header gets a new pressure chip when present: `↓ 1009 hPa` (arrow = trend direction, color = severity).
+2. New "Conditions summary" chip below the compact header — small italic line generated server-side from the deltas using a deterministic template first (cheap, no AI). Examples:
+   - "Cold front overnight — pressure dropped 8 hPa, high fell 12°."
+   - "Stable high pressure, warming trend (+6°)."
+   - "Warm front building, pressure easing."
+3. Expanded view: add a tiny 3-day pressure sparkline (today + 2 prior) using the same `niceGridLines` convention.
 
-### Implementation
+### Why template-first, AI-optional
 
-1. **New edge function `cleanup-water-bodies`** with two actions:
-   - `action: "sql-pass"` — runs the deterministic SQL fixes via service role
-   - `action: "ai-pass"` — fetches the next batch of still-dirty rows, normalizes with AI, updates them
-   - Can be called repeatedly until no dirty rows remain
+Deterministic narrative from numeric deltas is free, instant, and good enough for ~90% of cases. If you want richer phrasing later, we can route the deltas through Lovable AI (Gemini Flash) behind a flag — but I'd start without it to keep cost/latency at zero.
 
-2. **Database migration**: None needed — we're only updating existing data values, not schema.
+### Out of scope (ask if you want them)
 
-3. **Dirty-row detection query** used by both passes:
-   ```sql
-   WHERE normalized_water_body ~ '^\d+$'          -- pure numbers
-      OR normalized_water_body ~ '^\d+ '           -- leading numbers
-      OR normalized_water_body ~ '^'''              -- leading apostrophe
-      OR normalized_water_body ~ '^\('              -- leading parens/agency
-      OR normalized_water_body ~ '^\-'              -- leading dash
-      OR normalized_water_body ~ ' (Site|@|Mile|Rmi|Mp) '  -- location suffixes
-      OR normalized_water_body ~ '\d+ (Mi\.|Fort|East|West|South|North)'
-      OR normalized_water_body ~ 'Lk |R\.|Ck |Rv |Byu '   -- unexpanded abbreviations
-      OR normalized_water_body != initcap(normalized_water_body)  -- capitalization issues
-   ```
+- Solunar / moon phase
+- Water temp from USGS param 00010
+- Multi-day "trip-window" weather card on the home feed
 
-4. **Run the cleanup**: Invoke the SQL pass once, then loop the AI pass until it reports 0 remaining.
+### Files touched
 
-### What This Fixes
-| Pattern | Example Before | Example After |
-|---|---|---|
-| Pure number | `38160` | `NULL` |
-| Leading number | `13215 White River` | `White River` |
-| Leading apostrophe | `'bull Shoals Lake` | `Bull Shoals Lake` |
-| Agency prefix | `(coe) Black River` | `Black River` |
-| Location suffix | `Lake Austin Site AC at Austin, TX` | `Lake Austin` |
-| At-reference | `Bull Shoals Lake @ Jimmie Creek` | `Bull Shoals Lake` |
-| Mile marker | `East Fork White River 3.6 Rmi` | `East Fork White River` |
-| Abbreviation | `Lk Wedington` | `Lake Wedington` |
-| Junk code | `-r3` | `NULL` |
-
-### Estimated Effort
-- ~15K rows fixed by SQL pass (fast, seconds)
-- ~5-10K rows need AI pass (a few minutes in batches)
-- Remainder are already clean
-
+- `supabase/functions/weather/index.ts` (ERA5 fetch + computed fields + narrative template)
+- `src/components/trip-log/WeatherSection.tsx` (pressure chip, summary chip, sparkline)
+- Type updates to `WeatherSnapshot`
