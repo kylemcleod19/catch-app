@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Activity, Ruler } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
@@ -105,7 +106,7 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
       </div>
       {data.length > 1 ? (
         <ResponsiveContainer width="100%" height={100}>
-          <AreaChart data={data.map((d) => ({ ...d, label: d.date.slice(5, 10) }))}>
+          <AreaChart data={data.map((d) => ({ ...d, label: format(new Date(d.date), "MMM d") }))}>
             <defs>
               <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.3} />
@@ -128,6 +129,7 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
                 fontSize: 11,
               }}
               formatter={(val: number) => [`${val} ${unit}`, label]}
+              labelFormatter={(lbl: string) => lbl}
             />
             <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} />
           </AreaChart>
