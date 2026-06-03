@@ -294,12 +294,18 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                     <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
                       <span className="text-[10px] text-muted-foreground">{formatHour(h.time)}</span>
                       <span className="text-base">{getWeatherIcon(h.conditions)}</span>
-                      <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°</span>
+                      <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°F</span>
                       {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
-                        <span className="text-[10px] text-accent">{h.precip_probability_pct}%</span>
+                        <span className="text-[10px] text-accent flex items-center gap-0.5">
+                          <Droplets className="w-2.5 h-2.5" />
+                          {h.precip_probability_pct}%
+                        </span>
                       )}
                       {h.wind_speed_kmh != null && (
-                        <span className="text-[10px] text-muted-foreground">{kmhToMph(h.wind_speed_kmh)}</span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <Wind className="w-2.5 h-2.5" />
+                          {kmhToMph(h.wind_speed_kmh)} mph
+                        </span>
                       )}
                     </div>
                   ))}
