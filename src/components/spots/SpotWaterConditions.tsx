@@ -136,16 +136,19 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
               formatter={(val: number) => [`${val} ${unit}`, label]}
               labelFormatter={(lbl: string) => lbl}
             />
+            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} />
             {gridLines.map((y) => (
               <ReferenceLine
                 key={y}
                 y={y}
-                stroke="hsl(var(--border))"
+                stroke="hsl(var(--muted-foreground))"
+                strokeOpacity={0.4}
                 strokeDasharray="2 3"
+                ifOverflow="extendDomain"
                 label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
               />
             ))}
-            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} />
+
           </AreaChart>
         </ResponsiveContainer>
       ) : (
