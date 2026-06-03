@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Loader2, Activity, Ruler } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { niceGridLines } from "@/lib/chartGrid";
 
 interface Props {
   usgsSiteId: string;
@@ -94,7 +95,11 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
     return <div className="text-xs text-muted-foreground p-2">{error}</div>;
   }
 
-  const renderChart = (data: Series[], color: string, unit: string, label: string, gradId: string) => (
+  const renderChart = (data: Series[], color: string, unit: string, label: string, gradId: string) => {
+    const gridLines = data.length > 0
+      ? niceGridLines(Math.min(...data.map((d) => d.value)), Math.max(...data.map((d) => d.value)))
+      : [];
+    return (
     <div className="p-3 rounded-xl bg-card border border-border/50">
       <div className="flex items-center justify-between mb-1">
         <p className="text-[10px] text-muted-foreground">{label} (30 day)</p>
@@ -131,6 +136,15 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
               formatter={(val: number) => [`${val} ${unit}`, label]}
               labelFormatter={(lbl: string) => lbl}
             />
+            {gridLines.map((y) => (
+              <ReferenceLine
+                key={y}
+                y={y}
+                stroke="hsl(var(--border))"
+                strokeDasharray="2 3"
+                label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+              />
+            ))}
             <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} />
           </AreaChart>
         </ResponsiveContainer>
@@ -138,7 +152,8 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
         <p className="text-xs text-muted-foreground">No data available</p>
       )}
     </div>
-  );
+    );
+  };
 
   const hasAny = discharge.length > 0 || gage.length > 0;
   if (!hasAny) {
