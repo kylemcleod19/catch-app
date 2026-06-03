@@ -206,9 +206,23 @@ const SpotsPage = () => {
                     onClick={() => toggleConditions(spot.id)}
                   >
                     <Droplets className="w-4 h-4" />
-                    Conditions
+                    Water
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform ${conditionsOpen[spot.id] ? "rotate-180" : ""}`}
+                    />
+                  </Button>
+                )}
+                {spot.spot_points.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-9 gap-1.5 rounded-lg"
+                    onClick={() => toggleForecast(spot.id)}
+                  >
+                    <CloudSun className="w-4 h-4" />
+                    Forecast
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${forecastOpen[spot.id] ? "rotate-180" : ""}`}
                     />
                   </Button>
                 )}
@@ -217,10 +231,17 @@ const SpotsPage = () => {
               {conditionsOpen[spot.id] && spot.usgs_site_id && (
                 <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
               )}
+              {forecastOpen[spot.id] && spot.spot_points.length > 0 && (
+                <SpotWeatherForecast
+                  lat={spot.spot_points[0].latitude}
+                  lon={spot.spot_points[0].longitude}
+                />
+              )}
             </div>
           ))
         )}
       </main>
+
 
 
       <SpotCreationModal open={createOpen} onOpenChange={setCreateOpen} onSpotCreated={() => fetchSpots()} />
