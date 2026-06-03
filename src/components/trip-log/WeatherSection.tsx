@@ -227,7 +227,9 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     s.temp_low_c != null ||
     s.wind_speed_kmh != null ||
     (s.precip_mm != null && s.precip_mm > 0) ||
+    s.pressure_hpa_avg != null ||
     Boolean(s.conditions);
+  const pressureSeries = existingSnapshot.given_day?.pressure_series || [];
   const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
     ? "No historical weather was returned for this date."
     : "Weather details aren't available for this date.";
