@@ -305,7 +305,17 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                       fontSize: 11,
                     }}
                     formatter={(val: number) => [`${val} cfs`, "Discharge"]}
+                    labelFormatter={(lbl: string) => lbl}
                   />
+                  {gridLines.map((y) => (
+                    <ReferenceLine
+                      key={y}
+                      y={y}
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="2 3"
+                      label={{ value: `${y}`, position: "insideLeft", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    />
+                  ))}
                   <Area
                     type="monotone"
                     dataKey="value"
