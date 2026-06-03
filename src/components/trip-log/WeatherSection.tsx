@@ -24,6 +24,13 @@ export interface WeatherSnapshot {
       wind_direction_deg?: number;
       conditions?: string;
       short_forecast?: string;
+      pressure_hpa_avg?: number;
+      pressure_hpa_min?: number;
+      pressure_hpa_max?: number;
+      pressure_trend_24h_hpa?: number;
+      temp_change_24h_c?: number;
+      narrative?: string;
+      front_flag?: "cold_front" | "warm_front" | "stable" | "unsettled";
     };
     hourly?: Array<{
       time: string;
@@ -32,6 +39,7 @@ export interface WeatherSnapshot {
       wind_speed_kmh?: number;
       conditions?: string;
     }>;
+    pressure_series?: Array<{ date: string; value: number }>;
   };
 }
 
