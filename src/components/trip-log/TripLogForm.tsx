@@ -189,6 +189,11 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     e.preventDefault();
     if (!user) return;
 
+    if (!validateTimes(startTime, endTime)) {
+      toast.error("End time must be after start time");
+      return;
+    }
+
     setSaving(true);
     try {
       const startedAt = new Date(date);
@@ -312,14 +317,27 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           </PopoverContent>
         </Popover>
         <div className="relative">
-          <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="rounded-xl text-sm" />
+          <Input
+            type="time"
+            value={startTime}
+            onChange={(e) => handleStartTimeChange(e.target.value)}
+            className={cn("rounded-xl text-sm", timeError && "border-destructive focus-visible:ring-destructive")}
+          />
           <span className="absolute -top-2 left-2 text-[10px] font-medium text-muted-foreground bg-background px-1">Start</span>
         </div>
         <div className="relative">
-          <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-xl text-sm" />
+          <Input
+            type="time"
+            value={endTime}
+            onChange={(e) => handleEndTimeChange(e.target.value)}
+            className={cn("rounded-xl text-sm", timeError && "border-destructive focus-visible:ring-destructive")}
+          />
           <span className="absolute -top-2 left-2 text-[10px] font-medium text-muted-foreground bg-background px-1">End</span>
         </div>
       </div>
+      {timeError && (
+        <p className="text-xs text-destructive font-medium -mt-3 ml-0.5">{timeError}</p>
+      )}
 
       {/* Spot */}
       <SpotPicker spotId={spotId} onSpotChange={setSpotId} tripId={tripId} />
