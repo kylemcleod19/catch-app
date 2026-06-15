@@ -224,12 +224,23 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
   const s = existingSnapshot.given_day?.summary || {};
   const hourly = existingSnapshot.given_day?.hourly || [];
+
+  // Derive high/low from hourly when the summary doesn't have them (e.g. NCEI
+  // station has no daily TMAX/TMIN). Keeps the preview bar useful for ponds /
+  // remote spots that only get Open-Meteo hourly backfill.
+  const hourlyTemps = hourly.map((h) => h.temp_c).filter((t): t is number => typeof t === "number");
+  const tempHighC = s.temp_high_c ?? (hourlyTemps.length ? Math.max(...hourlyTemps) : null);
+  const tempLowC = s.temp_low_c ?? (hourlyTemps.length ? Math.min(...hourlyTemps) : null);
+  const windKmh = s.wind_speed_kmh ?? (() => {
+    const winds = hourly.map((h) => h.wind_speed_kmh).filter((w): w is number => typeof w === "number");
+    return winds.length ? Math.max(...winds) : null;
+  })();
+
   const hasCompactValues =
-    s.temp_high_c != null ||
-    s.temp_low_c != null ||
-    s.wind_speed_kmh != null ||
+    tempHighC != null ||
+    tempLowC != null ||
+    windKmh != null ||
     (s.precip_mm != null && s.precip_mm > 0) ||
-    s.pressure_hpa_avg != null ||
     Boolean(s.conditions);
   const pressureSeries = existingSnapshot.given_day?.pressure_series || [];
   const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
@@ -246,11 +257,13 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {hasCompactValues ? (
             <>
-              {s.temp_high_c != null && s.temp_low_c != null && (
+              {(tempHighC != null || tempLowC != null) && (
                 <div className="flex items-center gap-1">
                   <Thermometer className="w-3.5 h-3.5 text-destructive" />
                   <span className="text-sm font-semibold text-foreground">
-                    {cToF(s.temp_high_c)}°/{cToF(s.temp_low_c)}°
+                    {tempHighC != null ? `${cToF(tempHighC)}°` : "—"}
+                    /
+                    {tempLowC != null ? `${cToF(tempLowC)}°` : "—"}
                   </span>
                 </div>
               )}
