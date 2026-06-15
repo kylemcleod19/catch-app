@@ -147,10 +147,31 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     recognitionRef.current?.stop();
   }, []);
 
+  const validateTimes = (start: string, end: string) => {
+    if (start && end && end <= start) {
+      setTimeError("End time must be after start time");
+      return false;
+    }
+    setTimeError(null);
+    return true;
+  };
+
+  const handleStartTimeChange = (val: string) => {
+    setStartTime(val);
+    validateTimes(val, endTime);
+  };
+
+  const handleEndTimeChange = (val: string) => {
+    setEndTime(val);
+    validateTimes(startTime, val);
+  };
+
   const applyParsedData = useCallback(async () => {
     if (!parsedData) return;
-    if (parsedData.start_time) setStartTime(parsedData.start_time);
-    if (parsedData.end_time) setEndTime(parsedData.end_time);
+    const newStart = parsedData.start_time || startTime;
+    const newEnd = parsedData.end_time || endTime;
+    if (parsedData.start_time) setStartTime(newStart);
+    if (parsedData.end_time) setEndTime(newEnd);
     if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
     if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
@@ -161,7 +182,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     toast.success("Voice data applied to form!");
     setVoiceModalOpen(false);
     setVoiceStage("idle");
-  }, [parsedData]);
+    validateTimes(newStart, newEnd);
+  }, [parsedData, startTime, endTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
