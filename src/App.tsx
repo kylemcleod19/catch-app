@@ -9,6 +9,7 @@ import SignInPage from "./pages/SignInPage";
 import Index from "./pages/Index";
 import TripsPage from "./pages/TripsPage";
 import SpotsPage from "./pages/SpotsPage";
+import SpotDetailPage from "./pages/SpotDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/trips" element={<ProtectedRoute><TripsPage /></ProtectedRoute>} />
             <Route path="/spots" element={<ProtectedRoute><SpotsPage /></ProtectedRoute>} />
+            <Route path="/spots/:id" element={<ProtectedRoute><SpotDetailPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

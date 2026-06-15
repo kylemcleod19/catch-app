@@ -6,10 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
-import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
-import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown, CloudSun } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown } from "lucide-react";
 
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
@@ -39,8 +37,6 @@ const SpotsPage = () => {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
-  const [conditionsOpen, setConditionsOpen] = useState<Record<string, boolean>>({});
-  const [forecastOpen, setForecastOpen] = useState<Record<string, boolean>>({});
 
   const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
@@ -105,11 +101,6 @@ const SpotsPage = () => {
     navigate("/");
   };
 
-  const toggleConditions = (id: string) =>
-    setConditionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const toggleForecast = (id: string) =>
-    setForecastOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
 
   return (
@@ -140,7 +131,11 @@ const SpotsPage = () => {
         ) : (
           spots.map((spot) => (
             <div key={spot.id} className="catch-card space-y-2">
-              <div className="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/spots/${spot.id}`)}
+                className="w-full flex items-start justify-between gap-2 text-left"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-card-foreground truncate">
                     {spot.name || spot.body_of_water}
@@ -149,23 +144,8 @@ const SpotsPage = () => {
                     {spot.body_of_water} · {getStateName(spot.state_code)}
                   </p>
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setEditingSpot(spot)}
-                    className="text-muted-foreground hover:text-primary p-1"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(spot.id)}
-                    className="text-muted-foreground hover:text-destructive p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                <ChevronDown className="w-4 h-4 -rotate-90 text-muted-foreground shrink-0 mt-0.5" />
+              </button>
 
               {/* Summary points */}
               {spot.spot_points.length > 0 && (
@@ -198,45 +178,25 @@ const SpotsPage = () => {
                   )}
                   Start Trip
                 </Button>
-                {spot.usgs_site_id && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-9 gap-1.5 rounded-lg"
-                    onClick={() => toggleConditions(spot.id)}
-                  >
-                    <Droplets className="w-4 h-4" />
-                    Water
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${conditionsOpen[spot.id] ? "rotate-180" : ""}`}
-                    />
-                  </Button>
-                )}
-                {spot.spot_points.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-9 gap-1.5 rounded-lg"
-                    onClick={() => toggleForecast(spot.id)}
-                  >
-                    <CloudSun className="w-4 h-4" />
-                    Forecast
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${forecastOpen[spot.id] ? "rotate-180" : ""}`}
-                    />
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-3 rounded-lg"
+                  onClick={() => setEditingSpot(spot)}
+                  aria-label="Edit"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-3 rounded-lg text-muted-foreground hover:text-destructive"
+                  onClick={() => handleDelete(spot.id)}
+                  aria-label="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
-
-              {conditionsOpen[spot.id] && spot.usgs_site_id && (
-                <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
-              )}
-              {forecastOpen[spot.id] && spot.spot_points.length > 0 && (
-                <SpotWeatherForecast
-                  lat={spot.spot_points[0].latitude}
-                  lon={spot.spot_points[0].longitude}
-                />
-              )}
             </div>
           ))
         )}
