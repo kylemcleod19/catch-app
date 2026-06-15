@@ -6,10 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
-import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
-import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, Droplets, ChevronDown, CloudSun } from "lucide-react";
+import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown } from "lucide-react";
 
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
@@ -39,8 +37,6 @@ const SpotsPage = () => {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
-  const [conditionsOpen, setConditionsOpen] = useState<Record<string, boolean>>({});
-  const [forecastOpen, setForecastOpen] = useState<Record<string, boolean>>({});
 
   const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
@@ -105,11 +101,6 @@ const SpotsPage = () => {
     navigate("/");
   };
 
-  const toggleConditions = (id: string) =>
-    setConditionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const toggleForecast = (id: string) =>
-    setForecastOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
 
   return (
