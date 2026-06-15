@@ -57,11 +57,15 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         if (data) {
           setDate(new Date(data.started_at));
           const start = new Date(data.started_at);
-          setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
+          const startStr = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+          setStartTime(startStr);
+          let endStr = endTime;
           if (data.ended_at) {
             const end = new Date(data.ended_at);
-            setEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
+            endStr = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+            setEndTime(endStr);
           }
+          validateTimes(startStr, endStr);
           if (data.spot_id) {
             setSpotId(data.spot_id);
           }
