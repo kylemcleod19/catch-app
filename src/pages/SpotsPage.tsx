@@ -319,7 +319,7 @@ const SpotCard = ({
       {/* Stats row */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <Anchor className="w-3.5 h-3.5" />
+          <History className="w-3.5 h-3.5" />
           <span className="font-medium text-foreground">{stats.tripCount}</span>
         </span>
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
