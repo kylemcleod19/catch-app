@@ -267,10 +267,10 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                   </span>
                 </div>
               )}
-              {s.wind_speed_kmh != null && (
+              {windKmh != null && (
                 <div className="flex items-center gap-1">
                   <Wind className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-sm text-foreground">{kmhToMph(s.wind_speed_kmh)} mph</span>
+                  <span className="text-sm text-foreground">{kmhToMph(windKmh)} mph</span>
                 </div>
               )}
               {s.precip_mm != null && s.precip_mm > 0 && (
