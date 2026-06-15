@@ -7,7 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown, Anchor, CloudSun, Droplets } from "lucide-react";
+import { Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown, History, CloudSun, Droplets } from "lucide-react";
 
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
@@ -319,7 +319,7 @@ const SpotCard = ({
       {/* Stats row */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <Anchor className="w-3.5 h-3.5" />
+          <History className="w-3.5 h-3.5" />
           <span className="font-medium text-foreground">{stats.tripCount}</span>
         </span>
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
