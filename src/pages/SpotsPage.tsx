@@ -7,18 +7,12 @@ import BottomNav from "@/components/BottomNav";
 import SpotCreationModal, { CreatedSpot } from "@/components/spots/SpotCreationModal";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown } from "lucide-react";
+import { Plus, Loader2, Trash2, Fish, Pencil, Play, ChevronDown, Anchor, CloudSun, Droplets } from "lucide-react";
 
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
 const DRAFT_KEY = "draftTripId";
-
-const PIN_COLORS = [
-  "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
-  "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
-];
-const getPinColor = (idx: number) => PIN_COLORS[idx % PIN_COLORS.length];
 
 interface SpotRow {
   id: string;
@@ -30,14 +24,97 @@ interface SpotRow {
   spot_points: { id: string; label: string; latitude: number; longitude: number }[];
 }
 
+interface SpotStats {
+  tripCount: number;
+  fishCount: number;
+}
+
+interface CurrentConditions {
+  tempF: number | null;
+  flowCfs: number | null;
+}
+
+const useSpotConditions = (spot: SpotRow | null) => {
+  const [conditions, setConditions] = useState<CurrentConditions>({ tempF: null, flowCfs: null });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!spot) return;
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      const result: CurrentConditions = { tempF: null, flowCfs: null };
+
+      // Weather from first pin
+      if (spot.spot_points.length > 0) {
+        try {
+          const { latitude, longitude } = spot.spot_points[0];
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const data = await resp.json();
+            result.tempF = data?.current_weather?.temperature ?? null;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Water flow from cache or API
+      if (spot.usgs_site_id) {
+        try {
+          const dateStr = new Date().toISOString().split("T")[0];
+          const { data: cached } = await supabase
+            .from("water_data_cache")
+            .select("response_json")
+            .eq("monitoring_location_id", spot.usgs_site_id)
+            .eq("date", dateStr)
+            .maybeSingle();
+
+          let resultData: any = null;
+          if (cached?.response_json) {
+            resultData = cached.response_json;
+          } else {
+            const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+            const url = `https://${projectId}.supabase.co/functions/v1/water-data?monitoring_location_id=${encodeURIComponent(
+              spot.usgs_site_id
+            )}&date=${dateStr}`;
+            const resp = await fetch(url, {
+              headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+            });
+            if (resp.ok) resultData = await resp.json();
+          }
+
+          const series: any[] = resultData?.historical?.discharge?.series || [];
+          if (series.length > 0) {
+            const latest = series[series.length - 1];
+            result.flowCfs = latest.value != null ? Math.round(parseFloat(latest.value)) : null;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!cancelled) {
+        setConditions(result);
+        setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [spot?.id, spot?.usgs_site_id, spot?.spot_points?.length]);
+
+  return { conditions, loading };
+};
+
 const SpotsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [spots, setSpots] = useState<SpotRow[]>([]);
+  const [stats, setStats] = useState<Record<string, SpotStats>>({});
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState<SpotRow | null>(null);
-
   const [startingTripId, setStartingTripId] = useState<string | null>(null);
 
   const fetchSpots = useCallback(async () => {
@@ -47,7 +124,48 @@ const SpotsPage = () => {
       .select("id, name, body_of_water, state_code, site_type, usgs_site_id, spot_points(id, label, latitude, longitude)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }) as any;
-    setSpots(data || []);
+    const spotsData: SpotRow[] = data || [];
+    setSpots(spotsData);
+
+    // Bulk fetch trip and catch stats
+    if (spotsData.length > 0) {
+      const spotIds = spotsData.map((s) => s.id);
+      const { data: tripsData } = await supabase
+        .from("fishing_trips")
+        .select("id, spot_id")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .in("spot_id", spotIds);
+
+      const tripIds = (tripsData || []).map((t) => t.id);
+      const tripSpotMap: Record<string, string> = {};
+      (tripsData || []).forEach((t) => { tripSpotMap[t.id] = t.spot_id; });
+
+      let catchCounts: Record<string, number> = {};
+      if (tripIds.length > 0) {
+        const { data: catchesData } = await supabase
+          .from("catches")
+          .select("trip_id, quantity")
+          .in("trip_id", tripIds);
+        (catchesData || []).forEach((c) => {
+          const spotId = tripSpotMap[c.trip_id];
+          if (spotId) {
+            catchCounts[spotId] = (catchCounts[spotId] || 0) + (c.quantity || 1);
+          }
+        });
+      }
+
+      const newStats: Record<string, SpotStats> = {};
+      spotsData.forEach((s) => {
+        const tripCount = (tripsData || []).filter((t) => t.spot_id === s.id).length;
+        newStats[s.id] = {
+          tripCount,
+          fishCount: catchCounts[s.id] || 0,
+        };
+      });
+      setStats(newStats);
+    }
+
     setLoading(false);
   }, [user]);
 
@@ -69,6 +187,11 @@ const SpotsPage = () => {
       toast.error("Failed to delete spot");
     } else {
       setSpots((prev) => prev.filter((s) => s.id !== id));
+      setStats((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast.success("Spot deleted");
     }
   };
@@ -101,8 +224,6 @@ const SpotsPage = () => {
     navigate("/");
   };
 
-
-
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-4">
@@ -130,79 +251,19 @@ const SpotsPage = () => {
           </button>
         ) : (
           spots.map((spot) => (
-            <div key={spot.id} className="catch-card space-y-2">
-              <button
-                type="button"
-                onClick={() => navigate(`/spots/${spot.id}`)}
-                className="w-full flex items-start justify-between gap-2 text-left"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm text-card-foreground truncate">
-                    {spot.name || spot.body_of_water}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {spot.body_of_water} · {getStateName(spot.state_code)}
-                  </p>
-                </div>
-                <ChevronDown className="w-4 h-4 -rotate-90 text-muted-foreground shrink-0 mt-0.5" />
-              </button>
-
-              {/* Summary points */}
-              {spot.spot_points.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {spot.spot_points.map((p, i) => (
-                    <span
-                      key={p.id}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-white"
-                      style={{ backgroundColor: getPinColor(i) }}
-                    >
-                      <MapPin className="w-3 h-3" /> {p.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant="catch"
-                  className="flex-1 h-9 gap-1.5 rounded-lg"
-                  disabled={startingTripId === spot.id}
-                  onClick={() => handleStartTrip(spot)}
-                >
-                  {startingTripId === spot.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Start Trip
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 px-3 rounded-lg"
-                  onClick={() => setEditingSpot(spot)}
-                  aria-label="Edit"
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 px-3 rounded-lg text-muted-foreground hover:text-destructive"
-                  onClick={() => handleDelete(spot.id)}
-                  aria-label="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+            <SpotCard
+              key={spot.id}
+              spot={spot}
+              stats={stats[spot.id] || { tripCount: 0, fishCount: 0 }}
+              onNavigate={() => navigate(`/spots/${spot.id}`)}
+              onStartTrip={() => handleStartTrip(spot)}
+              onEdit={() => setEditingSpot(spot)}
+              onDelete={() => handleDelete(spot.id)}
+              starting={startingTripId === spot.id}
+            />
           ))
         )}
       </main>
-
-
 
       <SpotCreationModal open={createOpen} onOpenChange={setCreateOpen} onSpotCreated={() => fetchSpots()} />
       {editingSpot && (
@@ -214,6 +275,113 @@ const SpotsPage = () => {
         />
       )}
       <BottomNav />
+    </div>
+  );
+};
+
+const SpotCard = ({
+  spot,
+  stats,
+  onNavigate,
+  onStartTrip,
+  onEdit,
+  onDelete,
+  starting,
+}: {
+  spot: SpotRow;
+  stats: SpotStats;
+  onNavigate: () => void;
+  onStartTrip: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  starting: boolean;
+}) => {
+  const { conditions, loading: condLoading } = useSpotConditions(spot);
+
+  return (
+    <div className="catch-card space-y-2">
+      <button
+        type="button"
+        onClick={onNavigate}
+        className="w-full flex items-start justify-between gap-2 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sm text-card-foreground truncate">
+            {spot.name || spot.body_of_water}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {spot.body_of_water} · {getStateName(spot.state_code)}
+          </p>
+        </div>
+        <ChevronDown className="w-4 h-4 -rotate-90 text-muted-foreground shrink-0 mt-0.5" />
+      </button>
+
+      {/* Stats row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Anchor className="w-3.5 h-3.5" />
+          <span className="font-medium text-foreground">{stats.tripCount}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Fish className="w-3.5 h-3.5" />
+          <span className="font-medium text-foreground">{stats.fishCount}</span>
+        </span>
+
+        {condLoading ? (
+          <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            {conditions.tempF != null && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <CloudSun className="w-3.5 h-3.5" />
+                <span className="font-medium text-foreground">{Math.round(conditions.tempF)}°</span>
+              </span>
+            )}
+            {conditions.flowCfs != null && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Droplets className="w-3.5 h-3.5" />
+                <span className="font-medium text-foreground">{conditions.flowCfs} cfs</span>
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          size="sm"
+          variant="catch"
+          className="flex-1 h-9 gap-1.5 rounded-lg"
+          disabled={starting}
+          onClick={onStartTrip}
+        >
+          {starting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Play className="w-4 h-4" />
+          )}
+          Start Trip
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 px-3 rounded-lg"
+          onClick={onEdit}
+          aria-label="Edit"
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 px-3 rounded-lg text-muted-foreground hover:text-destructive"
+          onClick={onDelete}
+          aria-label="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
     </div>
   );
 };
