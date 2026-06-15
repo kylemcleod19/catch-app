@@ -34,6 +34,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [notes, setNotes] = useState("");
   const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
   const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
+
 
   // Voice dictation
   const catchLoggerRef = useRef<CatchLoggerHandle>(null);
@@ -55,11 +57,15 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         if (data) {
           setDate(new Date(data.started_at));
           const start = new Date(data.started_at);
-          setStartTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
+          const startStr = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+          setStartTime(startStr);
+          let endStr = endTime;
           if (data.ended_at) {
             const end = new Date(data.ended_at);
-            setEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
+            endStr = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+            setEndTime(endStr);
           }
+          validateTimes(startStr, endStr);
           if (data.spot_id) {
             setSpotId(data.spot_id);
           }
@@ -145,10 +151,31 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     recognitionRef.current?.stop();
   }, []);
 
+  const validateTimes = (start: string, end: string) => {
+    if (start && end && end <= start) {
+      setTimeError("End time must be after start time");
+      return false;
+    }
+    setTimeError(null);
+    return true;
+  };
+
+  const handleStartTimeChange = (val: string) => {
+    setStartTime(val);
+    validateTimes(val, endTime);
+  };
+
+  const handleEndTimeChange = (val: string) => {
+    setEndTime(val);
+    validateTimes(startTime, val);
+  };
+
   const applyParsedData = useCallback(async () => {
     if (!parsedData) return;
-    if (parsedData.start_time) setStartTime(parsedData.start_time);
-    if (parsedData.end_time) setEndTime(parsedData.end_time);
+    const newStart = parsedData.start_time || startTime;
+    const newEnd = parsedData.end_time || endTime;
+    if (parsedData.start_time) setStartTime(newStart);
+    if (parsedData.end_time) setEndTime(newEnd);
     if (parsedData.date) setDate(new Date(parsedData.date + "T00:00:00"));
     if (parsedData.notes) setNotes((prev) => (prev ? prev + "\n" + parsedData.notes : parsedData.notes!));
 
@@ -159,11 +186,17 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     toast.success("Voice data applied to form!");
     setVoiceModalOpen(false);
     setVoiceStage("idle");
-  }, [parsedData]);
+    validateTimes(newStart, newEnd);
+  }, [parsedData, startTime, endTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    if (!validateTimes(startTime, endTime)) {
+      toast.error("End time must be after start time");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -288,14 +321,27 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           </PopoverContent>
         </Popover>
         <div className="relative">
-          <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="rounded-xl text-sm" />
+          <Input
+            type="time"
+            value={startTime}
+            onChange={(e) => handleStartTimeChange(e.target.value)}
+            className={cn("rounded-xl text-sm", timeError && "border-destructive focus-visible:ring-destructive")}
+          />
           <span className="absolute -top-2 left-2 text-[10px] font-medium text-muted-foreground bg-background px-1">Start</span>
         </div>
         <div className="relative">
-          <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-xl text-sm" />
+          <Input
+            type="time"
+            value={endTime}
+            onChange={(e) => handleEndTimeChange(e.target.value)}
+            className={cn("rounded-xl text-sm", timeError && "border-destructive focus-visible:ring-destructive")}
+          />
           <span className="absolute -top-2 left-2 text-[10px] font-medium text-muted-foreground bg-background px-1">End</span>
         </div>
       </div>
+      {timeError && (
+        <p className="text-xs text-destructive font-medium -mt-3 ml-0.5">{timeError}</p>
+      )}
 
       {/* Spot */}
       <SpotPicker spotId={spotId} onSpotChange={setSpotId} tripId={tripId} />
