@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import TacklePicker from "@/components/tackle/TacklePicker";
+import { findOrCreateSpecies } from "@/lib/species";
 
 interface CatchRow {
   id: string;
@@ -13,6 +15,7 @@ interface CatchRow {
   lure_or_bait: string | null;
   notes: string | null;
   quantity: number;
+  tackle_id: string | null;
 }
 
 export interface BulkCatch {
@@ -37,6 +40,7 @@ interface NewCatchForm {
   weightOz: string;
   lengthIn: string;
   lureOrBait: string;
+  tackleId: string | null;
   notes: string;
 }
 
@@ -45,6 +49,7 @@ const emptyForm = (): NewCatchForm => ({
   weightOz: "",
   lengthIn: "",
   lureOrBait: "",
+  tackleId: null,
   notes: "",
 });
 
@@ -59,7 +64,7 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
   const fetchCatches = async () => {
     const { data } = await supabase
       .from("catches")
-      .select("id, species, weight_oz, length_in, lure_or_bait, notes, quantity")
+      .select("id, species, weight_oz, length_in, lure_or_bait, notes, quantity, tackle_id")
       .eq("trip_id", tripId)
       .order("created_at", { ascending: true });
     setCatches((data as CatchRow[]) || []);
@@ -72,15 +77,16 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
 
   useImperativeHandle(ref, () => ({
     addBulkCatches: async (bulkCatches: BulkCatch[]) => {
-      const rows = bulkCatches.map((c) => ({
+      const rows = await Promise.all(bulkCatches.map(async (c) => ({
         user_id: userId,
         trip_id: tripId,
         species: c.species,
+        species_id: await findOrCreateSpecies(c.species, userId).then((s) => s.id).catch(() => null),
         quantity: c.quantity || 1,
         lure_or_bait: c.lure_or_bait || null,
         weight_oz: c.weight_oz ?? null,
         length_in: c.length_in ?? null,
-      }));
+      })));
 
       const { error } = await supabase.from("catches").insert(rows as any);
       if (error) {
@@ -98,10 +104,18 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
       return;
     }
     setSaving(true);
+    let speciesId: string | null = null;
+    try {
+      speciesId = (await findOrCreateSpecies(form.species, userId)).id;
+    } catch {
+      speciesId = null;
+    }
     const { error } = await supabase.from("catches").insert({
       user_id: userId,
       trip_id: tripId,
       species: form.species.trim(),
+      species_id: speciesId,
+      tackle_id: form.tackleId,
       weight_oz: form.weightOz ? parseFloat(form.weightOz) : null,
       length_in: form.lengthIn ? parseFloat(form.lengthIn) : null,
       lure_or_bait: form.lureOrBait || null,
@@ -214,7 +228,12 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
             <Input placeholder="Weight (oz)" type="number" value={form.weightOz} onChange={(e) => setForm({ ...form, weightOz: e.target.value })} className="rounded-lg" />
             <Input placeholder="Length (in)" type="number" value={form.lengthIn} onChange={(e) => setForm({ ...form, lengthIn: e.target.value })} className="rounded-lg" />
           </div>
-          <Input placeholder="Lure / Bait used" value={form.lureOrBait} onChange={(e) => setForm({ ...form, lureOrBait: e.target.value })} className="rounded-lg" />
+          <TacklePicker
+            value={form.lureOrBait}
+            tackleId={form.tackleId}
+            speciesHint={form.species}
+            onChange={({ text, tackleId }) => setForm({ ...form, lureOrBait: text, tackleId })}
+          />
           <Input placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg" />
           <Button type="button" variant="catch" size="sm" className="w-full gap-1.5" onClick={handleSaveCatch} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

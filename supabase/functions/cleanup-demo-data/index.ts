@@ -44,9 +44,9 @@ Deno.serve(async (req) => {
     const userIds = staleProfiles.map((p) => p.user_id);
     console.log(`Cleaning up ${userIds.length} stale demo users`);
 
-    // Delete catches, trips, gear, and profiles for these users
-    // Order matters due to foreign keys: catches → trips → gear → profiles
-    for (const table of ["catches", "fishing_trips", "gear", "profiles"] as const) {
+    // Delete catches, trips, tackle, and profiles for these users
+    // Order matters due to foreign keys: catches → trips → tackle → profiles
+    for (const table of ["catches", "fishing_trips", "tackle", "profiles"] as const) {
       const { error } = await supabase
         .from(table)
         .delete()
