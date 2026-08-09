@@ -15,6 +15,7 @@ Spot creation gets a **water type choice up front**, before any water-body searc
 
 - New `site_type` value `Tidal` on spots (existing `Stream` / `Lake` untouched).
 - Saltwater path skips the USGS station step entirely; instead the backend resolves the nearest NOAA tide-prediction station from the spot's map pin and saves it on the spot.
+- The freshwater choice also splits into **Stream** and **Lake / Reservoir** up front, since their USGS data differs: streams are matched to gauges carrying discharge (flow), lakes to gauges carrying gage height (level). Each type only offers water bodies and stations that actually publish its metric, and the water section labels/charts follow the chosen type (flow in cfs vs level in ft).
 - Spot edit shows which NOAA station is linked and how far away it is.
 
 ## 2. Backend service
