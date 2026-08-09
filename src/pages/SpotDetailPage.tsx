@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Loader2, MapPin, Fish, Play, Droplets, CloudSun,
-  Pencil, Trash2, Calendar, Layers,
+  Pencil, Trash2, Calendar, Layers, Link2,
 } from "lucide-react";
+
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ import BottomNav from "@/components/BottomNav";
 import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
+import StationLinkModal from "@/components/spots/StationLinkModal";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
@@ -125,7 +127,9 @@ const SpotDetailPage = () => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [satellite, setSatellite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [stationOpen, setStationOpen] = useState(false);
   const [starting, setStarting] = useState(false);
+
 
   const fetchAll = useCallback(async () => {
     if (!id || !user) return;
@@ -312,8 +316,19 @@ const SpotDetailPage = () => {
 
         {/* Active conditions */}
         <section className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Droplets className="w-3.5 h-3.5" /> Water
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Droplets className="w-3.5 h-3.5" /> Water
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-lg text-xs gap-1 text-primary"
+              onClick={() => setStationOpen(true)}
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              {spot.usgs_site_id ? "Change station" : "Link station"}
+            </Button>
           </div>
           {spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
@@ -321,6 +336,7 @@ const SpotDetailPage = () => {
             <p className="text-xs text-muted-foreground italic">No USGS station linked.</p>
           )}
         </section>
+
 
         <section className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -387,6 +403,15 @@ const SpotDetailPage = () => {
           onUpdated={fetchAll}
         />
       )}
+      {stationOpen && (
+        <StationLinkModal
+          open={stationOpen}
+          onOpenChange={(o) => { if (!o) setStationOpen(false); }}
+          spot={spot}
+          onLinked={fetchAll}
+        />
+      )}
+
       <BottomNav />
     </div>
   );
