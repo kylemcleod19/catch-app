@@ -1,3 +1,4 @@
+import { SPOT_TYPE_SELECT, flattenSpot } from "@/lib/spotData";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -137,9 +138,10 @@ const SpotDetailPage = () => {
     setLoading(true);
     const { data: s } = await supabase
       .from("spots")
-      .select("id, name, body_of_water, state_code, site_type, usgs_site_id, spot_points(id, label, latitude, longitude)")
+      .select(`id, name, body_of_water, state_code, site_type, spot_points(id, label, latitude, longitude), ${SPOT_TYPE_SELECT}`)
       .eq("id", id)
       .maybeSingle() as any;
+
 
     const { data: t } = await supabase
       .from("fishing_trips")
@@ -164,7 +166,7 @@ const SpotDetailPage = () => {
       });
     }
 
-    setSpot(s || null);
+    setSpot(s ? (flattenSpot(s) as any) : null);
     setTrips(
       (t || []).map((tr) => ({
         id: tr.id,

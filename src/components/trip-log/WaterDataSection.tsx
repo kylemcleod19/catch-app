@@ -1,3 +1,4 @@
+import { getSpotUsgsSiteId } from "@/lib/spotData";
 import { forwardRef, useEffect, useState } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { format } from "date-fns";
@@ -102,16 +103,11 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
       return;
     }
 
-    supabase
-      .from("spots")
-      .select("usgs_site_id")
-      .eq("id", spotId)
-      .maybeSingle()
-      .then(({ data }) => {
-        const siteId = data?.usgs_site_id || null;
-        setUsgsSiteId(siteId);
-        if (!siteId) onSnapshotChange(null);
-      });
+    getSpotUsgsSiteId(spotId).then((siteId) => {
+      setUsgsSiteId(siteId);
+      if (!siteId) onSnapshotChange(null);
+    });
+
   }, [spotId]);
 
   useEffect(() => {

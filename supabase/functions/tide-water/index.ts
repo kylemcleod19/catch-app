@@ -353,18 +353,20 @@ serve(async (req) => {
         }
         const tide = stations.tide_predictions;
         if (tide?.available) {
-          await supabase
-            .from("spots")
-            .update({
-              is_tidal: true,
+          await supabase.from("spots").update({ site_type: "Tidal" }).eq("id", spotId);
+          await supabase.from("spot_tidal_data").upsert(
+            {
+              spot_id: spotId,
               noaa_tide_station_id: tide.stationId,
               noaa_station_name: tide.stationName,
               noaa_station_lat: tide.stationLat,
               noaa_station_lon: tide.stationLon,
               noaa_station_distance_miles: tide.distanceMiles,
-            })
-            .eq("id", spotId);
+            },
+            { onConflict: "spot_id" },
+          );
         }
+
       } catch (e) {
         console.warn("station persistence failed", e);
       }

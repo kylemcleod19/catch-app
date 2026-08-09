@@ -1,3 +1,4 @@
+import { createSpotTypeData } from "@/lib/spotData";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -361,12 +362,14 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           body_of_water: waterInput.trim(),
           state_code: stateCode,
           site_type: siteType,
-          usgs_site_id: waterType === "Tidal" ? null : selectedUsgs?.site_id || null,
-          is_tidal: waterType === "Tidal",
         } as any)
         .select("id")
         .single();
       if (error) throw error;
+
+      await createSpotTypeData(spot.id, siteType, {
+        usgsSiteId: waterType === "Tidal" ? null : selectedUsgs?.site_id || null,
+      });
 
       if (pins.length > 0) {
         const { error: ptErr } = await supabase.from("spot_points").insert(
@@ -374,6 +377,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         );
         if (ptErr) throw ptErr;
       }
+
 
       // Persist resolved NOAA stations for tidal spots (best-effort)
       if (waterType === "Tidal" && pins.length > 0) {

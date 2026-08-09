@@ -1,3 +1,4 @@
+import { setSpotUsgsSite } from "@/lib/spotData";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -132,11 +133,9 @@ const StationLinkModal = ({ open, onOpenChange, spot, onLinked }: StationLinkMod
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase
-      .from("spots")
-      .update({ usgs_site_id: selected } as any)
-      .eq("id", spot.id);
+    const { error } = await setSpotUsgsSite(spot.id, spot.site_type, selected);
     setSaving(false);
+
     if (error) {
       toast.error("Failed to link station");
       return;

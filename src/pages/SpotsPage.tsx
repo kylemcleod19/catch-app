@@ -1,3 +1,4 @@
+import { SPOT_TYPE_SELECT, flattenSpots } from "@/lib/spotData";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -121,10 +122,11 @@ const SpotsPage = () => {
     if (!user) return;
     const { data } = await supabase
       .from("spots")
-      .select("id, name, body_of_water, state_code, site_type, usgs_site_id, spot_points(id, label, latitude, longitude)")
+      .select(`id, name, body_of_water, state_code, site_type, spot_points(id, label, latitude, longitude), ${SPOT_TYPE_SELECT}`)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }) as any;
-    const spotsData: SpotRow[] = data || [];
+    const spotsData: SpotRow[] = flattenSpots(data) as any;
+
     setSpots(spotsData);
 
     // Bulk fetch trip and catch stats
