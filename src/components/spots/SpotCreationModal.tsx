@@ -18,7 +18,8 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
-import { fetchTideData, fetchNearbyTideStations, NearbyTideStation } from "@/lib/tide";
+import { fetchTideData, NearbyTideStation } from "@/lib/tide";
+import TideStationPickerModal from "./TideStationPickerModal";
 
 interface SpotPoint {
   label: string;
@@ -112,8 +113,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [waterType, setWaterType] = useState<WaterType>("Stream");
   const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
   const [resolvingTide, setResolvingTide] = useState(false);
-  const [tideOptions, setTideOptions] = useState<NearbyTideStation[]>([]);
-  const [loadingTideOptions, setLoadingTideOptions] = useState(false);
   const [showTidePicker, setShowTidePicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
