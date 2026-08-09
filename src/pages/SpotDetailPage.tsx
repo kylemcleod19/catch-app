@@ -244,6 +244,20 @@ const SpotDetailPage = () => {
     );
   }
 
+  const isTidal = spot.site_type === "Tidal";
+  const linkedStation = isTidal
+    ? spot.noaa_tide_station_id
+      ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})${
+          spot.noaa_station_distance_miles != null
+            ? ` · ${spot.noaa_station_distance_miles.toFixed(1)} mi`
+            : ""
+        }`
+      : null
+    : spot.usgs_site_id
+      ? `USGS ${spot.usgs_site_id}`
+      : null;
+
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-3">
