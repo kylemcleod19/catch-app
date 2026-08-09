@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { US_STATES, getStateName } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
-  Navigation, Move,
+  Navigation, Move, Waves, Droplets, Anchor,
 } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
