@@ -198,6 +198,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const findNearbyUsgs = useCallback(async () => {
+    if (waterType === "Tidal") return false;
     if (!isUsgsWater || !waterInput || !stateCode) return false;
     setLoadingUsgs(true);
 
@@ -206,6 +207,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       .select("site_id, monitoring_location_name, latitude, longitude")
       .eq("state_code", stateCode)
       .eq("normalized_water_body", waterInput)
+      .eq("site_type", USGS_SITE_TYPE[waterType])
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 
@@ -231,16 +233,19 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       dist: Math.sqrt(Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)),
     }));
     withDist.sort((a, b) => a.dist - b.dist);
-    const top3 = withDist.slice(0, 2) as UsgsLocation[];
+    const candidates = withDist.slice(0, 12) as UsgsLocation[];
 
     // Look up available data from cached table
-    const siteIds = top3.map((l) => l.site_id);
+    const siteIds = candidates.map((l) => l.site_id);
     const { data: availData } = await supabase
       .from("usgs_water_bodies_available_data")
       .select("site_id, water_flow, gage_height, temp, turbidity")
       .in("site_id", siteIds);
 
     const availMap = new Map<string, string[]>();
+    const hasMetric = new Map<string, boolean>();
+    // Streams are matched on discharge (flow); lakes/reservoirs on gage height (level)
+    const requiredKey = waterType === "Stream" ? "water_flow" : "gage_height";
     (availData || []).forEach((row: any) => {
       const params: string[] = [];
       if (row.water_flow) params.push("Flow");
@@ -248,9 +253,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       if (row.temp) params.push("Temp");
       if (row.turbidity) params.push("Turbidity");
       availMap.set(row.site_id, params);
+      hasMetric.set(row.site_id, !!row[requiredKey]);
     });
 
-    const enriched = top3.map((loc) => ({
+    const matching = candidates.filter((l) => hasMetric.get(l.site_id));
+    const chosen = (matching.length > 0 ? matching : candidates).slice(0, 2);
+
+    const enriched = chosen.map((loc) => ({
       ...loc,
       available_params: availMap.get(loc.site_id) || [],
     }));
