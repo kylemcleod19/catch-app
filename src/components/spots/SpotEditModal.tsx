@@ -13,7 +13,6 @@ import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
 
-const LIBRARIES: ("places")[] = ["places"];
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
   "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
