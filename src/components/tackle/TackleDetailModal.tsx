@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Fish, Loader2, MapPin, Pencil, X } from "lucide-react";
+import { Fish, Loader2, MapPin, Pencil } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TackleCatchSummary, TackleItem, fetchTackleCatchSummary } from "@/lib/tackleData";
@@ -30,12 +30,9 @@ const TackleDetailModal = ({ open, onOpenChange, item, onEdit }: Props) => {
       <DialogContent className="max-w-lg p-0 gap-0 max-h-[90svh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-base font-bold text-foreground truncate pr-2">{item.name}</h2>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 pr-8">
             <button type="button" onClick={onEdit} className="p-1.5 rounded-lg hover:bg-muted">
               <Pencil className="w-4 h-4 text-muted-foreground" />
-            </button>
-            <button type="button" onClick={() => onOpenChange(false)} className="p-1.5 rounded-lg hover:bg-muted">
-              <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
         </div>
