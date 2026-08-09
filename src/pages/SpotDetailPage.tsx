@@ -402,6 +402,15 @@ const SpotDetailPage = () => {
           onUpdated={fetchAll}
         />
       )}
+      {stationOpen && (
+        <StationLinkModal
+          open={stationOpen}
+          onOpenChange={(o) => { if (!o) setStationOpen(false); }}
+          spot={spot}
+          onLinked={fetchAll}
+        />
+      )}
+
       <BottomNav />
     </div>
   );
