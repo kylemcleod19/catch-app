@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Loader2, MapPin, Fish, Play, Droplets, CloudSun,
-  Pencil, Trash2, Calendar, Layers,
+  Pencil, Trash2, Calendar, Layers, Link2,
 } from "lucide-react";
+
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
