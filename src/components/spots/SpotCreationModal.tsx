@@ -421,16 +421,25 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         if (ptErr) throw ptErr;
       }
 
-
-      // Persist resolved NOAA stations for tidal spots (best-effort)
+      // Persist resolved NOAA stations for tidal spots, then honour any manual pick
       if (waterType === "Tidal" && pins.length > 0) {
-        fetchTideData({
+        await fetchTideData({
           lat: pins[0].latitude,
           lon: pins[0].longitude,
           spotId: spot.id,
           resolveOnly: true,
-        });
+        }).catch(() => null);
+        if (tideStation?.available) {
+          await setSpotTidalStation(spot.id, {
+            stationId: tideStation.stationId,
+            stationName: tideStation.stationName,
+            stationLat: tideStation.stationLat,
+            stationLon: tideStation.stationLon,
+            distanceMiles: tideStation.distanceMiles,
+          });
+        }
       }
+
 
       toast.success("Spot created!");
       onSpotCreated({
