@@ -124,6 +124,29 @@ async function resolveStation(product: string, lat: number, lon: number) {
   };
 }
 
+/** Nearest N stations for a product, regardless of the max-distance threshold. */
+async function nearbyStations(product: string, lat: number, lon: number, limit: number) {
+  let stations: any[] = [];
+  try {
+    stations = await stationList(product);
+  } catch (e) {
+    console.warn(`station list failed for ${product}`, e);
+    return [];
+  }
+  return stations
+    .map((s: any) => ({
+      product,
+      stationId: String(s.id),
+      stationName: s.name ? `${s.name}${s.state ? ", " + s.state : ""}` : String(s.id),
+      stationLat: s.lat,
+      stationLon: s.lng,
+      distanceMiles: Math.round(haversineMiles(lat, lon, s.lat, s.lng) * 10) / 10,
+    }))
+    .sort((a, b) => a.distanceMiles - b.distanceMiles)
+    .slice(0, limit);
+}
+
+
 // ── NOAA data fetch ──
 async function coops(params: Record<string, string>) {
   const url = new URL(COOPS_DATA);
