@@ -322,6 +322,21 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const handleMapFinish = async () => {
+    if (waterType === "Tidal") {
+      const ref = pins.length > 0
+        ? { lat: pins[0].latitude, lng: pins[0].longitude }
+        : mapRef.current?.getCenter()
+          ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
+          : null;
+      if (ref) {
+        setResolvingTide(true);
+        const res = await fetchTideData({ lat: ref.lat, lon: ref.lng, resolveOnly: true });
+        setTideStation((res?.stations?.tide_predictions as ResolvedStation) || null);
+        setResolvingTide(false);
+      }
+      setStep("naming");
+      return;
+    }
     if (isUsgsWater) {
       const hasUsgs = await findNearbyUsgs();
       if (hasUsgs) {
@@ -334,6 +349,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
   const handleSave = async () => {
     if (!user || !waterInput.trim() || !stateCode) return;
+    const siteType = waterType === "Lake" ? "Lake" : waterType === "Tidal" ? "Tidal" : "Stream";
     setSaving(true);
     try {
       const { data: spot, error } = await supabase
@@ -343,8 +359,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           name: spotName || null,
           body_of_water: waterInput.trim(),
           state_code: stateCode,
-          site_type: "Stream",
-          usgs_site_id: selectedUsgs?.site_id || null,
+          site_type: siteType,
+          usgs_site_id: waterType === "Tidal" ? null : selectedUsgs?.site_id || null,
+          is_tidal: waterType === "Tidal",
         } as any)
         .select("id")
         .single();
@@ -357,13 +374,23 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         if (ptErr) throw ptErr;
       }
 
+      // Persist resolved NOAA stations for tidal spots (best-effort)
+      if (waterType === "Tidal" && pins.length > 0) {
+        fetchTideData({
+          lat: pins[0].latitude,
+          lon: pins[0].longitude,
+          spotId: spot.id,
+          resolveOnly: true,
+        });
+      }
+
       toast.success("Spot created!");
       onSpotCreated({
         id: spot.id,
         name: spotName || null,
         body_of_water: waterInput.trim(),
         state_code: stateCode,
-        site_type: "Stream",
+        site_type: siteType,
         points: pins,
       });
       onOpenChange(false);
@@ -373,6 +400,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSaving(false);
     }
   };
+
 
   if (step === "map") {
     return (
