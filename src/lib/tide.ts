@@ -117,7 +117,44 @@ export async function fetchTideData(p: TideParams): Promise<TideResponse | null>
   }
 }
 
-export function formatTideTime(t: string) {
+export interface NearbyTideStation {
+  product: string;
+  stationId: string;
+  stationName: string;
+  stationLat: number;
+  stationLon: number;
+  distanceMiles: number;
+}
+
+/** Lists the nearest NOAA stations for a product so the user can pick one manually. */
+export async function fetchNearbyTideStations(
+  lat: number,
+  lon: number,
+  product = "tide_predictions",
+  limit = 12,
+): Promise<NearbyTideStation[]> {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const qs = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    list_stations: "true",
+    product,
+    limit: String(limit),
+  });
+  try {
+    const resp = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/tide-water?${qs.toString()}`,
+      { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } },
+    );
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    return (json?.stations || []) as NearbyTideStation[];
+  } catch {
+    return [];
+  }
+}
+
+
   // NOAA local time "YYYY-MM-DD HH:MM"
   const hhmm = t.slice(11, 16);
   const [hStr, m] = hhmm.split(":");
