@@ -6,7 +6,8 @@ import {
   Pencil, Trash2, Calendar, Layers, Link2,
 } from "lucide-react";
 
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ const SpotMap = ({
   points: SpotRow["spot_points"];
   satellite: boolean;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
+  const { isLoaded } = useGoogleMaps(apiKey);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   useEffect(() => {

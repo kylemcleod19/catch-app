@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ const MapView = ({
   onMapClick: (e: google.maps.MapMouseEvent) => void;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
+  const { isLoaded } = useGoogleMaps(apiKey);
 
   const handleLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;

@@ -8,11 +8,11 @@ import { getStateName } from "@/lib/us-states";
 import {
   ChevronLeft, Loader2, MapPin, Plus, X, Move,
 } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
 
-const LIBRARIES: ("places")[] = ["places"];
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
   "#ED64A6", "#DD6B20", "#319795", "#5A67D8", "#B83280",
@@ -240,7 +240,7 @@ const EditMap = ({
   isSatellite: boolean;
   onMapClick: (coords: { lat: number; lng: number }) => void;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const { isLoaded } = useGoogleMaps(apiKey);
 
   const center = points.length > 0
     ? { lat: points[0].latitude, lng: points[0].longitude }
