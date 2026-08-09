@@ -1,3 +1,4 @@
+import { SPOT_TYPE_SELECT, flattenSpot } from "@/lib/spotData";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
