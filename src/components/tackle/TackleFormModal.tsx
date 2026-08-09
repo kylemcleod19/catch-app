@@ -65,6 +65,7 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const input = e.target;
     if (!file || !user) return;
     setUploading(true);
     try {
@@ -75,9 +76,35 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Photo upload failed");
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      input.value = "";
     }
   };
+
+  const handleUrlImport = async () => {
+    const url = urlInput.trim();
+    if (!url || !user) return;
+    setUploading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-image-url", { body: { url } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const res = await fetch(data.data_url);
+      const blob = await res.blob();
+      const ext = (data.content_type || "image/jpeg").split("/")[1]?.split("+")[0] || "jpg";
+      const file = new File([blob], `web-image.${ext}`, { type: blob.type });
+      const path = await uploadTacklePhoto(file, user.id);
+      setPhotoPath(path);
+      setPhotoPreview(await signPhoto(path));
+      setUrlInput("");
+      setShowUrl(false);
+      toast.success("Image added from the web");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not load that image URL");
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   const runIdentify = async (notes: string[]) => {
     if (!photoPreview || !user) return;
