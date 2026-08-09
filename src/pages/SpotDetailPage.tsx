@@ -312,8 +312,19 @@ const SpotDetailPage = () => {
 
         {/* Active conditions */}
         <section className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Droplets className="w-3.5 h-3.5" /> Water
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Droplets className="w-3.5 h-3.5" /> Water
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-lg text-xs gap-1 text-primary"
+              onClick={() => setStationOpen(true)}
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              {spot.usgs_site_id ? "Change station" : "Link station"}
+            </Button>
           </div>
           {spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
@@ -321,6 +332,7 @@ const SpotDetailPage = () => {
             <p className="text-xs text-muted-foreground italic">No USGS station linked.</p>
           )}
         </section>
+
 
         <section className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
