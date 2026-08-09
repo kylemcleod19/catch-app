@@ -1,4 +1,4 @@
-import { createSpotTypeData } from "@/lib/spotData";
+import { createSpotTypeData, setSpotTidalStation } from "@/lib/spotData";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
