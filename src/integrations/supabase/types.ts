@@ -263,6 +263,35 @@ export type Database = {
         }
         Relationships: []
       }
+      spot_lake_data: {
+        Row: {
+          created_at: string
+          spot_id: string
+          updated_at: string
+          usgs_site_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          spot_id: string
+          updated_at?: string
+          usgs_site_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          spot_id?: string
+          updated_at?: string
+          usgs_site_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_lake_data_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: true
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spot_points: {
         Row: {
           created_at: string
@@ -298,60 +327,109 @@ export type Database = {
           },
         ]
       }
+      spot_stream_data: {
+        Row: {
+          created_at: string
+          spot_id: string
+          updated_at: string
+          usgs_site_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          spot_id: string
+          updated_at?: string
+          usgs_site_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          spot_id?: string
+          updated_at?: string
+          usgs_site_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_stream_data_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: true
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spot_tidal_data: {
+        Row: {
+          created_at: string
+          noaa_station_distance_miles: number | null
+          noaa_station_lat: number | null
+          noaa_station_lon: number | null
+          noaa_station_name: string | null
+          noaa_tide_station_id: string | null
+          spot_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          noaa_station_distance_miles?: number | null
+          noaa_station_lat?: number | null
+          noaa_station_lon?: number | null
+          noaa_station_name?: string | null
+          noaa_tide_station_id?: string | null
+          spot_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          noaa_station_distance_miles?: number | null
+          noaa_station_lat?: number | null
+          noaa_station_lon?: number | null
+          noaa_station_name?: string | null
+          noaa_tide_station_id?: string | null
+          spot_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_tidal_data_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: true
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spots: {
         Row: {
           body_of_water: string
           created_at: string
           id: string
           is_demo: boolean
-          is_tidal: boolean
           name: string | null
-          noaa_station_distance_miles: number | null
-          noaa_station_lat: number | null
-          noaa_station_lon: number | null
-          noaa_station_name: string | null
-          noaa_tide_station_id: string | null
           site_type: string
           state_code: string
           updated_at: string
           user_id: string
-          usgs_site_id: string | null
         }
         Insert: {
           body_of_water: string
           created_at?: string
           id?: string
           is_demo?: boolean
-          is_tidal?: boolean
           name?: string | null
-          noaa_station_distance_miles?: number | null
-          noaa_station_lat?: number | null
-          noaa_station_lon?: number | null
-          noaa_station_name?: string | null
-          noaa_tide_station_id?: string | null
           site_type?: string
           state_code: string
           updated_at?: string
           user_id: string
-          usgs_site_id?: string | null
         }
         Update: {
           body_of_water?: string
           created_at?: string
           id?: string
           is_demo?: boolean
-          is_tidal?: boolean
           name?: string | null
-          noaa_station_distance_miles?: number | null
-          noaa_station_lat?: number | null
-          noaa_station_lon?: number | null
-          noaa_station_name?: string | null
-          noaa_tide_station_id?: string | null
           site_type?: string
           state_code?: string
           updated_at?: string
           user_id?: string
-          usgs_site_id?: string | null
         }
         Relationships: []
       }
