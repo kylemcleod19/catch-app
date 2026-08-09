@@ -142,22 +142,29 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   }, []);
 
   useEffect(() => {
-    if (!stateCode) return;
+    if (!stateCode || waterType === "Tidal") {
+      setWaterBodies([]);
+      return;
+    }
     setLoadingWater(true);
     supabase
-      .rpc("get_distinct_water_bodies", { _state_code: stateCode })
+      .rpc("get_distinct_water_bodies", {
+        _state_code: stateCode,
+        _site_type: USGS_SITE_TYPE[waterType],
+      })
       .then(({ data }) => {
         const bodies = (data || []).map((d: any) => d.normalized_water_body as string).filter(Boolean);
         setWaterBodies(bodies);
         setLoadingWater(false);
       });
-  }, [stateCode]);
+  }, [stateCode, waterType]);
 
   useEffect(() => {
     if (open) {
-      const defaultState = initialStateCode ?? homeState ?? "";
-      setStep(defaultState ? "water" : "state");
-      setStateCode(defaultState);
+      setStep("type");
+      setWaterType("Stream");
+      setTideStation(null);
+      setStateCode(initialStateCode ?? homeState ?? "");
       setWaterInput("");
       setIsUsgsWater(false);
       setShowSuggestions(false);
@@ -172,6 +179,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setMapStage("navigate");
     }
   }, [open, initialStateCode, homeState]);
+
 
   const suggestions = waterInput.trim().length >= 2
     ? waterBodies.filter((w) => w.toLowerCase().includes(waterInput.toLowerCase())).slice(0, 20)
