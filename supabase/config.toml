@@ -20,3 +20,7 @@ verify_jwt = false
 
 [functions.cleanup-water-bodies]
 verify_jwt = false
+
+[functions.tide-water]
+verify_jwt = false
+
