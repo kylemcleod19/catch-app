@@ -84,6 +84,7 @@ serve(async (req) => {
                   suggested_name: { type: "string" },
                   species: { type: "array", items: { type: "string" } },
                   presentation_hint: { type: "string" },
+                  reasoning: { type: "string" },
                 },
                 required: ["type"],
                 additionalProperties: false,
