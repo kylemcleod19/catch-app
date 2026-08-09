@@ -406,7 +406,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   if (step === "map") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-none w-screen h-screen p-0 m-0 border-0 rounded-none [&>button]:hidden">
+        <DialogContent className="max-w-none w-screen h-[100dvh] max-h-[100dvh] p-0 m-0 border-0 rounded-none z-[60] [&>button]:hidden">
           <FullScreenMapStep
             mapStage={mapStage}
             setMapStage={setMapStage}
@@ -437,7 +437,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   if (step === "usgs_select") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-none w-screen h-screen p-0 m-0 border-0 rounded-none [&>button]:hidden">
+        <DialogContent className="max-w-none w-screen h-[100dvh] max-h-[100dvh] p-0 m-0 border-0 rounded-none z-[60] [&>button]:hidden">
           <FullScreenUsgsStep
             apiKey={apiKey}
             userPins={pins}
