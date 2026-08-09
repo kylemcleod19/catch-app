@@ -73,18 +73,18 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     }
   };
 
-  const identify = async () => {
+  const runIdentify = async (notes: string[]) => {
     if (!photoPreview || !user) return;
     setIdentifying(true);
     try {
       const { data, error } = await supabase.functions.invoke("identify-tackle", {
-        body: { image_url: photoPreview },
+        body: { image_url: photoPreview, clarifications: notes, previous: aiGuess },
       });
       if (error) throw error;
 
       if (data?.type && TACKLE_TYPES.includes(data.type)) setType(data.type);
-      if (data?.suggested_name && !name.trim()) setName(data.suggested_name);
-      if (data?.presentation_hint && !presentation.trim()) setPresentation(data.presentation_hint);
+      if (data?.suggested_name) setName(data.suggested_name);
+      if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
       if (Array.isArray(data?.species) && data.species.length) {
         const resolved: Species[] = [];
@@ -100,13 +100,25 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
           return [...prev, ...resolved.filter((r) => !ids.has(r.id))];
         });
       }
-      toast.success("Suggestions filled in — edit anything before saving");
+      setAiGuess(data || null);
+      setClarifications(notes);
+      toast.success("Suggestions filled in — edit anything or clarify below");
     } catch {
       toast.error("Could not identify the photo. Fill the details in manually.");
     } finally {
       setIdentifying(false);
     }
   };
+
+  const identify = () => runIdentify([]);
+
+  const sendClarification = () => {
+    const note = clarifyInput.trim();
+    if (!note) return;
+    setClarifyInput("");
+    runIdentify([...clarifications, note]);
+  };
+
 
   const handleSave = async () => {
     if (!user) return;
