@@ -317,28 +317,39 @@ const SpotDetailPage = () => {
           Start Trip
         </Button>
 
-        {/* Active conditions */}
+        {/* Active conditions — driven by the spot's water type */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Droplets className="w-3.5 h-3.5" /> Water
+              {isTidal ? <Anchor className="w-3.5 h-3.5" /> : <Droplets className="w-3.5 h-3.5" />}
+              {isTidal ? "Tide" : spot.site_type === "Lake" ? "Lake level" : "Water"}
             </div>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 rounded-lg text-xs gap-1 text-primary"
-              onClick={() => setStationOpen(true)}
+              onClick={() => (isTidal ? setTideOpen(true) : setStationOpen(true))}
             >
               <Link2 className="w-3.5 h-3.5" />
-              {spot.usgs_site_id ? "Change station" : "Link station"}
+              {linkedStation ? "Change station" : "Link station"}
             </Button>
           </div>
-          {spot.usgs_site_id ? (
+
+          {linkedStation && (
+            <p className="text-xs text-muted-foreground truncate">{linkedStation}</p>
+          )}
+
+          {isTidal ? (
+            !spot.noaa_tide_station_id ? (
+              <p className="text-xs text-muted-foreground italic">No NOAA tide station linked.</p>
+            ) : null
+          ) : spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
           ) : (
             <p className="text-xs text-muted-foreground italic">No USGS station linked.</p>
           )}
         </section>
+
 
 
         <section className="space-y-2">
