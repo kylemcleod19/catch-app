@@ -11,11 +11,12 @@ import { toast } from "sonner";
 import { US_STATES, getStateName } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
-  Navigation, Move,
+  Navigation, Move, Waves, Droplets, Anchor,
 } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
+import { fetchTideData } from "@/lib/tide";
 
 interface SpotPoint {
   label: string;
@@ -52,7 +53,25 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "map" | "usgs_select" | "naming";
+type Step = "type" | "state" | "water" | "map" | "usgs_select" | "naming";
+export type WaterType = "Stream" | "Lake" | "Tidal";
+
+export const USGS_SITE_TYPE: Record<"Stream" | "Lake", string> = {
+  Stream: "Stream",
+  Lake: "Lake, Reservoir, Impoundment",
+};
+
+interface ResolvedStation {
+  available: boolean;
+  product: string;
+  stationId?: string;
+  stationName?: string;
+  stationLat?: number;
+  stationLon?: number;
+  distanceMiles?: number;
+  nearestDistanceMiles?: number;
+  maxDistanceMiles?: number;
+}
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
@@ -88,7 +107,10 @@ const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
-  const [step, setStep] = useState<Step>("state");
+  const [step, setStep] = useState<Step>("type");
+  const [waterType, setWaterType] = useState<WaterType>("Stream");
+  const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
+  const [resolvingTide, setResolvingTide] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
@@ -121,22 +143,29 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   }, []);
 
   useEffect(() => {
-    if (!stateCode) return;
+    if (!stateCode || waterType === "Tidal") {
+      setWaterBodies([]);
+      return;
+    }
     setLoadingWater(true);
     supabase
-      .rpc("get_distinct_water_bodies", { _state_code: stateCode })
+      .rpc("get_distinct_water_bodies", {
+        _state_code: stateCode,
+        _site_type: USGS_SITE_TYPE[waterType],
+      })
       .then(({ data }) => {
         const bodies = (data || []).map((d: any) => d.normalized_water_body as string).filter(Boolean);
         setWaterBodies(bodies);
         setLoadingWater(false);
       });
-  }, [stateCode]);
+  }, [stateCode, waterType]);
 
   useEffect(() => {
     if (open) {
-      const defaultState = initialStateCode ?? homeState ?? "";
-      setStep(defaultState ? "water" : "state");
-      setStateCode(defaultState);
+      setStep("type");
+      setWaterType("Stream");
+      setTideStation(null);
+      setStateCode(initialStateCode ?? homeState ?? "");
       setWaterInput("");
       setIsUsgsWater(false);
       setShowSuggestions(false);
@@ -151,6 +180,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setMapStage("navigate");
     }
   }, [open, initialStateCode, homeState]);
+
 
   const suggestions = waterInput.trim().length >= 2
     ? waterBodies.filter((w) => w.toLowerCase().includes(waterInput.toLowerCase())).slice(0, 20)
@@ -169,6 +199,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const findNearbyUsgs = useCallback(async () => {
+    if (waterType === "Tidal") return false;
     if (!isUsgsWater || !waterInput || !stateCode) return false;
     setLoadingUsgs(true);
 
@@ -177,6 +208,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       .select("site_id, monitoring_location_name, latitude, longitude")
       .eq("state_code", stateCode)
       .eq("normalized_water_body", waterInput)
+      .eq("site_type", USGS_SITE_TYPE[waterType])
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 
@@ -202,16 +234,19 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       dist: Math.sqrt(Math.pow((loc.latitude! - refLat), 2) + Math.pow((loc.longitude! - refLng), 2)),
     }));
     withDist.sort((a, b) => a.dist - b.dist);
-    const top3 = withDist.slice(0, 2) as UsgsLocation[];
+    const candidates = withDist.slice(0, 12) as UsgsLocation[];
 
     // Look up available data from cached table
-    const siteIds = top3.map((l) => l.site_id);
+    const siteIds = candidates.map((l) => l.site_id);
     const { data: availData } = await supabase
       .from("usgs_water_bodies_available_data")
       .select("site_id, water_flow, gage_height, temp, turbidity")
       .in("site_id", siteIds);
 
     const availMap = new Map<string, string[]>();
+    const hasMetric = new Map<string, boolean>();
+    // Streams are matched on discharge (flow); lakes/reservoirs on gage height (level)
+    const requiredKey = waterType === "Stream" ? "water_flow" : "gage_height";
     (availData || []).forEach((row: any) => {
       const params: string[] = [];
       if (row.water_flow) params.push("Flow");
@@ -219,9 +254,13 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       if (row.temp) params.push("Temp");
       if (row.turbidity) params.push("Turbidity");
       availMap.set(row.site_id, params);
+      hasMetric.set(row.site_id, !!row[requiredKey]);
     });
 
-    const enriched = top3.map((loc) => ({
+    const matching = candidates.filter((l) => hasMetric.get(l.site_id));
+    const chosen = (matching.length > 0 ? matching : candidates).slice(0, 2);
+
+    const enriched = chosen.map((loc) => ({
       ...loc,
       available_params: availMap.get(loc.site_id) || [],
     }));
@@ -284,6 +323,21 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   };
 
   const handleMapFinish = async () => {
+    if (waterType === "Tidal") {
+      const ref = pins.length > 0
+        ? { lat: pins[0].latitude, lng: pins[0].longitude }
+        : mapRef.current?.getCenter()
+          ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
+          : null;
+      if (ref) {
+        setResolvingTide(true);
+        const res = await fetchTideData({ lat: ref.lat, lon: ref.lng, resolveOnly: true });
+        setTideStation((res?.stations?.tide_predictions as ResolvedStation) || null);
+        setResolvingTide(false);
+      }
+      setStep("naming");
+      return;
+    }
     if (isUsgsWater) {
       const hasUsgs = await findNearbyUsgs();
       if (hasUsgs) {
@@ -296,6 +350,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
   const handleSave = async () => {
     if (!user || !waterInput.trim() || !stateCode) return;
+    const siteType = waterType === "Lake" ? "Lake" : waterType === "Tidal" ? "Tidal" : "Stream";
     setSaving(true);
     try {
       const { data: spot, error } = await supabase
@@ -305,8 +360,9 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           name: spotName || null,
           body_of_water: waterInput.trim(),
           state_code: stateCode,
-          site_type: "Stream",
-          usgs_site_id: selectedUsgs?.site_id || null,
+          site_type: siteType,
+          usgs_site_id: waterType === "Tidal" ? null : selectedUsgs?.site_id || null,
+          is_tidal: waterType === "Tidal",
         } as any)
         .select("id")
         .single();
@@ -319,13 +375,23 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         if (ptErr) throw ptErr;
       }
 
+      // Persist resolved NOAA stations for tidal spots (best-effort)
+      if (waterType === "Tidal" && pins.length > 0) {
+        fetchTideData({
+          lat: pins[0].latitude,
+          lon: pins[0].longitude,
+          spotId: spot.id,
+          resolveOnly: true,
+        });
+      }
+
       toast.success("Spot created!");
       onSpotCreated({
         id: spot.id,
         name: spotName || null,
         body_of_water: waterInput.trim(),
         state_code: stateCode,
-        site_type: "Stream",
+        site_type: siteType,
         points: pins,
       });
       onOpenChange(false);
@@ -335,6 +401,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setSaving(false);
     }
   };
+
 
   if (step === "map") {
     return (
@@ -393,11 +460,12 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">
+            {step === "type" && "What Kind of Water?"}
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
-          {step !== "state" && stateCode && (
+          {step !== "type" && step !== "state" && stateCode && (
             <button
               type="button"
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors mt-1"
@@ -409,6 +477,42 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             </button>
           )}
         </DialogHeader>
+
+        {step === "type" && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pick the water type first — each one uses different data.
+            </p>
+            {([
+              { key: "Stream" as const, title: "Stream / River", sub: "USGS gauges with flow (cfs)", Icon: Waves },
+              { key: "Lake" as const, title: "Lake / Reservoir", sub: "USGS gauges with water level (ft)", Icon: Droplets },
+              { key: "Tidal" as const, title: "Saltwater / Tidal", sub: "NOAA tide predictions, no USGS gauge", Icon: Anchor },
+            ]).map(({ key, title, sub, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setWaterType(key);
+                  setWaterInput("");
+                  setIsUsgsWater(false);
+                  setSelectedUsgs(null);
+                  setNearbyUsgs([]);
+                  setStep(stateCode ? "water" : "state");
+                }}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+                  waterType === key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                }`}
+              >
+                <Icon className="w-6 h-6 text-primary shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">{title}</p>
+                  <p className="text-xs text-muted-foreground">{sub}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+              </button>
+            ))}
+          </div>
+        )}
 
         {step === "state" && (
           <div className="space-y-4">
@@ -451,30 +555,38 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
         {step === "water" && (
           <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {waterType === "Tidal" ? <Anchor className="w-3.5 h-3.5 text-primary" /> : waterType === "Lake" ? <Droplets className="w-3.5 h-3.5 text-primary" /> : <Waves className="w-3.5 h-3.5 text-primary" />}
+              {waterType === "Tidal" ? "Saltwater / Tidal" : waterType === "Lake" ? "Lake / Reservoir" : "Stream / River"}
+              <button type="button" className="text-[10px] underline" onClick={() => setStep("type")}>change</button>
+            </div>
 
             <div className="space-y-1 relative">
               <label className="text-sm font-medium text-foreground">Water body name</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Type to search or enter a custom name..."
+                  placeholder={waterType === "Tidal" ? "e.g. Barnegat Bay, Pamlico Sound..." : "Type to search or enter a custom name..."}
                   value={waterInput}
                   onChange={(e) => handleWaterInputChange(e.target.value)}
-                  onFocus={() => waterInput.trim().length >= 2 && setShowSuggestions(true)}
+                  onFocus={() => waterType !== "Tidal" && waterInput.trim().length >= 2 && setShowSuggestions(true)}
                   className="rounded-xl pl-9"
                   autoFocus
                 />
               </div>
-              {isUsgsWater && (
-                <p className="text-xs text-primary flex items-center gap-1">
-                  <Navigation className="w-3 h-3" /> USGS monitored water body
+              {waterType === "Tidal" ? (
+                <p className="text-xs text-muted-foreground">
+                  Tide data comes from the nearest NOAA station — no USGS gauge needed.
                 </p>
-              )}
-              {!isUsgsWater && waterInput.trim().length > 0 && (
+              ) : isUsgsWater ? (
+                <p className="text-xs text-primary flex items-center gap-1">
+                  <Navigation className="w-3 h-3" /> USGS monitored ({waterType === "Stream" ? "flow" : "water level"})
+                </p>
+              ) : waterInput.trim().length > 0 ? (
                 <p className="text-xs text-muted-foreground">Custom water body (no USGS data)</p>
-              )}
+              ) : null}
 
-              {showSuggestions && suggestions.length > 0 && (
+              {waterType !== "Tidal" && showSuggestions && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border">
                   {loadingWater ? (
                     <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
@@ -509,6 +621,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
           </div>
         )}
 
+
         {step === "naming" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -541,7 +654,23 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   <Navigation className="w-3 h-3 text-primary" /> {selectedUsgs.monitoring_location_name}
                 </div>
               )}
+              {waterType === "Tidal" && (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <Anchor className="w-3 h-3 text-primary shrink-0" />
+                  {resolvingTide ? (
+                    "Finding nearest NOAA tide station..."
+                  ) : tideStation?.available ? (
+                    <span>
+                      {tideStation.stationName} ({tideStation.stationId})
+                      {tideStation.distanceMiles != null && ` · ${tideStation.distanceMiles.toFixed(1)} mi`}
+                    </span>
+                  ) : (
+                    "No NOAA tide station within range"
+                  )}
+                </div>
+              )}
             </div>
+
 
             <div className="flex justify-between">
               <Button variant="outline" className="rounded-xl gap-1" onClick={() => {

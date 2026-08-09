@@ -83,6 +83,7 @@ export type Database = {
           spot_id: string | null
           started_at: string
           status: string
+          tide_snapshot: Json | null
           title: string | null
           updated_at: string
           user_id: string
@@ -101,6 +102,7 @@ export type Database = {
           spot_id?: string | null
           started_at?: string
           status?: string
+          tide_snapshot?: Json | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -119,6 +121,7 @@ export type Database = {
           spot_id?: string | null
           started_at?: string
           status?: string
+          tide_snapshot?: Json | null
           title?: string | null
           updated_at?: string
           user_id?: string
@@ -167,6 +170,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      noaa_station_products: {
+        Row: {
+          created_at: string
+          distance_miles: number | null
+          id: string
+          product: string
+          spot_id: string
+          station_id: string
+          station_lat: number | null
+          station_lon: number | null
+          station_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          distance_miles?: number | null
+          id?: string
+          product: string
+          spot_id: string
+          station_id: string
+          station_lat?: number | null
+          station_lon?: number | null
+          station_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          distance_miles?: number | null
+          id?: string
+          product?: string
+          spot_id?: string
+          station_id?: string
+          station_lat?: number | null
+          station_lon?: number | null
+          station_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "noaa_station_products_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "spots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -254,7 +304,13 @@ export type Database = {
           created_at: string
           id: string
           is_demo: boolean
+          is_tidal: boolean
           name: string | null
+          noaa_station_distance_miles: number | null
+          noaa_station_lat: number | null
+          noaa_station_lon: number | null
+          noaa_station_name: string | null
+          noaa_tide_station_id: string | null
           site_type: string
           state_code: string
           updated_at: string
@@ -266,7 +322,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_demo?: boolean
+          is_tidal?: boolean
           name?: string | null
+          noaa_station_distance_miles?: number | null
+          noaa_station_lat?: number | null
+          noaa_station_lon?: number | null
+          noaa_station_name?: string | null
+          noaa_tide_station_id?: string | null
           site_type?: string
           state_code: string
           updated_at?: string
@@ -278,12 +340,54 @@ export type Database = {
           created_at?: string
           id?: string
           is_demo?: boolean
+          is_tidal?: boolean
           name?: string | null
+          noaa_station_distance_miles?: number | null
+          noaa_station_lat?: number | null
+          noaa_station_lon?: number | null
+          noaa_station_name?: string | null
+          noaa_tide_station_id?: string | null
           site_type?: string
           state_code?: string
           updated_at?: string
           user_id?: string
           usgs_site_id?: string | null
+        }
+        Relationships: []
+      }
+      tide_data_cache: {
+        Row: {
+          created_at: string
+          date: string
+          datum: string
+          expires_at: string | null
+          id: string
+          product: string
+          response_json: Json
+          station_id: string
+          units: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          datum?: string
+          expires_at?: string | null
+          id?: string
+          product: string
+          response_json: Json
+          station_id: string
+          units?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          datum?: string
+          expires_at?: string | null
+          id?: string
+          product?: string
+          response_json?: Json
+          station_id?: string
+          units?: string
         }
         Relationships: []
       }
