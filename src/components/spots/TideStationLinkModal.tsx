@@ -196,7 +196,7 @@ const TideStationLinkModal = ({ open, onOpenChange, spot, onLinked }: TideStatio
             )}
           </div>
 
-          <div className="border-t border-border/50 safe-area-bottom px-3 py-3">
+          <div className="border-t border-border/50 px-3 pt-3 safe-area-bottom-action">
             <Button
               variant="catch"
               className="w-full h-11 rounded-xl"
@@ -206,6 +206,7 @@ const TideStationLinkModal = ({ open, onOpenChange, spot, onLinked }: TideStatio
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link station"}
             </Button>
           </div>
+
         </div>
       </DialogContent>
     </Dialog>
