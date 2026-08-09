@@ -350,7 +350,7 @@ serve(async (req) => {
 
     if (listStations) {
       const product = url.searchParams.get("product") || "tide_predictions";
-      if (!(product in NOAA_STATION_ENDPOINTS)) {
+      if (!(product in STATION_TYPE_ENDPOINT)) {
         return new Response(JSON.stringify({ error: "unknown product" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
