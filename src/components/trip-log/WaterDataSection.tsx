@@ -1,3 +1,4 @@
+import { getSpotUsgsSiteId } from "@/lib/spotData";
 import { forwardRef, useEffect, useState } from "react";
 import { Droplets, Loader2, ChevronDown, Activity, Ruler } from "lucide-react";
 import { format } from "date-fns";
