@@ -172,7 +172,7 @@ const TideStationPickerModal = ({
             )}
           </div>
 
-          <div className="p-3 border-t border-border/50 safe-area-bottom">
+          <div className="px-3 pt-3 border-t border-border/50 safe-area-bottom-action">
             <Button
               variant="catch"
               className="w-full h-11 rounded-xl"
@@ -182,6 +182,7 @@ const TideStationPickerModal = ({
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use this station"}
             </Button>
           </div>
+
         </div>
       </DialogContent>
     </Dialog>
