@@ -13,7 +13,8 @@ import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
   Navigation, Move, Waves, Droplets, Anchor,
 } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
 import { fetchTideData } from "@/lib/tide";
@@ -712,7 +713,7 @@ const FullScreenUsgsStep = ({
   onBack: () => void;
   onFinish: () => void;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey || "", id: "google-map-script", libraries: LIBRARIES });
+  const { isLoaded } = useGoogleMaps(apiKey);
   const localMapRef = useRef<google.maps.Map | null>(null);
   const [isSatellite, setIsSatellite] = useState(false);
 
@@ -1019,7 +1020,7 @@ const FullScreenMap = ({
   onMapClick: (coords: { lat: number; lng: number }) => void;
   onLocateMe: () => void;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const { isLoaded } = useGoogleMaps(apiKey);
   const didAutoSearch = useRef(false);
 
   const baseView = initialView ?? {

@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getStateName } from "@/lib/us-states";
 import { ChevronLeft, Loader2, Search, Check, X } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 
 const FLAG_COLORS = ["#3182CE", "#38A169", "#9F7AEA", "#DD6B20", "#319795", "#B83280", "#5A67D8", "#D69E2E"];
 
@@ -279,7 +280,7 @@ const StationMap = ({
   onSelect: (id: string) => void;
   isSatellite: boolean;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
+  const { isLoaded } = useGoogleMaps(apiKey);
 
   useEffect(() => {
     mapRef.current?.setMapTypeId(isSatellite ? "satellite" : "roadmap");

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { MapPin, Plus, Loader2, ChevronDown, X, Search } from "lucide-react";
 import { getStateName } from "@/lib/us-states";
 import SpotCreationModal, { CreatedSpot } from "./SpotCreationModal";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import { toast } from "sonner";
 
 interface SpotData {
@@ -299,7 +300,7 @@ const AddPointMapInner = ({
   onMapClick: (e: google.maps.MapMouseEvent) => void;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script" });
+  const { isLoaded } = useGoogleMaps(apiKey);
 
   const center = existingPoints.length > 0
     ? { lat: existingPoints[0].latitude, lng: existingPoints[0].longitude }

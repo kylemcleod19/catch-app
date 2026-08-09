@@ -8,7 +8,8 @@ import { getStateName } from "@/lib/us-states";
 import {
   ChevronLeft, Loader2, MapPin, Plus, X, Move,
 } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
 
@@ -240,7 +241,7 @@ const EditMap = ({
   isSatellite: boolean;
   onMapClick: (coords: { lat: number; lng: number }) => void;
 }) => {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: apiKey, id: "google-map-script", libraries: LIBRARIES });
+  const { isLoaded } = useGoogleMaps(apiKey);
 
   const center = points.length > 0
     ? { lat: points[0].latitude, lng: points[0].longitude }
