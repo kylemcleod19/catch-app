@@ -112,7 +112,11 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [waterType, setWaterType] = useState<WaterType>("Stream");
   const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
   const [resolvingTide, setResolvingTide] = useState(false);
+  const [tideOptions, setTideOptions] = useState<NearbyTideStation[]>([]);
+  const [loadingTideOptions, setLoadingTideOptions] = useState(false);
+  const [showTidePicker, setShowTidePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
 
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
