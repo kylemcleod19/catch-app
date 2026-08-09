@@ -18,7 +18,8 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
-import { fetchTideData, fetchNearbyTideStations, NearbyTideStation } from "@/lib/tide";
+import { fetchTideData, NearbyTideStation } from "@/lib/tide";
+import TideStationPickerModal from "./TideStationPickerModal";
 
 interface SpotPoint {
   label: string;
@@ -112,8 +113,6 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [waterType, setWaterType] = useState<WaterType>("Stream");
   const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
   const [resolvingTide, setResolvingTide] = useState(false);
-  const [tideOptions, setTideOptions] = useState<NearbyTideStation[]>([]);
-  const [loadingTideOptions, setLoadingTideOptions] = useState(false);
   const [showTidePicker, setShowTidePicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -334,17 +333,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
         : null;
 
-  /** Lets the user pick a different NOAA tide station than the auto-resolved one. */
-  const openTidePicker = async () => {
-    setShowTidePicker(true);
-    if (tideOptions.length > 0) return;
-    const ref = refCoords();
-    if (!ref) return;
-    setLoadingTideOptions(true);
-    const list = await fetchNearbyTideStations(ref.lat, ref.lng, "tide_predictions", 12);
-    setTideOptions(list);
-    setLoadingTideOptions(false);
-  };
+  /** Opens the full-screen map picker for NOAA tide stations. */
+  const openTidePicker = () => setShowTidePicker(true);
 
   const chooseTideStation = (s: NearbyTideStation) => {
     setTideStation({
@@ -358,6 +348,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     });
     setShowTidePicker(false);
   };
+
 
   /** Jumps back to the USGS station step so the monitoring location can be changed. */
   const openUsgsPicker = async () => {
@@ -744,40 +735,25 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                       <button
                         type="button"
                         className="text-primary underline shrink-0"
-                        onClick={() => (showTidePicker ? setShowTidePicker(false) : openTidePicker())}
+                        onClick={openTidePicker}
                       >
-                        {showTidePicker ? "Close" : tideStation?.available ? "Change" : "Select"}
+                        {tideStation?.available ? "Change" : "Select"}
                       </button>
                     )}
                   </div>
 
-                  {showTidePicker && (
-                    <div className="rounded-lg border border-border bg-background max-h-48 overflow-y-auto divide-y divide-border">
-                      {loadingTideOptions ? (
-                        <div className="flex justify-center py-4">
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        </div>
-                      ) : tideOptions.length === 0 ? (
-                        <p className="text-xs text-muted-foreground p-3 text-center">No NOAA stations found nearby</p>
-                      ) : (
-                        tideOptions.map((s) => (
-                          <button
-                            key={s.stationId}
-                            type="button"
-                            onClick={() => chooseTideStation(s)}
-                            className={`w-full text-left px-3 py-2 hover:bg-muted transition-colors ${
-                              tideStation?.stationId === s.stationId ? "bg-muted" : ""
-                            }`}
-                          >
-                            <p className="text-xs font-medium text-foreground truncate">{s.stationName}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {s.stationId} · {s.distanceMiles.toFixed(1)} mi away
-                            </p>
-                          </button>
-                        ))
-                      )}
-                    </div>
+                  {showTidePicker && refCoords() && (
+                    <TideStationPickerModal
+                      open={showTidePicker}
+                      onOpenChange={(o) => { if (!o) setShowTidePicker(false); }}
+                      lat={refCoords()!.lat}
+                      lon={refCoords()!.lng}
+                      subtitle={waterInput}
+                      initialStationId={tideStation?.stationId || null}
+                      onConfirm={chooseTideStation}
+                    />
                   )}
+
                 </div>
               )}
             </div>

@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
+import SpotTideConditions from "@/components/spots/SpotTideConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import StationLinkModal from "@/components/spots/StationLinkModal";
@@ -361,7 +362,15 @@ const SpotDetailPage = () => {
           {isTidal ? (
             !spot.noaa_tide_station_id ? (
               <p className="text-xs text-muted-foreground italic">No NOAA tide station linked.</p>
-            ) : null
+            ) : spot.spot_points.length > 0 ? (
+              <SpotTideConditions
+                lat={spot.spot_points[0].latitude}
+                lon={spot.spot_points[0].longitude}
+                spotId={spot.id}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Add a pin to see tide data.</p>
+            )
           ) : spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
           ) : (
