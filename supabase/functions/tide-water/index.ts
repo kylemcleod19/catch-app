@@ -339,6 +339,7 @@ serve(async (req) => {
     const endIso = url.searchParams.get("end");
     const days = Math.min(parseInt(url.searchParams.get("days") || "1", 10) || 1, 7);
     const resolveOnly = url.searchParams.get("resolve_only") === "true";
+    const listStations = url.searchParams.get("list_stations") === "true";
 
     if (isNaN(lat) || isNaN(lon)) {
       return new Response(JSON.stringify({ error: "lat and lon are required" }), {
@@ -346,6 +347,22 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (listStations) {
+      const product = url.searchParams.get("product") || "tide_predictions";
+      if (!(product in NOAA_STATION_ENDPOINTS)) {
+        return new Response(JSON.stringify({ error: "unknown product" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "12", 10) || 12, 1), 50);
+      const list = await nearbyStations(product, lat, lon, limit);
+      return new Response(JSON.stringify({ stations: list }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     const products = ["tide_predictions", "water_level", "water_temperature", "currents", "meteorological"];
     const stations: Record<string, any> = {};
