@@ -1,4 +1,4 @@
-import { createSpotTypeData } from "@/lib/spotData";
+import { createSpotTypeData, setSpotTidalStation } from "@/lib/spotData";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
-import { fetchTideData } from "@/lib/tide";
+import { fetchTideData, fetchNearbyTideStations, NearbyTideStation } from "@/lib/tide";
 
 interface SpotPoint {
   label: string;
@@ -112,7 +112,11 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [waterType, setWaterType] = useState<WaterType>("Stream");
   const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
   const [resolvingTide, setResolvingTide] = useState(false);
+  const [tideOptions, setTideOptions] = useState<NearbyTideStation[]>([]);
+  const [loadingTideOptions, setLoadingTideOptions] = useState(false);
+  const [showTidePicker, setShowTidePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
 
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
   const [saveAsHome, setSaveAsHome] = useState(false);
@@ -323,6 +327,45 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     setStep("map");
   };
 
+  const refCoords = () =>
+    pins.length > 0
+      ? { lat: pins[0].latitude, lng: pins[0].longitude }
+      : mapRef.current?.getCenter()
+        ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
+        : null;
+
+  /** Lets the user pick a different NOAA tide station than the auto-resolved one. */
+  const openTidePicker = async () => {
+    setShowTidePicker(true);
+    if (tideOptions.length > 0) return;
+    const ref = refCoords();
+    if (!ref) return;
+    setLoadingTideOptions(true);
+    const list = await fetchNearbyTideStations(ref.lat, ref.lng, "tide_predictions", 12);
+    setTideOptions(list);
+    setLoadingTideOptions(false);
+  };
+
+  const chooseTideStation = (s: NearbyTideStation) => {
+    setTideStation({
+      available: true,
+      product: "tide_predictions",
+      stationId: s.stationId,
+      stationName: s.stationName,
+      stationLat: s.stationLat,
+      stationLon: s.stationLon,
+      distanceMiles: s.distanceMiles,
+    });
+    setShowTidePicker(false);
+  };
+
+  /** Jumps back to the USGS station step so the monitoring location can be changed. */
+  const openUsgsPicker = async () => {
+    if (nearbyUsgs.length === 0) await findNearbyUsgs();
+    setStep("usgs_select");
+  };
+
+
   const handleMapFinish = async () => {
     if (waterType === "Tidal") {
       const ref = pins.length > 0
@@ -378,16 +421,25 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         if (ptErr) throw ptErr;
       }
 
-
-      // Persist resolved NOAA stations for tidal spots (best-effort)
+      // Persist resolved NOAA stations for tidal spots, then honour any manual pick
       if (waterType === "Tidal" && pins.length > 0) {
-        fetchTideData({
+        await fetchTideData({
           lat: pins[0].latitude,
           lon: pins[0].longitude,
           spotId: spot.id,
           resolveOnly: true,
-        });
+        }).catch(() => null);
+        if (tideStation?.available) {
+          await setSpotTidalStation(spot.id, {
+            stationId: tideStation.stationId,
+            stationName: tideStation.stationName,
+            stationLat: tideStation.stationLat,
+            stationLon: tideStation.stationLon,
+            distanceMiles: tideStation.distanceMiles,
+          });
+        }
       }
+
 
       toast.success("Spot created!");
       onSpotCreated({
@@ -653,27 +705,83 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   <MapPin className="w-3 h-3 text-primary" /> {pins.length} pin{pins.length !== 1 ? "s" : ""}
                 </div>
               )}
-              {selectedUsgs && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <Navigation className="w-3 h-3 text-primary" /> {selectedUsgs.monitoring_location_name}
+              {waterType !== "Tidal" && (
+                <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs">
+                  <span className="flex items-start gap-1.5 min-w-0">
+                    <Navigation className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                    <span className="truncate">
+                      {selectedUsgs ? selectedUsgs.monitoring_location_name : "No monitoring station selected"}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-primary underline shrink-0"
+                    onClick={openUsgsPicker}
+                  >
+                    {selectedUsgs ? "Change" : "Select"}
+                  </button>
                 </div>
               )}
               {waterType === "Tidal" && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <Anchor className="w-3 h-3 text-primary shrink-0" />
-                  {resolvingTide ? (
-                    "Finding nearest NOAA tide station..."
-                  ) : tideStation?.available ? (
-                    <span>
-                      {tideStation.stationName} ({tideStation.stationId})
-                      {tideStation.distanceMiles != null && ` · ${tideStation.distanceMiles.toFixed(1)} mi`}
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs">
+                    <span className="flex items-start gap-1.5 min-w-0">
+                      <Anchor className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                      <span className="truncate">
+                        {resolvingTide ? (
+                          "Finding nearest NOAA tide station..."
+                        ) : tideStation?.available ? (
+                          <>
+                            {tideStation.stationName} ({tideStation.stationId})
+                            {tideStation.distanceMiles != null && ` · ${tideStation.distanceMiles.toFixed(1)} mi`}
+                          </>
+                        ) : (
+                          "No NOAA tide station within range"
+                        )}
+                      </span>
                     </span>
-                  ) : (
-                    "No NOAA tide station within range"
+                    {!resolvingTide && (
+                      <button
+                        type="button"
+                        className="text-primary underline shrink-0"
+                        onClick={() => (showTidePicker ? setShowTidePicker(false) : openTidePicker())}
+                      >
+                        {showTidePicker ? "Close" : tideStation?.available ? "Change" : "Select"}
+                      </button>
+                    )}
+                  </div>
+
+                  {showTidePicker && (
+                    <div className="rounded-lg border border-border bg-background max-h-48 overflow-y-auto divide-y divide-border">
+                      {loadingTideOptions ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : tideOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground p-3 text-center">No NOAA stations found nearby</p>
+                      ) : (
+                        tideOptions.map((s) => (
+                          <button
+                            key={s.stationId}
+                            type="button"
+                            onClick={() => chooseTideStation(s)}
+                            className={`w-full text-left px-3 py-2 hover:bg-muted transition-colors ${
+                              tideStation?.stationId === s.stationId ? "bg-muted" : ""
+                            }`}
+                          >
+                            <p className="text-xs font-medium text-foreground truncate">{s.stationName}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {s.stationId} · {s.distanceMiles.toFixed(1)} mi away
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
+
 
 
             <div className="flex justify-between">

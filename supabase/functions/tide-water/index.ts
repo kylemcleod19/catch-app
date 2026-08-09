@@ -124,6 +124,29 @@ async function resolveStation(product: string, lat: number, lon: number) {
   };
 }
 
+/** Nearest N stations for a product, regardless of the max-distance threshold. */
+async function nearbyStations(product: string, lat: number, lon: number, limit: number) {
+  let stations: any[] = [];
+  try {
+    stations = await stationList(product);
+  } catch (e) {
+    console.warn(`station list failed for ${product}`, e);
+    return [];
+  }
+  return stations
+    .map((s: any) => ({
+      product,
+      stationId: String(s.id),
+      stationName: s.name ? `${s.name}${s.state ? ", " + s.state : ""}` : String(s.id),
+      stationLat: s.lat,
+      stationLon: s.lng,
+      distanceMiles: Math.round(haversineMiles(lat, lon, s.lat, s.lng) * 10) / 10,
+    }))
+    .sort((a, b) => a.distanceMiles - b.distanceMiles)
+    .slice(0, limit);
+}
+
+
 // ── NOAA data fetch ──
 async function coops(params: Record<string, string>) {
   const url = new URL(COOPS_DATA);
@@ -316,6 +339,7 @@ serve(async (req) => {
     const endIso = url.searchParams.get("end");
     const days = Math.min(parseInt(url.searchParams.get("days") || "1", 10) || 1, 7);
     const resolveOnly = url.searchParams.get("resolve_only") === "true";
+    const listStations = url.searchParams.get("list_stations") === "true";
 
     if (isNaN(lat) || isNaN(lon)) {
       return new Response(JSON.stringify({ error: "lat and lon are required" }), {
@@ -323,6 +347,22 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (listStations) {
+      const product = url.searchParams.get("product") || "tide_predictions";
+      if (!(product in STATION_TYPE_ENDPOINT)) {
+        return new Response(JSON.stringify({ error: "unknown product" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "12", 10) || 12, 1), 50);
+      const list = await nearbyStations(product, lat, lon, limit);
+      return new Response(JSON.stringify({ stations: list }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     const products = ["tide_predictions", "water_level", "water_temperature", "currents", "meteorological"];
     const stations: Record<string, any> = {};

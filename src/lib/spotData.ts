@@ -79,6 +79,31 @@ export async function setSpotUsgsSite(spotId: string, siteType: string, usgsSite
     .upsert({ spot_id: spotId, usgs_site_id: usgsSiteId } as any, { onConflict: "spot_id" });
 }
 
+/** Links (or clears) the NOAA tide station for a tidal spot. */
+export async function setSpotTidalStation(
+  spotId: string,
+  station: {
+    stationId?: string | null;
+    stationName?: string | null;
+    stationLat?: number | null;
+    stationLon?: number | null;
+    distanceMiles?: number | null;
+  } | null,
+) {
+  return supabase.from("spot_tidal_data").upsert(
+    {
+      spot_id: spotId,
+      noaa_tide_station_id: station?.stationId ?? null,
+      noaa_station_name: station?.stationName ?? null,
+      noaa_station_lat: station?.stationLat ?? null,
+      noaa_station_lon: station?.stationLon ?? null,
+      noaa_station_distance_miles: station?.distanceMiles ?? null,
+    } as any,
+    { onConflict: "spot_id" },
+  );
+}
+
+
 /** Reads just the USGS site id for a spot, whichever water type it is. */
 export async function getSpotUsgsSiteId(spotId: string): Promise<string | null> {
   const { data } = await supabase
