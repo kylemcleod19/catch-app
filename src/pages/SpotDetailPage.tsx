@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Loader2, MapPin, Fish, Play, Droplets, CloudSun,
-  Pencil, Trash2, Calendar, Layers, Link2,
+  Pencil, Trash2, Calendar, Layers, Link2, Anchor,
 } from "lucide-react";
 
 import { GoogleMap, Marker } from "@react-google-maps/api";
@@ -17,6 +17,7 @@ import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import StationLinkModal from "@/components/spots/StationLinkModal";
+import TideStationLinkModal from "@/components/spots/TideStationLinkModal";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
@@ -43,6 +44,9 @@ interface SpotRow {
   state_code: string;
   site_type: string;
   usgs_site_id: string | null;
+  noaa_tide_station_id: string | null;
+  noaa_station_name: string | null;
+  noaa_station_distance_miles: number | null;
   spot_points: { id: string; label: string; latitude: number; longitude: number }[];
 }
 
@@ -130,6 +134,7 @@ const SpotDetailPage = () => {
   const [satellite, setSatellite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [stationOpen, setStationOpen] = useState(false);
+  const [tideOpen, setTideOpen] = useState(false);
   const [starting, setStarting] = useState(false);
 
 
@@ -409,6 +414,14 @@ const SpotDetailPage = () => {
         </section>
       </main>
 
+      {tideOpen && (
+        <TideStationLinkModal
+          open={tideOpen}
+          onOpenChange={(o) => { if (!o) setTideOpen(false); }}
+          spot={spot}
+          onLinked={fetchAll}
+        />
+      )}
       {editOpen && (
         <SpotEditModal
           open={editOpen}
