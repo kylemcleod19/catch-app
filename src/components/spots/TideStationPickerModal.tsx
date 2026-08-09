@@ -110,9 +110,9 @@ const TideStationPickerModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-full h-[100dvh] max-h-[100dvh] z-[70] p-0 border-0 rounded-none [&>button]:hidden overflow-hidden">
-        <div className="relative w-full h-full flex flex-col">
-          <div className="px-3 pt-3 pb-2 border-b border-border/50 safe-area-top">
+      <DialogContent className="fixed inset-0 left-0 top-0 max-w-none w-screen h-[100svh] max-h-[100svh] translate-x-0 translate-y-0 z-[70] p-0 border-0 rounded-none [&>button]:hidden overflow-hidden">
+        <div className="relative w-full h-full min-h-0 flex flex-col overflow-hidden">
+          <div className="shrink-0 px-3 pt-3 pb-2 border-b border-border/50 safe-area-top">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="rounded-lg px-2" onClick={() => onOpenChange(false)}>
                 <ChevronLeft className="w-4 h-4" />
@@ -124,7 +124,7 @@ const TideStationPickerModal = ({
             </div>
           </div>
 
-          <div className="h-[40%] min-h-[180px] border-b border-border/50">
+          <div className="shrink-0 h-[40%] min-h-[140px] border-b border-border/50">
             {apiKey ? (
               <StationMap
                 apiKey={apiKey}
@@ -140,7 +140,7 @@ const TideStationPickerModal = ({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-border">
+          <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-border">
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -172,7 +172,7 @@ const TideStationPickerModal = ({
             )}
           </div>
 
-          <div className="px-3 pt-3 border-t border-border/50 safe-area-bottom-action">
+          <div className="shrink-0 px-3 pt-3 border-t border-border/50 safe-area-bottom-action">
             <Button
               variant="catch"
               className="w-full h-11 rounded-xl"
