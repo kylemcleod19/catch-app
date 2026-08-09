@@ -38,6 +38,7 @@ An `aiContext` block is built into every response — compact times/heights plus
 
 - **Spot cards** — for tidal spots, the flow droplet chip is replaced by a next-tide chip (arrow up/down, time, height).
 - **Spot detail** — a Tides section replacing the Water section: today's low/high/low list, a tide curve chart (same gridline + "MMM d" conventions), and a 7-day tide outlook alongside the existing weather forecast.
+- **Spot map** — the resolved NOAA stations are drawn on the spot's map as their own markers (distinct from the orange fish pin), one per product in use, with a dashed line back to the spot. Tapping a station marker shows its name, ID, which products it supplies, and its distance from the spot, so you can see exactly where the tide and water numbers are coming from.
 - **Trip log form** — for tidal spots the Water Data section renders tides instead of flow/gage. During an active trip it shows current height, direction, next event with countdown, movement strength, and your position on the curve.
 - **Trip history / report** — the persisted tide snapshot: start/end height and direction, dominant direction, net change, whether the trip crossed a high or low, max movement rate, percent incoming vs outgoing, plus any observed conditions captured at the time.
 
