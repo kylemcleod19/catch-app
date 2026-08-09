@@ -1,46 +1,65 @@
-## Weather: historical insights upgrade
+# NOAA Tides for Saltwater / Bay Spots
 
-Goal: When a trip's weather is loaded (often a historical lookback), surface insights that anglers actually care about — pressure level + 24h trend, day-over-day temp swing, and a short AI-generated "what happened" narrative that calls out fronts.
+Adds tide and water context for coastal spots, using the same coordinates the app already stores. For tidal spots, tide data **replaces** the USGS stream-flow experience everywhere flow appears today, following the same display conventions (icon-led chips, "MMM d" dates, snapped gridlines).
 
-### Data sources
+## 1. Making a spot tidal
 
-- NWS forecast (already used) for recent/upcoming dates — has hourly + pressure.
-- NCEI historical (already used) — has daily highs/lows, precip, wind. No pressure, no hourly.
-- **New:** Open-Meteo ERA5 archive (`archive-api.open-meteo.com`) — free, no key, gives **hourly surface pressure**, temp, wind, precip back to 1940. Used only as a supplement when NCEI is the source (historical dates).
+Spot creation gets a **water type choice up front**, before any water-body search, so USGS matching never runs for saltwater:
 
-### Backend changes (`supabase/functions/weather/index.ts`)
+```text
+[ Freshwater ]        [ Saltwater / Tidal ]
+ State -> USGS water   State -> coastal water body (free text + Places search)
+ -> map -> USGS site   -> map pins
+ -> name               -> nearest NOAA station auto-resolved -> name
+```
 
-1. When the requested date is historical (NCEI path) **or** when NWS response lacks pressure, also call Open-Meteo ERA5 for:
-   - The requested date (hourly pressure, temp, wind, precip)
-   - The 2 prior days (for trend/front detection)
-2. Compute and attach to `given_day.summary`:
-   - `pressure_hpa_avg`, `pressure_hpa_min`, `pressure_hpa_max`
-   - `pressure_trend_24h_hpa` (avg today − avg yesterday)
-   - `temp_change_24h_c` (avg today − avg yesterday)
-   - `front_flag`: `"cold_front" | "warm_front" | "stable"` based on simple thresholds (e.g., pressure drop >4 hPa + temp drop >5°C in 24h → cold front).
-3. Backfill `given_day.hourly` from ERA5 when NCEI returned none, so the existing expanded hourly strip works on historical trips.
+- New `site_type` value `Tidal` on spots (existing `Stream` / `Lake` untouched).
+- Saltwater path skips the USGS station step entirely; instead the backend resolves the nearest NOAA tide-prediction station from the spot's map pin and saves it on the spot.
+- Spot edit shows which NOAA station is linked and how far away it is.
 
-### Frontend changes (`WeatherSection.tsx`)
+## 2. Backend service
 
-1. Compact header gets a new pressure chip when present: `↓ 1009 hPa` (arrow = trend direction, color = severity).
-2. New "Conditions summary" chip below the compact header — small italic line generated server-side from the deltas using a deterministic template first (cheap, no AI). Examples:
-   - "Cold front overnight — pressure dropped 8 hPa, high fell 12°."
-   - "Stable high pressure, warming trend (+6°)."
-   - "Warm front building, pressure easing."
-3. Expanded view: add a tiny 3-day pressure sparkline (today + 2 prior) using the same `niceGridLines` convention.
+One edge function, `tide-water`, is the only thing that talks to NOAA. It supports three modes with different fetch/cache/persist rules:
 
-### Why template-first, AI-optional
+- **current_day** — today's highs/lows plus the full 15-minute curve; cached until end of local day. Observations (water level, temp, wind, salinity, currents) cached ~15 minutes.
+- **future_date** — predictions only for the requested date, cached long-term. No present-day observations are passed off as forecasts.
+- **historical_trip** — full curve for the trip date plus observations that existed during the trip window, returned once and then **stored permanently on the trip**, so old trips never re-hit NOAA.
 
-Deterministic narrative from numeric deltas is free, instant, and good enough for ~90% of cases. If you want richer phrasing later, we can route the deltas through Lovable AI (Gemini Flash) behind a flag — but I'd start without it to keep cost/latency at zero.
+Station resolution is separate per product (tide prediction, water-level observation, water temperature, tidal current), each resolved by Haversine distance and cached, because NOAA rarely serves all products from one station.
 
-### Out of scope (ask if you want them)
+Every response uses the normalized contract from your spec (`tideSource`, `tides.highs/lows/curve`, `supplementalWaterData`, `metadata` with `predictionDataAvailable` / `curveDataAvailable`). Missing sensors return `null` with an availability flag — never zero, never invented. Subordinate stations that only publish high/low keep their highs/lows and simply mark the curve unavailable; no rate-of-change is computed from data that doesn't exist.
 
-- Solunar / moon phase
-- Water temp from USGS param 00010
-- Multi-day "trip-window" weather card on the home feed
+Derivations (Phase 2): direction (incoming/outgoing), rate in ft/hr, movement strength classified relative to that day's own tide range, and tide phase (`approaching_high`, etc.) kept separate from direction.
 
-### Files touched
+An `aiContext` block is built into every response — compact times/heights plus a fishing-window summary. Nothing consumes it yet; it's there for the AI features you add later.
 
-- `supabase/functions/weather/index.ts` (ERA5 fetch + computed fields + narrative template)
-- `src/components/trip-log/WeatherSection.tsx` (pressure chip, summary chip, sparkline)
-- Type updates to `WeatherSnapshot`
+## 3. Where it shows
+
+- **Spot cards** — for tidal spots, the flow droplet chip is replaced by a next-tide chip (arrow up/down, time, height).
+- **Spot detail** — a Tides section replacing the Water section: today's low/high/low list, a tide curve chart (same gridline + "MMM d" conventions), and a 7-day tide outlook alongside the existing weather forecast.
+- **Trip log form** — for tidal spots the Water Data section renders tides instead of flow/gage. During an active trip it shows current height, direction, next event with countdown, movement strength, and your position on the curve.
+- **Trip history / report** — the persisted tide snapshot: start/end height and direction, dominant direction, net change, whether the trip crossed a high or low, max movement rate, percent incoming vs outgoing, plus any observed conditions captured at the time.
+
+## 4. Data model
+
+New migration:
+
+- `spots`: `noaa_tide_station_id`, `noaa_station_name`, `noaa_station_lat`, `noaa_station_lon`, `noaa_station_distance_miles`, `is_tidal`
+- `noaa_station_products` — per-spot resolved station for each product type (tide, water level, temperature, current, met), so Phase 3 products slot in without redesign
+- `tide_data_cache` — keyed by station + date + datum + units + product, with `expires_at`
+- `fishing_trips.tide_snapshot jsonb` — the permanent historical record
+
+Grants + RLS follow the existing pattern (per-user tables scoped to `auth.uid()`; the cache readable/insertable by authenticated users like `water_data_cache`).
+
+## 5. Build order
+
+1. Site-type choice + coastal creation path + station resolution + schema
+2. Tide predictions (hilo + 15-min), caching, spot detail Tides section, spot card chip
+3. Direction/rate/strength derivations, active-trip curve UI, trip snapshot + trip report stats
+4. Supplemental observations: observed water level, water temp, currents, salinity, NOAA wind
+
+## Technical notes
+
+- NOAA CO-OPS `datagetter` with `product=predictions`, `datum=MLLW`, `time_zone=lst_ldt`, `units=english`, `format=json`, `application=CatchApp`; metadata API for station discovery.
+- Failures degrade silently: tide sections show "unavailable" and the rest of the trip/spot flow is untouched.
+- Frontend never calls NOAA; all access goes through the edge function so there are no duplicate requests per card.
