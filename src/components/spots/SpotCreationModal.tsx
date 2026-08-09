@@ -106,7 +106,10 @@ const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
 const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
-  const [step, setStep] = useState<Step>("state");
+  const [step, setStep] = useState<Step>("type");
+  const [waterType, setWaterType] = useState<WaterType>("Stream");
+  const [tideStation, setTideStation] = useState<ResolvedStation | null>(null);
+  const [resolvingTide, setResolvingTide] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [stateCode, setStateCode] = useState(initialStateCode ?? "");
