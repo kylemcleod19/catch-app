@@ -705,27 +705,83 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   <MapPin className="w-3 h-3 text-primary" /> {pins.length} pin{pins.length !== 1 ? "s" : ""}
                 </div>
               )}
-              {selectedUsgs && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <Navigation className="w-3 h-3 text-primary" /> {selectedUsgs.monitoring_location_name}
+              {waterType !== "Tidal" && (
+                <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs">
+                  <span className="flex items-start gap-1.5 min-w-0">
+                    <Navigation className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                    <span className="truncate">
+                      {selectedUsgs ? selectedUsgs.monitoring_location_name : "No monitoring station selected"}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-primary underline shrink-0"
+                    onClick={openUsgsPicker}
+                  >
+                    {selectedUsgs ? "Change" : "Select"}
+                  </button>
                 </div>
               )}
               {waterType === "Tidal" && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <Anchor className="w-3 h-3 text-primary shrink-0" />
-                  {resolvingTide ? (
-                    "Finding nearest NOAA tide station..."
-                  ) : tideStation?.available ? (
-                    <span>
-                      {tideStation.stationName} ({tideStation.stationId})
-                      {tideStation.distanceMiles != null && ` · ${tideStation.distanceMiles.toFixed(1)} mi`}
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs">
+                    <span className="flex items-start gap-1.5 min-w-0">
+                      <Anchor className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                      <span className="truncate">
+                        {resolvingTide ? (
+                          "Finding nearest NOAA tide station..."
+                        ) : tideStation?.available ? (
+                          <>
+                            {tideStation.stationName} ({tideStation.stationId})
+                            {tideStation.distanceMiles != null && ` · ${tideStation.distanceMiles.toFixed(1)} mi`}
+                          </>
+                        ) : (
+                          "No NOAA tide station within range"
+                        )}
+                      </span>
                     </span>
-                  ) : (
-                    "No NOAA tide station within range"
+                    {!resolvingTide && (
+                      <button
+                        type="button"
+                        className="text-primary underline shrink-0"
+                        onClick={() => (showTidePicker ? setShowTidePicker(false) : openTidePicker())}
+                      >
+                        {showTidePicker ? "Close" : tideStation?.available ? "Change" : "Select"}
+                      </button>
+                    )}
+                  </div>
+
+                  {showTidePicker && (
+                    <div className="rounded-lg border border-border bg-background max-h-48 overflow-y-auto divide-y divide-border">
+                      {loadingTideOptions ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : tideOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground p-3 text-center">No NOAA stations found nearby</p>
+                      ) : (
+                        tideOptions.map((s) => (
+                          <button
+                            key={s.stationId}
+                            type="button"
+                            onClick={() => chooseTideStation(s)}
+                            className={`w-full text-left px-3 py-2 hover:bg-muted transition-colors ${
+                              tideStation?.stationId === s.stationId ? "bg-muted" : ""
+                            }`}
+                          >
+                            <p className="text-xs font-medium text-foreground truncate">{s.stationName}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {s.stationId} · {s.distanceMiles.toFixed(1)} mi away
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
+
 
 
             <div className="flex justify-between">
