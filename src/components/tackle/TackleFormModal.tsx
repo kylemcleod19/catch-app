@@ -43,6 +43,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [aiGuess, setAiGuess] = useState<any>(null);
+  const [clarifications, setClarifications] = useState<string[]>([]);
+  const [clarifyInput, setClarifyInput] = useState("");
 
   useEffect(() => {
     if (!open) return;
