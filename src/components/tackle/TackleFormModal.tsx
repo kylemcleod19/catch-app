@@ -48,6 +48,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [aiGuess, setAiGuess] = useState<any>(null);
   const [clarifications, setClarifications] = useState<string[]>([]);
   const [clarifyInput, setClarifyInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [showUrl, setShowUrl] = useState(false);
+
 
   useEffect(() => {
     if (!open) return;
