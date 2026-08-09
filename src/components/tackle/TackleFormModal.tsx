@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,6 +217,43 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
                 Identify with AI
               </Button>
             </div>
+
+            {aiGuess && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">AI guess</p>
+                {aiGuess.reasoning && <p className="text-sm text-foreground">{aiGuess.reasoning}</p>}
+                {clarifications.length > 0 && (
+                  <ul className="space-y-1">
+                    {clarifications.map((c, i) => (
+                      <li key={i} className="text-xs text-muted-foreground">You: {c}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={clarifyInput}
+                    onChange={(e) => setClarifyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        sendClarification();
+                      }
+                    }}
+                    placeholder="Not quite — it's a size 14 caddis…"
+                    className="rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg shrink-0"
+                    disabled={identifying || !clarifyInput.trim()}
+                    onClick={sendClarification}
+                  >
+                    {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refine"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
