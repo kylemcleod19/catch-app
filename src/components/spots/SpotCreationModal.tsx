@@ -334,17 +334,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
         ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
         : null;
 
-  /** Lets the user pick a different NOAA tide station than the auto-resolved one. */
-  const openTidePicker = async () => {
-    setShowTidePicker(true);
-    if (tideOptions.length > 0) return;
-    const ref = refCoords();
-    if (!ref) return;
-    setLoadingTideOptions(true);
-    const list = await fetchNearbyTideStations(ref.lat, ref.lng, "tide_predictions", 12);
-    setTideOptions(list);
-    setLoadingTideOptions(false);
-  };
+  /** Opens the full-screen map picker for NOAA tide stations. */
+  const openTidePicker = () => setShowTidePicker(true);
 
   const chooseTideStation = (s: NearbyTideStation) => {
     setTideStation({
@@ -358,6 +349,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     });
     setShowTidePicker(false);
   };
+
 
   /** Jumps back to the USGS station step so the monitoring location can be changed. */
   const openUsgsPicker = async () => {
