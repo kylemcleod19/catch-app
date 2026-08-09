@@ -29,6 +29,8 @@ interface Props {
 const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
+
 
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("Fly");
