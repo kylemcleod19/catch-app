@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Loader2, MapPin, Fish, Play, Droplets, CloudSun,
-  Pencil, Trash2, Calendar, Layers, Link2,
+  Pencil, Trash2, Calendar, Layers, Link2, Anchor,
 } from "lucide-react";
 
 import { GoogleMap, Marker } from "@react-google-maps/api";
@@ -17,6 +17,7 @@ import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import StationLinkModal from "@/components/spots/StationLinkModal";
+import TideStationLinkModal from "@/components/spots/TideStationLinkModal";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
@@ -43,6 +44,9 @@ interface SpotRow {
   state_code: string;
   site_type: string;
   usgs_site_id: string | null;
+  noaa_tide_station_id: string | null;
+  noaa_station_name: string | null;
+  noaa_station_distance_miles: number | null;
   spot_points: { id: string; label: string; latitude: number; longitude: number }[];
 }
 
@@ -130,6 +134,7 @@ const SpotDetailPage = () => {
   const [satellite, setSatellite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [stationOpen, setStationOpen] = useState(false);
+  const [tideOpen, setTideOpen] = useState(false);
   const [starting, setStarting] = useState(false);
 
 
@@ -239,6 +244,20 @@ const SpotDetailPage = () => {
     );
   }
 
+  const isTidal = spot.site_type === "Tidal";
+  const linkedStation = isTidal
+    ? spot.noaa_tide_station_id
+      ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})${
+          spot.noaa_station_distance_miles != null
+            ? ` · ${spot.noaa_station_distance_miles.toFixed(1)} mi`
+            : ""
+        }`
+      : null
+    : spot.usgs_site_id
+      ? `USGS ${spot.usgs_site_id}`
+      : null;
+
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-3">
@@ -317,28 +336,39 @@ const SpotDetailPage = () => {
           Start Trip
         </Button>
 
-        {/* Active conditions */}
+        {/* Active conditions — driven by the spot's water type */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Droplets className="w-3.5 h-3.5" /> Water
+              {isTidal ? <Anchor className="w-3.5 h-3.5" /> : <Droplets className="w-3.5 h-3.5" />}
+              {isTidal ? "Tide" : spot.site_type === "Lake" ? "Lake level" : "Water"}
             </div>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 rounded-lg text-xs gap-1 text-primary"
-              onClick={() => setStationOpen(true)}
+              onClick={() => (isTidal ? setTideOpen(true) : setStationOpen(true))}
             >
               <Link2 className="w-3.5 h-3.5" />
-              {spot.usgs_site_id ? "Change station" : "Link station"}
+              {linkedStation ? "Change station" : "Link station"}
             </Button>
           </div>
-          {spot.usgs_site_id ? (
+
+          {linkedStation && (
+            <p className="text-xs text-muted-foreground truncate">{linkedStation}</p>
+          )}
+
+          {isTidal ? (
+            !spot.noaa_tide_station_id ? (
+              <p className="text-xs text-muted-foreground italic">No NOAA tide station linked.</p>
+            ) : null
+          ) : spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
           ) : (
             <p className="text-xs text-muted-foreground italic">No USGS station linked.</p>
           )}
         </section>
+
 
 
         <section className="space-y-2">
@@ -398,6 +428,14 @@ const SpotDetailPage = () => {
         </section>
       </main>
 
+      {tideOpen && (
+        <TideStationLinkModal
+          open={tideOpen}
+          onOpenChange={(o) => { if (!o) setTideOpen(false); }}
+          spot={spot}
+          onLinked={fetchAll}
+        />
+      )}
       {editOpen && (
         <SpotEditModal
           open={editOpen}

@@ -6,12 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getStateName } from "@/lib/us-states";
 import {
-  ChevronLeft, Loader2, MapPin, Plus, X, Move,
+  ChevronLeft, Loader2, MapPin, Plus, X, Move, Link2, Anchor, Droplets,
 } from "lucide-react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
+import StationLinkModal from "./StationLinkModal";
+import TideStationLinkModal from "./TideStationLinkModal";
 
 const PIN_COLORS = [
   "#E53E3E", "#3182CE", "#38A169", "#D69E2E", "#9F7AEA",
@@ -42,6 +44,11 @@ interface SpotEditModalProps {
     name: string | null;
     body_of_water: string;
     state_code: string;
+    site_type?: string;
+    usgs_site_id?: string | null;
+    noaa_tide_station_id?: string | null;
+    noaa_station_name?: string | null;
+    noaa_station_distance_miles?: number | null;
     spot_points: { id: string; label: string; latitude: number; longitude: number }[];
   };
   onUpdated: () => void;
@@ -56,6 +63,8 @@ const SpotEditModal = ({ open, onOpenChange, spot, onUpdated }: SpotEditModalPro
   const [isSatellite, setIsSatellite] = useState(false);
   const [editName, setEditName] = useState(spot.name || "");
   const [saving, setSaving] = useState(false);
+  const [stationOpen, setStationOpen] = useState(false);
+  const [tideOpen, setTideOpen] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Local copy of points for display; DB is source of truth
@@ -120,6 +129,14 @@ const SpotEditModal = ({ open, onOpenChange, spot, onUpdated }: SpotEditModalPro
   }, []);
 
   const isNavigate = mapStage === "navigate";
+  const isTidal = spot.site_type === "Tidal";
+  const linkedStationLabel = isTidal
+    ? spot.noaa_tide_station_id
+      ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})`
+      : null
+    : spot.usgs_site_id
+      ? `USGS ${spot.usgs_site_id}`
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,6 +160,24 @@ const SpotEditModal = ({ open, onOpenChange, spot, onUpdated }: SpotEditModalPro
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">{spot.body_of_water} · {getStateName(spot.state_code)}</p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground">
+                      {isTidal
+                        ? <Anchor className="w-3 h-3 text-primary shrink-0" />
+                        : <Droplets className="w-3 h-3 text-primary shrink-0" />}
+                      <span className="truncate">
+                        {linkedStationLabel || (isTidal ? "No tide station linked" : "No monitoring station linked")}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-primary shrink-0"
+                      onClick={() => (isTidal ? setTideOpen(true) : setStationOpen(true))}
+                    >
+                      <Link2 className="w-3 h-3" />
+                      {linkedStationLabel ? "Change" : "Link"}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -222,6 +257,37 @@ const SpotEditModal = ({ open, onOpenChange, spot, onUpdated }: SpotEditModalPro
               </div>
             </div>
           </div>
+
+          {stationOpen && (
+            <StationLinkModal
+              open={stationOpen}
+              onOpenChange={(o) => { if (!o) setStationOpen(false); }}
+              spot={{
+                id: spot.id,
+                name: spot.name,
+                body_of_water: spot.body_of_water,
+                state_code: spot.state_code,
+                site_type: spot.site_type || "Stream",
+                usgs_site_id: spot.usgs_site_id ?? null,
+                spot_points: points.filter((p) => p.id) as any,
+              }}
+              onLinked={onUpdated}
+            />
+          )}
+          {tideOpen && (
+            <TideStationLinkModal
+              open={tideOpen}
+              onOpenChange={(o) => { if (!o) setTideOpen(false); }}
+              spot={{
+                id: spot.id,
+                name: spot.name,
+                body_of_water: spot.body_of_water,
+                noaa_tide_station_id: spot.noaa_tide_station_id ?? null,
+                spot_points: points.filter((p) => p.id) as any,
+              }}
+              onLinked={onUpdated}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
