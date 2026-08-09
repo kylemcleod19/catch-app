@@ -14,6 +14,7 @@ import BottomNav from "@/components/BottomNav";
 import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
+import StationLinkModal from "@/components/spots/StationLinkModal";
 import { getStateName } from "@/lib/us-states";
 import { toast } from "sonner";
 
