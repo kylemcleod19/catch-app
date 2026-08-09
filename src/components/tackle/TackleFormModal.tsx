@@ -58,6 +58,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setPhotoPath(item?.photo_url || null);
     setPhotoPreview(item?.photoSignedUrl || null);
     setConfirmDelete(false);
+    setAiGuess(null);
+    setClarifications([]);
+    setClarifyInput("");
   }, [open, item]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,9 +177,6 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       <DialogContent className="max-w-lg p-0 gap-0 max-h-[90svh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-base font-bold text-foreground">{item ? "Edit tackle" : "Add tackle"}</h2>
-          <button type="button" onClick={() => onOpenChange(false)} className="p-1.5 rounded-lg hover:bg-muted">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
