@@ -460,11 +460,12 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">
+            {step === "type" && "What Kind of Water?"}
             {step === "state" && "Select State"}
             {step === "water" && "Select Body of Water"}
             {step === "naming" && "Name Your Spot"}
           </DialogTitle>
-          {step !== "state" && stateCode && (
+          {step !== "type" && step !== "state" && stateCode && (
             <button
               type="button"
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors mt-1"
@@ -476,6 +477,42 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             </button>
           )}
         </DialogHeader>
+
+        {step === "type" && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pick the water type first — each one uses different data.
+            </p>
+            {([
+              { key: "Stream" as const, title: "Stream / River", sub: "USGS gauges with flow (cfs)", Icon: Waves },
+              { key: "Lake" as const, title: "Lake / Reservoir", sub: "USGS gauges with water level (ft)", Icon: Droplets },
+              { key: "Tidal" as const, title: "Saltwater / Tidal", sub: "NOAA tide predictions, no USGS gauge", Icon: Anchor },
+            ]).map(({ key, title, sub, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setWaterType(key);
+                  setWaterInput("");
+                  setIsUsgsWater(false);
+                  setSelectedUsgs(null);
+                  setNearbyUsgs([]);
+                  setStep(stateCode ? "water" : "state");
+                }}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+                  waterType === key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                }`}
+              >
+                <Icon className="w-6 h-6 text-primary shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">{title}</p>
+                  <p className="text-xs text-muted-foreground">{sub}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+              </button>
+            ))}
+          </div>
+        )}
 
         {step === "state" && (
           <div className="space-y-4">
