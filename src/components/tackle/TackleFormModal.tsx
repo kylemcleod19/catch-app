@@ -66,6 +66,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setAiGuess(null);
     setClarifications([]);
     setClarifyInput("");
+    setUrlInput("");
+    setShowUrl(false);
+
   }, [open, item]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
