@@ -327,6 +327,45 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     setStep("map");
   };
 
+  const refCoords = () =>
+    pins.length > 0
+      ? { lat: pins[0].latitude, lng: pins[0].longitude }
+      : mapRef.current?.getCenter()
+        ? { lat: mapRef.current.getCenter()!.lat(), lng: mapRef.current.getCenter()!.lng() }
+        : null;
+
+  /** Lets the user pick a different NOAA tide station than the auto-resolved one. */
+  const openTidePicker = async () => {
+    setShowTidePicker(true);
+    if (tideOptions.length > 0) return;
+    const ref = refCoords();
+    if (!ref) return;
+    setLoadingTideOptions(true);
+    const list = await fetchNearbyTideStations(ref.lat, ref.lng, "tide_predictions", 12);
+    setTideOptions(list);
+    setLoadingTideOptions(false);
+  };
+
+  const chooseTideStation = (s: NearbyTideStation) => {
+    setTideStation({
+      available: true,
+      product: "tide_predictions",
+      stationId: s.stationId,
+      stationName: s.stationName,
+      stationLat: s.stationLat,
+      stationLon: s.stationLon,
+      distanceMiles: s.distanceMiles,
+    });
+    setShowTidePicker(false);
+  };
+
+  /** Jumps back to the USGS station step so the monitoring location can be changed. */
+  const openUsgsPicker = async () => {
+    if (nearbyUsgs.length === 0) await findNearbyUsgs();
+    setStep("usgs_select");
+  };
+
+
   const handleMapFinish = async () => {
     if (waterType === "Tidal") {
       const ref = pins.length > 0
