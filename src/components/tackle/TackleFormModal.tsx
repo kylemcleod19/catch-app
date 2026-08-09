@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [aiGuess, setAiGuess] = useState<any>(null);
+  const [clarifications, setClarifications] = useState<string[]>([]);
+  const [clarifyInput, setClarifyInput] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -55,6 +58,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setPhotoPath(item?.photo_url || null);
     setPhotoPreview(item?.photoSignedUrl || null);
     setConfirmDelete(false);
+    setAiGuess(null);
+    setClarifications([]);
+    setClarifyInput("");
   }, [open, item]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,18 +79,18 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     }
   };
 
-  const identify = async () => {
+  const runIdentify = async (notes: string[]) => {
     if (!photoPreview || !user) return;
     setIdentifying(true);
     try {
       const { data, error } = await supabase.functions.invoke("identify-tackle", {
-        body: { image_url: photoPreview },
+        body: { image_url: photoPreview, clarifications: notes, previous: aiGuess },
       });
       if (error) throw error;
 
       if (data?.type && TACKLE_TYPES.includes(data.type)) setType(data.type);
-      if (data?.suggested_name && !name.trim()) setName(data.suggested_name);
-      if (data?.presentation_hint && !presentation.trim()) setPresentation(data.presentation_hint);
+      if (data?.suggested_name) setName(data.suggested_name);
+      if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
       if (Array.isArray(data?.species) && data.species.length) {
         const resolved: Species[] = [];
@@ -100,13 +106,25 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
           return [...prev, ...resolved.filter((r) => !ids.has(r.id))];
         });
       }
-      toast.success("Suggestions filled in — edit anything before saving");
+      setAiGuess(data || null);
+      setClarifications(notes);
+      toast.success("Suggestions filled in — edit anything or clarify below");
     } catch {
       toast.error("Could not identify the photo. Fill the details in manually.");
     } finally {
       setIdentifying(false);
     }
   };
+
+  const identify = () => runIdentify([]);
+
+  const sendClarification = () => {
+    const note = clarifyInput.trim();
+    if (!note) return;
+    setClarifyInput("");
+    runIdentify([...clarifications, note]);
+  };
+
 
   const handleSave = async () => {
     if (!user) return;
@@ -159,9 +177,6 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       <DialogContent className="max-w-lg p-0 gap-0 max-h-[90svh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-base font-bold text-foreground">{item ? "Edit tackle" : "Add tackle"}</h2>
-          <button type="button" onClick={() => onOpenChange(false)} className="p-1.5 rounded-lg hover:bg-muted">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
@@ -202,6 +217,43 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
                 Identify with AI
               </Button>
             </div>
+
+            {aiGuess && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">AI guess</p>
+                {aiGuess.reasoning && <p className="text-sm text-foreground">{aiGuess.reasoning}</p>}
+                {clarifications.length > 0 && (
+                  <ul className="space-y-1">
+                    {clarifications.map((c, i) => (
+                      <li key={i} className="text-xs text-muted-foreground">You: {c}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={clarifyInput}
+                    onChange={(e) => setClarifyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        sendClarification();
+                      }
+                    }}
+                    placeholder="Not quite — it's a size 14 caddis…"
+                    className="rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg shrink-0"
+                    disabled={identifying || !clarifyInput.trim()}
+                    onClick={sendClarification}
+                  >
+                    {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refine"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

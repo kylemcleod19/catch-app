@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { image_url } = await req.json();
+    const { image_url, clarifications, previous } = await req.json();
     if (!image_url || typeof image_url !== "string") {
       return new Response(JSON.stringify({ error: "image_url is required" }), {
         status: 400,
@@ -23,6 +23,32 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    const notes: string[] = Array.isArray(clarifications)
+      ? clarifications.filter((c: unknown) => typeof c === "string" && c.trim()).slice(0, 10)
+      : [];
+
+    const messages: unknown[] = [
+      {
+        role: "system",
+        content:
+          "You identify fishing tackle from a photograph. Classify the item, suggest a short descriptive name an angler would use (include colour and pattern), list the fish species it is typically used for, and give one short sentence on how it is usually presented. Also return a one-sentence 'reasoning' describing what you see. The user may send clarifications correcting or adding detail — always trust the user's clarification over the photo and update every field accordingly.",
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Identify this piece of fishing tackle." },
+          { type: "image_url", image_url: { url: image_url } },
+        ],
+      },
+    ];
+
+    if (previous && typeof previous === "object") {
+      messages.push({ role: "assistant", content: JSON.stringify(previous) });
+    }
+    for (const note of notes) {
+      messages.push({ role: "user", content: `Clarification: ${note}. Re-answer with updated details.` });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -31,20 +57,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You identify fishing tackle from a photograph. Classify the item, suggest a short descriptive name an angler would use (include colour and pattern), list the fish species it is typically used for, and give one short sentence on how it is usually presented. Be conservative: if unsure, leave fields out.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Identify this piece of fishing tackle." },
-              { type: "image_url", image_url: { url: image_url } },
-            ],
-          },
-        ],
+        messages,
         tools: [
           {
             type: "function",
@@ -71,6 +84,7 @@ serve(async (req) => {
                   suggested_name: { type: "string" },
                   species: { type: "array", items: { type: "string" } },
                   presentation_hint: { type: "string" },
+                  reasoning: { type: "string" },
                 },
                 required: ["type"],
                 additionalProperties: false,
