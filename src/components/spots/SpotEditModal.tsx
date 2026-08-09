@@ -123,7 +123,7 @@ const SpotEditModal = ({ open, onOpenChange, spot, onUpdated }: SpotEditModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-full h-[100dvh] p-0 border-0 rounded-none [&>button]:hidden overflow-hidden">
+      <DialogContent className="max-w-full w-full h-[100dvh] max-h-[100dvh] z-[60] p-0 border-0 rounded-none [&>button]:hidden overflow-hidden">
         <div className="relative w-full h-full flex flex-col">
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-md border-b border-border/50 safe-area-top">
