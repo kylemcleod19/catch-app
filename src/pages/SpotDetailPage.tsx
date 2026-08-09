@@ -126,7 +126,9 @@ const SpotDetailPage = () => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [satellite, setSatellite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [stationOpen, setStationOpen] = useState(false);
   const [starting, setStarting] = useState(false);
+
 
   const fetchAll = useCallback(async () => {
     if (!id || !user) return;
