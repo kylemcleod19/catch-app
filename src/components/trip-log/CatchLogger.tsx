@@ -77,15 +77,16 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
 
   useImperativeHandle(ref, () => ({
     addBulkCatches: async (bulkCatches: BulkCatch[]) => {
-      const rows = bulkCatches.map((c) => ({
+      const rows = await Promise.all(bulkCatches.map(async (c) => ({
         user_id: userId,
         trip_id: tripId,
         species: c.species,
+        species_id: await findOrCreateSpecies(c.species, userId).then((s) => s.id).catch(() => null),
         quantity: c.quantity || 1,
         lure_or_bait: c.lure_or_bait || null,
         weight_oz: c.weight_oz ?? null,
         length_in: c.length_in ?? null,
-      }));
+      })));
 
       const { error } = await supabase.from("catches").insert(rows as any);
       if (error) {
