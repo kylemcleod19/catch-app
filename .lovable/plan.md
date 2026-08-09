@@ -34,7 +34,9 @@ A place to keep every fly, lure, and bait you own — with a photo, what it's fo
 ## Technical notes
 
 Database (single migration):
-- New `tackle` table: `user_id`, `name`, `type`, `target_species text[]`, `purchase_location`, `presentation_notes`, `notes`, `photo_url`, `is_demo`, timestamps. RLS scoped to `auth.uid()`, GRANTs for `authenticated` + `service_role`, `updated_at` trigger.
+- New `species` table: `id`, `primary_name` (unique), `nicknames text[]`, `created_by`, timestamps. Any authenticated user can read and add a species; only admins (via `has_role`) can edit, merge/consolidate, or delete. GRANTs for `authenticated` + `service_role`.
+- New `tackle` table: `user_id`, `name`, `type`, `purchase_location`, `presentation_notes`, `notes`, `photo_url`, `is_demo`, timestamps. RLS scoped to `auth.uid()`, GRANTs for `authenticated` + `service_role`, `updated_at` trigger.
+- New `tackle_species` join table linking tackle to species (many-to-many), RLS via the owning tackle row.
 - `catches` gains a nullable `tackle_id` referencing `tackle` (on delete set null). `lure_or_bait` stays as the free-text fallback and history.
 - The unused `gear` table is dropped; tackle replaces it.
 - Private storage bucket `tackle-photos` with per-user folder RLS; photos read through signed URLs.
