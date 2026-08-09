@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import SpotWaterConditions from "@/components/spots/SpotWaterConditions";
+import SpotTideConditions from "@/components/spots/SpotTideConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import SpotEditModal from "@/components/spots/SpotEditModal";
 import StationLinkModal from "@/components/spots/StationLinkModal";
