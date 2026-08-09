@@ -26,6 +26,8 @@ export type Database = {
           photo_url: string | null
           quantity: number
           species: string
+          species_id: string | null
+          tackle_id: string | null
           trip_id: string
           user_id: string
           weight_oz: number | null
@@ -41,6 +43,8 @@ export type Database = {
           photo_url?: string | null
           quantity?: number
           species: string
+          species_id?: string | null
+          tackle_id?: string | null
           trip_id: string
           user_id: string
           weight_oz?: number | null
@@ -56,11 +60,27 @@ export type Database = {
           photo_url?: string | null
           quantity?: number
           species?: string
+          species_id?: string | null
+          tackle_id?: string | null
           trip_id?: string
           user_id?: string
           weight_oz?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "catches_species_id_fkey"
+            columns: ["species_id"]
+            isOneToOne: false
+            referencedRelation: "species"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catches_tackle_id_fkey"
+            columns: ["tackle_id"]
+            isOneToOne: false
+            referencedRelation: "tackle"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "catches_trip_id_fkey"
             columns: ["trip_id"]
@@ -137,39 +157,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      gear: {
-        Row: {
-          brand: string | null
-          category: string | null
-          created_at: string
-          id: string
-          is_demo: boolean
-          name: string
-          notes: string | null
-          user_id: string
-        }
-        Insert: {
-          brand?: string | null
-          category?: string | null
-          created_at?: string
-          id?: string
-          is_demo?: boolean
-          name: string
-          notes?: string | null
-          user_id: string
-        }
-        Update: {
-          brand?: string | null
-          category?: string | null
-          created_at?: string
-          id?: string
-          is_demo?: boolean
-          name?: string
-          notes?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       noaa_station_products: {
         Row: {
@@ -260,6 +247,33 @@ export type Database = {
           is_demo?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      species: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          nicknames: string[]
+          primary_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nicknames?: string[]
+          primary_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nicknames?: string[]
+          primary_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -432,6 +446,81 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      tackle: {
+        Row: {
+          created_at: string
+          id: string
+          is_demo: boolean
+          name: string
+          notes: string | null
+          photo_url: string | null
+          presentation_notes: string | null
+          purchase_location: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          presentation_notes?: string | null
+          purchase_location?: string | null
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          presentation_notes?: string | null
+          purchase_location?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tackle_species: {
+        Row: {
+          created_at: string
+          species_id: string
+          tackle_id: string
+        }
+        Insert: {
+          created_at?: string
+          species_id: string
+          tackle_id: string
+        }
+        Update: {
+          created_at?: string
+          species_id?: string
+          tackle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tackle_species_species_id_fkey"
+            columns: ["species_id"]
+            isOneToOne: false
+            referencedRelation: "species"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tackle_species_tackle_id_fkey"
+            columns: ["tackle_id"]
+            isOneToOne: false
+            referencedRelation: "tackle"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tide_data_cache: {
         Row: {
