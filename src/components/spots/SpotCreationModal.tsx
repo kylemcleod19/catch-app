@@ -52,7 +52,25 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
 }
 
-type Step = "state" | "water" | "map" | "usgs_select" | "naming";
+type Step = "type" | "state" | "water" | "map" | "usgs_select" | "naming";
+export type WaterType = "Stream" | "Lake" | "Tidal";
+
+export const USGS_SITE_TYPE: Record<"Stream" | "Lake", string> = {
+  Stream: "Stream",
+  Lake: "Lake, Reservoir, Impoundment",
+};
+
+interface ResolvedStation {
+  available: boolean;
+  product: string;
+  stationId?: string;
+  stationName?: string;
+  stationLat?: number;
+  stationLon?: number;
+  distanceMiles?: number;
+  nearestDistanceMiles?: number;
+  maxDistanceMiles?: number;
+}
 type MapStage = "navigate" | "pin";
 
 const LIBRARIES: ("places")[] = ["places"];
