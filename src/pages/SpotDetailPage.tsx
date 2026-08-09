@@ -361,7 +361,15 @@ const SpotDetailPage = () => {
           {isTidal ? (
             !spot.noaa_tide_station_id ? (
               <p className="text-xs text-muted-foreground italic">No NOAA tide station linked.</p>
-            ) : null
+            ) : spot.spot_points.length > 0 ? (
+              <SpotTideConditions
+                lat={spot.spot_points[0].latitude}
+                lon={spot.spot_points[0].longitude}
+                spotId={spot.id}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Add a pin to see tide data.</p>
+            )
           ) : spot.usgs_site_id ? (
             <SpotWaterConditions usgsSiteId={spot.usgs_site_id} />
           ) : (
