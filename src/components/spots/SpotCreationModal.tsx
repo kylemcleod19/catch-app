@@ -555,30 +555,38 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
 
         {step === "water" && (
           <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {waterType === "Tidal" ? <Anchor className="w-3.5 h-3.5 text-primary" /> : waterType === "Lake" ? <Droplets className="w-3.5 h-3.5 text-primary" /> : <Waves className="w-3.5 h-3.5 text-primary" />}
+              {waterType === "Tidal" ? "Saltwater / Tidal" : waterType === "Lake" ? "Lake / Reservoir" : "Stream / River"}
+              <button type="button" className="text-[10px] underline" onClick={() => setStep("type")}>change</button>
+            </div>
 
             <div className="space-y-1 relative">
               <label className="text-sm font-medium text-foreground">Water body name</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Type to search or enter a custom name..."
+                  placeholder={waterType === "Tidal" ? "e.g. Barnegat Bay, Pamlico Sound..." : "Type to search or enter a custom name..."}
                   value={waterInput}
                   onChange={(e) => handleWaterInputChange(e.target.value)}
-                  onFocus={() => waterInput.trim().length >= 2 && setShowSuggestions(true)}
+                  onFocus={() => waterType !== "Tidal" && waterInput.trim().length >= 2 && setShowSuggestions(true)}
                   className="rounded-xl pl-9"
                   autoFocus
                 />
               </div>
-              {isUsgsWater && (
-                <p className="text-xs text-primary flex items-center gap-1">
-                  <Navigation className="w-3 h-3" /> USGS monitored water body
+              {waterType === "Tidal" ? (
+                <p className="text-xs text-muted-foreground">
+                  Tide data comes from the nearest NOAA station — no USGS gauge needed.
                 </p>
-              )}
-              {!isUsgsWater && waterInput.trim().length > 0 && (
+              ) : isUsgsWater ? (
+                <p className="text-xs text-primary flex items-center gap-1">
+                  <Navigation className="w-3 h-3" /> USGS monitored ({waterType === "Stream" ? "flow" : "water level"})
+                </p>
+              ) : waterInput.trim().length > 0 ? (
                 <p className="text-xs text-muted-foreground">Custom water body (no USGS data)</p>
-              )}
+              ) : null}
 
-              {showSuggestions && suggestions.length > 0 && (
+              {waterType !== "Tidal" && showSuggestions && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border">
                   {loadingWater ? (
                     <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
@@ -612,6 +620,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             </div>
           </div>
         )}
+
 
         {step === "naming" && (
           <div className="space-y-4">
