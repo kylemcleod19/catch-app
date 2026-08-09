@@ -154,6 +154,7 @@ export async function fetchNearbyTideStations(
   }
 }
 
+export function formatTideTime(t: string) {
 
   // NOAA local time "YYYY-MM-DD HH:MM"
   const hhmm = t.slice(11, 16);
