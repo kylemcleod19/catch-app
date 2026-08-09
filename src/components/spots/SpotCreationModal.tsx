@@ -16,6 +16,7 @@ import {
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import PlacesAutocomplete from "./PlacesAutocomplete";
 import HoleNamingPrompt from "./HoleNamingPrompt";
+import { fetchTideData } from "@/lib/tide";
 
 interface SpotPoint {
   label: string;
