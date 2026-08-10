@@ -141,6 +141,31 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       if (data?.suggested_name) setName(data.suggested_name);
       if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
+      if (data?.color || data?.size) {
+        setVariants((prev) => {
+          if (prev.length === 0) {
+            return [
+              {
+                ...newDraftVariant(true),
+                color: data.color ? String(data.color) : "",
+                size: data.size ? String(data.size) : "",
+                photo_url: photoPath,
+                photoPreview,
+              },
+            ];
+          }
+          return prev.map((v, i) =>
+            i === 0
+              ? {
+                  ...v,
+                  color: v.color || (data.color ? String(data.color) : ""),
+                  size: v.size || (data.size ? String(data.size) : ""),
+                }
+              : v
+          );
+        });
+      }
+
       if (Array.isArray(data?.species) && data.species.length) {
         const resolved: Species[] = [];
         for (const s of data.species.slice(0, 6)) {
