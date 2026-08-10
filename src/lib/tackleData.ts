@@ -175,6 +175,10 @@ export const fetchTackle = async (userId: string): Promise<TackleItem[]> => {
         user_id: r.user_id,
         name: r.name,
         type: r.type,
+        subcategory_id: r.subcategory_id,
+        categoryName: r.tackle_subcategory?.tackle_category?.name ?? null,
+        subcategoryName: r.tackle_subcategory?.name ?? null,
+
         purchase_location: r.purchase_location,
         presentation_notes: r.presentation_notes,
         notes: r.notes,
