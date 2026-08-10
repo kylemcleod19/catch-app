@@ -36,7 +36,10 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
 
   const [name, setName] = useState("");
-  const [type, setType] = useState<string>("Fly");
+  const [taxonomy, setTaxonomy] = useState<TackleCategory[]>([]);
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [subcategoryId, setSubcategoryId] = useState<string>("");
+
   const [purchaseLocation, setPurchaseLocation] = useState("");
   const [presentation, setPresentation] = useState("");
   const [notes, setNotes] = useState("");
