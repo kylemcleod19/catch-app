@@ -15,6 +15,21 @@ export const TACKLE_TYPES = [
 
 export type TackleType = (typeof TACKLE_TYPES)[number];
 
+export interface TackleVariant {
+  id: string;
+  tackle_id: string;
+  color: string | null;
+  size: string | null;
+  photo_url: string | null;
+  notes: string | null;
+  is_primary: boolean;
+  sort_order: number;
+  photoSignedUrl?: string | null;
+}
+
+export const variantLabel = (v: { color: string | null; size: string | null }) =>
+  [v.color, v.size].filter(Boolean).join(" · ");
+
 export interface TackleItem {
   id: string;
   user_id: string;
@@ -26,6 +41,7 @@ export interface TackleItem {
   photo_url: string | null;
   created_at: string;
   species: Species[];
+  variants: TackleVariant[];
   photoSignedUrl?: string | null;
 }
 
