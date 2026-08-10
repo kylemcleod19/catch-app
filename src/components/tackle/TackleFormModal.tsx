@@ -206,6 +206,11 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Give this tackle a name");
       return;
     }
+    const cleanVariants = variants.filter((v) => v.color.trim() || v.size.trim());
+    if (cleanVariants.length !== variants.length) {
+      toast.error("Each variant needs a colour or a size");
+      return;
+    }
     setSaving(true);
     try {
       await saveTackle(
@@ -218,6 +223,14 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
           notes: notes.trim() || null,
           photo_url: photoPath,
           speciesIds: species.map((s) => s.id),
+          variants: cleanVariants.map((v) => ({
+            id: v.id,
+            color: v.color.trim() || null,
+            size: v.size.trim() || null,
+            photo_url: v.photo_url,
+            notes: v.notes.trim() || null,
+            is_primary: v.is_primary,
+          })),
         },
         item?.id
       );
