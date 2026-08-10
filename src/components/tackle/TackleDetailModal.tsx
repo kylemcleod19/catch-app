@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Fish, Loader2, MapPin, Pencil } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TackleCatchSummary, TackleItem, fetchTackleCatchSummary, variantLabel } from "@/lib/tackleData";
+import { TackleCatchSummary, TackleItem, fetchTackleCatchSummary, tackleLabel, variantLabel } from "@/lib/tackleData";
 
 interface Props {
   open: boolean;
@@ -40,7 +40,7 @@ const TackleDetailModal = ({ open, onOpenChange, item, onEdit }: Props) => {
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="w-full aspect-video bg-muted flex items-center justify-center overflow-hidden">
             {item.photoSignedUrl ? (
-              <img src={item.photoSignedUrl} alt={`${item.name} — ${item.type}`} className="w-full h-full object-cover" />
+              <img src={item.photoSignedUrl} alt={`${item.name} — ${tackleLabel(item)}`} className="w-full h-full object-cover" />
             ) : (
               <Fish className="w-10 h-10 text-muted-foreground" />
             )}
@@ -49,7 +49,7 @@ const TackleDetailModal = ({ open, onOpenChange, item, onEdit }: Props) => {
           <div className="p-4 space-y-4">
             <div className="flex flex-wrap gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-primary/10 text-primary">
-                {item.type}
+                {tackleLabel(item)}
               </span>
               {item.species.map((s) => (
                 <span key={s.id} className="text-[10px] font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">

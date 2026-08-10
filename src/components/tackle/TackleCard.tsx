@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Fish } from "lucide-react";
-import { TackleItem, variantLabel } from "@/lib/tackleData";
+import { TackleItem, tackleLabel, variantLabel } from "@/lib/tackleData";
 
 interface Props {
   item: TackleItem;
@@ -33,7 +33,7 @@ const TackleCard = ({ item, onClick }: Props) => {
         {active ? (
           <img
             src={active.url}
-            alt={`${item.name}${active.label ? ` — ${active.label}` : ""} — ${item.type}`}
+            alt={`${item.name}${active.label ? ` — ${active.label}` : ""} — ${tackleLabel(item)}`}
             loading="lazy"
             className="w-full h-full object-cover"
           />
@@ -82,7 +82,7 @@ const TackleCard = ({ item, onClick }: Props) => {
       <div className="p-3 space-y-1.5">
         <p className="text-sm font-semibold text-card-foreground leading-tight line-clamp-2">{item.name}</p>
         <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-          {item.type}
+          {tackleLabel(item)}
         </span>
         {item.species.length > 0 && (
           <p className="text-[11px] text-muted-foreground line-clamp-1">

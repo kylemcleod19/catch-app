@@ -12,13 +12,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Species, findOrCreateSpecies } from "@/lib/species";
 import {
-  TACKLE_TYPES,
+  TackleCategory,
   TackleItem,
   deleteTackle,
+  fetchTackleTaxonomy,
   saveTackle,
   signPhoto,
   uploadTacklePhoto,
 } from "@/lib/tackleData";
+
 
 interface Props {
   open: boolean;
@@ -34,7 +36,10 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
 
   const [name, setName] = useState("");
-  const [type, setType] = useState<string>("Fly");
+  const [taxonomy, setTaxonomy] = useState<TackleCategory[]>([]);
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [subcategoryId, setSubcategoryId] = useState<string>("");
+
   const [purchaseLocation, setPurchaseLocation] = useState("");
   const [presentation, setPresentation] = useState("");
   const [notes, setNotes] = useState("");
@@ -56,8 +61,24 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
   useEffect(() => {
     if (!open) return;
+    fetchTackleTaxonomy()
+      .then(setTaxonomy)
+      .catch(() => toast.error("Could not load tackle categories"));
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || taxonomy.length === 0) return;
+    const cat = item?.subcategory_id
+      ? taxonomy.find((c) => c.subcategories.some((s) => s.id === item.subcategory_id))
+      : undefined;
+    setCategoryId(cat?.id || taxonomy[0].id);
+    setSubcategoryId(cat ? item!.subcategory_id! : "");
+  }, [open, taxonomy, item]);
+
+  useEffect(() => {
+    if (!open) return;
     setName(item?.name || "");
-    setType(item?.type || "Fly");
+
     setPurchaseLocation(item?.purchase_location || "");
     setPresentation(item?.presentation_notes || "");
     setNotes(item?.notes || "");
@@ -137,7 +158,23 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       });
       if (error) throw error;
 
-      if (data?.type && TACKLE_TYPES.includes(data.type)) setType(data.type);
+      if (data?.category || data?.subcategory) {
+        const cat =
+          taxonomy.find((c) => c.name.toLowerCase() === String(data.category || "").toLowerCase()) ||
+          taxonomy.find((c) =>
+            c.subcategories.some(
+              (s) => s.name.toLowerCase() === String(data.subcategory || "").toLowerCase()
+            )
+          );
+        if (cat) {
+          setCategoryId(cat.id);
+          const sub = cat.subcategories.find(
+            (s) => s.name.toLowerCase() === String(data.subcategory || "").toLowerCase()
+          );
+          setSubcategoryId(sub?.id || "");
+        }
+      }
+
       if (data?.suggested_name) setName(data.suggested_name);
       if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
@@ -206,6 +243,12 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Give this tackle a name");
       return;
     }
+    const category = taxonomy.find((c) => c.id === categoryId);
+    const subcategory = category?.subcategories.find((s) => s.id === subcategoryId);
+    if (!subcategory) {
+      toast.error("Pick a category and subcategory");
+      return;
+    }
     const cleanVariants = variants.filter((v) => v.color.trim() || v.size.trim());
     if (cleanVariants.length !== variants.length) {
       toast.error("Each variant needs a colour or a size");
@@ -217,7 +260,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
         user.id,
         {
           name,
-          type,
+          subcategoryId: subcategory.id,
+          type: subcategory.name,
+
           purchase_location: purchaseLocation.trim() || null,
           presentation_notes: presentation.trim() || null,
           notes: notes.trim() || null,
@@ -406,20 +451,50 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Type</label>
-            <Select value={type} onValueChange={setType}>
+            <label className="text-sm font-medium text-foreground">Category</label>
+            <div className="grid grid-cols-3 gap-2">
+              {taxonomy.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryId(c.id);
+                    setSubcategoryId("");
+                  }}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-colors ${
+                    categoryId === c.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Subcategory</label>
+            <Select value={subcategoryId} onValueChange={setSubcategoryId}>
               <SelectTrigger className="rounded-lg">
-                <SelectValue />
+                <SelectValue placeholder="Choose a subcategory" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-50">
-                {TACKLE_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                {(taxonomy.find((c) => c.id === categoryId)?.subcategories || []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {(() => {
+              const note = taxonomy
+                .find((c) => c.id === categoryId)
+                ?.subcategories.find((s) => s.id === subcategoryId)?.notes;
+              return note ? <p className="text-xs text-muted-foreground">{note}</p> : null;
+            })()}
           </div>
+
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Target species</label>

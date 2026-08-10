@@ -9,7 +9,7 @@ import TackleDetailModal from "@/components/tackle/TackleDetailModal";
 import SpeciesAdminModal from "@/components/tackle/SpeciesAdminModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { TACKLE_TYPES, TackleItem, fetchTackle } from "@/lib/tackleData";
+import { TackleCategory, TackleItem, fetchTackle, fetchTackleTaxonomy } from "@/lib/tackleData";
 import { toast } from "sonner";
 
 const TackleBoxPage = () => {
@@ -17,7 +17,9 @@ const TackleBoxPage = () => {
   const [items, setItems] = useState<TackleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [taxonomy, setTaxonomy] = useState<TackleCategory[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [subFilter, setSubFilter] = useState<string | null>(null);
   const [speciesFilter, setSpeciesFilter] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -40,6 +42,7 @@ const TackleBoxPage = () => {
 
   useEffect(() => {
     load();
+    fetchTackleTaxonomy().then(setTaxonomy).catch(() => undefined);
     if (user) {
       supabase
         .from("user_roles")
@@ -58,16 +61,23 @@ const TackleBoxPage = () => {
     return Array.from(set).sort();
   }, [items]);
 
+  const subOptions = useMemo(
+    () => taxonomy.find((c) => c.name === categoryFilter)?.subcategories || [],
+    [taxonomy, categoryFilter]
+  );
+
   const filtered = useMemo(
     () =>
       items.filter((i) => {
-        if (typeFilter && i.type !== typeFilter) return false;
+        if (categoryFilter && i.categoryName !== categoryFilter) return false;
+        if (subFilter && i.subcategoryName !== subFilter) return false;
         if (speciesFilter && !i.species.some((s) => s.primary_name === speciesFilter)) return false;
         if (query.trim() && !i.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
         return true;
       }),
-    [items, typeFilter, speciesFilter, query]
+    [items, categoryFilter, subFilter, speciesFilter, query]
   );
+
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -109,13 +119,16 @@ const TackleBoxPage = () => {
         </div>
 
         <div className="flex gap-1.5 overflow-x-auto py-3 -mx-4 px-4">
-          {[null, ...TACKLE_TYPES].map((t) => (
+          {[null, ...taxonomy.map((c) => c.name)].map((t) => (
             <button
               key={t ?? "all"}
               type="button"
-              onClick={() => setTypeFilter(t)}
+              onClick={() => {
+                setCategoryFilter(t);
+                setSubFilter(null);
+              }}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                typeFilter === t
+                categoryFilter === t
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-card text-muted-foreground border-border"
               }`}
@@ -124,6 +137,26 @@ const TackleBoxPage = () => {
             </button>
           ))}
         </div>
+
+        {subOptions.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-4 px-4">
+            {[null, ...subOptions.map((s) => s.name)].map((s) => (
+              <button
+                key={s ?? "all-sub"}
+                type="button"
+                onClick={() => setSubFilter(s)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  subFilter === s
+                    ? "bg-secondary text-secondary-foreground border-secondary"
+                    : "bg-card text-muted-foreground border-border"
+                }`}
+              >
+                {s ?? `All ${categoryFilter}`}
+              </button>
+            ))}
+          </div>
+        )}
+
 
         {speciesOptions.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-4 px-4">

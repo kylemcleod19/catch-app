@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Species } from "@/lib/species";
 
+/** @deprecated legacy flat type list — kept only for reading old records */
 export const TACKLE_TYPES = [
   "Fly",
   "Lure",
@@ -14,6 +15,37 @@ export const TACKLE_TYPES = [
 ] as const;
 
 export type TackleType = (typeof TACKLE_TYPES)[number];
+
+export interface TackleSubcategory {
+  id: string;
+  category_id: string;
+  name: string;
+  notes: string | null;
+  sort_order: number;
+}
+
+export interface TackleCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  subcategories: TackleSubcategory[];
+}
+
+export const fetchTackleTaxonomy = async (): Promise<TackleCategory[]> => {
+  const [{ data: cats, error: catErr }, { data: subs, error: subErr }] = await Promise.all([
+    supabase.from("tackle_category").select("id, name, sort_order").order("sort_order"),
+    supabase
+      .from("tackle_subcategory")
+      .select("id, category_id, name, notes, sort_order")
+      .order("sort_order"),
+  ]);
+  if (catErr) throw catErr;
+  if (subErr) throw subErr;
+  return (cats || []).map((c) => ({
+    ...c,
+    subcategories: (subs || []).filter((s) => s.category_id === c.id),
+  }));
+};
 
 export interface TackleVariant {
   id: string;
@@ -35,6 +67,9 @@ export interface TackleItem {
   user_id: string;
   name: string;
   type: string;
+  subcategory_id: string | null;
+  categoryName: string | null;
+  subcategoryName: string | null;
   purchase_location: string | null;
   presentation_notes: string | null;
   notes: string | null;
@@ -44,6 +79,17 @@ export interface TackleItem {
   variants: TackleVariant[];
   photoSignedUrl?: string | null;
 }
+
+/** "Flies · Nymph" — falls back to the legacy flat type for un-migrated records */
+export const tackleLabel = (item: {
+  categoryName: string | null;
+  subcategoryName: string | null;
+  type: string;
+}) =>
+  item.subcategoryName
+    ? [item.categoryName, item.subcategoryName].filter(Boolean).join(" · ")
+    : item.type;
+
 
 const BUCKET = "tackle-photos";
 
@@ -85,11 +131,17 @@ interface RawTackle {
   user_id: string;
   name: string;
   type: string;
+  subcategory_id: string | null;
   purchase_location: string | null;
   presentation_notes: string | null;
   notes: string | null;
   photo_url: string | null;
   created_at: string;
+  tackle_subcategory: {
+    id: string;
+    name: string;
+    tackle_category: { id: string; name: string } | null;
+  } | null;
   tackle_species: { species: Species | null }[] | null;
   tackle_variants: RawVariant[] | null;
 }
@@ -98,11 +150,12 @@ export const fetchTackle = async (userId: string): Promise<TackleItem[]> => {
   const { data, error } = await supabase
     .from("tackle")
     .select(
-      "id, user_id, name, type, purchase_location, presentation_notes, notes, photo_url, created_at, tackle_species(species(id, primary_name, nicknames)), tackle_variants(id, tackle_id, color, size, photo_url, notes, is_primary, sort_order)"
+      "id, user_id, name, type, subcategory_id, purchase_location, presentation_notes, notes, photo_url, created_at, tackle_subcategory(id, name, tackle_category(id, name)), tackle_species(species(id, primary_name, nicknames)), tackle_variants(id, tackle_id, color, size, photo_url, notes, is_primary, sort_order)"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
+
 
   const rows = (data as unknown as RawTackle[]) || [];
   return Promise.all(
@@ -122,6 +175,10 @@ export const fetchTackle = async (userId: string): Promise<TackleItem[]> => {
         user_id: r.user_id,
         name: r.name,
         type: r.type,
+        subcategory_id: r.subcategory_id,
+        categoryName: r.tackle_subcategory?.tackle_category?.name ?? null,
+        subcategoryName: r.tackle_subcategory?.name ?? null,
+
         purchase_location: r.purchase_location,
         presentation_notes: r.presentation_notes,
         notes: r.notes,
@@ -146,6 +203,8 @@ export interface VariantInput {
 
 export interface TackleInput {
   name: string;
+  subcategoryId: string;
+  /** Legacy flat type, written for backwards compatibility */
   type: string;
   purchase_location: string | null;
   presentation_notes: string | null;
@@ -154,6 +213,7 @@ export interface TackleInput {
   speciesIds: string[];
   variants: VariantInput[];
 }
+
 
 const syncVariants = async (tackleId: string, variants: VariantInput[]) => {
   const { data: existing } = await supabase
@@ -213,6 +273,8 @@ export const saveTackle = async (
     user_id: userId,
     name: input.name.trim(),
     type: input.type,
+    subcategory_id: input.subcategoryId,
+
     purchase_location: input.purchase_location,
     presentation_notes: input.presentation_notes,
     notes: input.notes,
