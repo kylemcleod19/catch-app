@@ -131,11 +131,17 @@ interface RawTackle {
   user_id: string;
   name: string;
   type: string;
+  subcategory_id: string | null;
   purchase_location: string | null;
   presentation_notes: string | null;
   notes: string | null;
   photo_url: string | null;
   created_at: string;
+  tackle_subcategory: {
+    id: string;
+    name: string;
+    tackle_category: { id: string; name: string } | null;
+  } | null;
   tackle_species: { species: Species | null }[] | null;
   tackle_variants: RawVariant[] | null;
 }
@@ -144,11 +150,12 @@ export const fetchTackle = async (userId: string): Promise<TackleItem[]> => {
   const { data, error } = await supabase
     .from("tackle")
     .select(
-      "id, user_id, name, type, purchase_location, presentation_notes, notes, photo_url, created_at, tackle_species(species(id, primary_name, nicknames)), tackle_variants(id, tackle_id, color, size, photo_url, notes, is_primary, sort_order)"
+      "id, user_id, name, type, subcategory_id, purchase_location, presentation_notes, notes, photo_url, created_at, tackle_subcategory(id, name, tackle_category(id, name)), tackle_species(species(id, primary_name, nicknames)), tackle_variants(id, tackle_id, color, size, photo_url, notes, is_primary, sort_order)"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
+
 
   const rows = (data as unknown as RawTackle[]) || [];
   return Promise.all(
