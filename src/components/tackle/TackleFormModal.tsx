@@ -158,7 +158,23 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       });
       if (error) throw error;
 
-      if (data?.type && TACKLE_TYPES.includes(data.type)) setType(data.type);
+      if (data?.category || data?.subcategory) {
+        const cat =
+          taxonomy.find((c) => c.name.toLowerCase() === String(data.category || "").toLowerCase()) ||
+          taxonomy.find((c) =>
+            c.subcategories.some(
+              (s) => s.name.toLowerCase() === String(data.subcategory || "").toLowerCase()
+            )
+          );
+        if (cat) {
+          setCategoryId(cat.id);
+          const sub = cat.subcategories.find(
+            (s) => s.name.toLowerCase() === String(data.subcategory || "").toLowerCase()
+          );
+          setSubcategoryId(sub?.id || "");
+        }
+      }
+
       if (data?.suggested_name) setName(data.suggested_name);
       if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
