@@ -12,7 +12,14 @@ Each category gets an "Other" subcategory so nothing is unclassifiable.
 
 ## Data
 
-Add `category` and `subcategory` columns to the tackle table (category required, subcategory required). Existing tackle: all 4 current items are "Fly", so they map to category Flies / subcategory Dry Fly is not safe to assume — they will be set to Flies with subcategory "Other" for the owner to refine. The old `type` column stays in place temporarily as a read-only fallback and is dropped once the new fields are live.
+Two new lookup tables, readable by everyone and writable only by admins:
+
+- `tackle_category` — name, sort order.
+- `tackle_subcategory` — name, notes, sort order, and a required `category_id` pointing at its parent category (unique name per parent).
+
+Both are seeded with the taxonomy above. The tackle table gets a required `subcategory_id` foreign key (the category is derived through the subcategory, so it is never stored twice and can't get out of sync); an optional `category_id` is not added for that reason.
+
+Existing tackle: all 4 current items are "Fly", so they are pointed at Flies / "Other" for the owner to refine — assuming a specific fly subcategory isn't safe. The old `type` column stays in place temporarily as a read-only fallback and is dropped once the new fields are live.
 
 ## UI
 
