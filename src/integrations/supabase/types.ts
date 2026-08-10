@@ -467,6 +467,7 @@ export type Database = {
           photo_url: string | null
           presentation_notes: string | null
           purchase_location: string | null
+          subcategory_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -480,6 +481,7 @@ export type Database = {
           photo_url?: string | null
           presentation_notes?: string | null
           purchase_location?: string | null
+          subcategory_id?: string | null
           type?: string
           updated_at?: string
           user_id: string
@@ -493,9 +495,42 @@ export type Database = {
           photo_url?: string | null
           presentation_notes?: string | null
           purchase_location?: string | null
+          subcategory_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tackle_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "tackle_subcategory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tackle_category: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -528,6 +563,44 @@ export type Database = {
             columns: ["tackle_id"]
             isOneToOne: false
             referencedRelation: "tackle"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tackle_subcategory: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tackle_subcategory_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tackle_category"
             referencedColumns: ["id"]
           },
         ]
