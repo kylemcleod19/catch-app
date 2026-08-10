@@ -41,6 +41,7 @@ interface NewCatchForm {
   lengthIn: string;
   lureOrBait: string;
   tackleId: string | null;
+  variantId: string | null;
   notes: string;
 }
 
@@ -50,6 +51,7 @@ const emptyForm = (): NewCatchForm => ({
   lengthIn: "",
   lureOrBait: "",
   tackleId: null,
+  variantId: null,
   notes: "",
 });
 
