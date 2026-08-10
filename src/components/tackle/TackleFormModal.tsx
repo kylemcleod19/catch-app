@@ -61,8 +61,24 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
   useEffect(() => {
     if (!open) return;
+    fetchTackleTaxonomy()
+      .then(setTaxonomy)
+      .catch(() => toast.error("Could not load tackle categories"));
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || taxonomy.length === 0) return;
+    const cat = item?.subcategory_id
+      ? taxonomy.find((c) => c.subcategories.some((s) => s.id === item.subcategory_id))
+      : undefined;
+    setCategoryId(cat?.id || taxonomy[0].id);
+    setSubcategoryId(cat ? item!.subcategory_id! : "");
+  }, [open, taxonomy, item]);
+
+  useEffect(() => {
+    if (!open) return;
     setName(item?.name || "");
-    setType(item?.type || "Fly");
+
     setPurchaseLocation(item?.purchase_location || "");
     setPresentation(item?.presentation_notes || "");
     setNotes(item?.notes || "");
