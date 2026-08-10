@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Image as ImageIcon, Link as LinkIcon, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
