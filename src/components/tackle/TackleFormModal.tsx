@@ -395,8 +395,15 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Olive Woolly Bugger #10" className="rounded-lg" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Woolly Bugger" className="rounded-lg" />
+            <p className="text-xs text-muted-foreground">Use the pattern name — colours and sizes go in variants below.</p>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Variants (colour / size)</label>
+            <VariantEditor variants={variants} onChange={setVariants} />
+          </div>
+
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Type</label>
