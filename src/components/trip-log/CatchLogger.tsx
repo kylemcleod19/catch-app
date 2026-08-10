@@ -118,6 +118,7 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
       species: form.species.trim(),
       species_id: speciesId,
       tackle_id: form.tackleId,
+      variant_id: form.variantId,
       weight_oz: form.weightOz ? parseFloat(form.weightOz) : null,
       length_in: form.lengthIn ? parseFloat(form.lengthIn) : null,
       lure_or_bait: form.lureOrBait || null,
