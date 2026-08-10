@@ -203,6 +203,8 @@ export interface VariantInput {
 
 export interface TackleInput {
   name: string;
+  subcategoryId: string;
+  /** Legacy flat type, written for backwards compatibility */
   type: string;
   purchase_location: string | null;
   presentation_notes: string | null;
@@ -211,6 +213,7 @@ export interface TackleInput {
   speciesIds: string[];
   variants: VariantInput[];
 }
+
 
 const syncVariants = async (tackleId: string, variants: VariantInput[]) => {
   const { data: existing } = await supabase
