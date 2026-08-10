@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Species } from "@/lib/species";
 
+/** @deprecated legacy flat type list — kept only for reading old records */
 export const TACKLE_TYPES = [
   "Fly",
   "Lure",
@@ -14,6 +15,37 @@ export const TACKLE_TYPES = [
 ] as const;
 
 export type TackleType = (typeof TACKLE_TYPES)[number];
+
+export interface TackleSubcategory {
+  id: string;
+  category_id: string;
+  name: string;
+  notes: string | null;
+  sort_order: number;
+}
+
+export interface TackleCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  subcategories: TackleSubcategory[];
+}
+
+export const fetchTackleTaxonomy = async (): Promise<TackleCategory[]> => {
+  const [{ data: cats, error: catErr }, { data: subs, error: subErr }] = await Promise.all([
+    supabase.from("tackle_category").select("id, name, sort_order").order("sort_order"),
+    supabase
+      .from("tackle_subcategory")
+      .select("id, category_id, name, notes, sort_order")
+      .order("sort_order"),
+  ]);
+  if (catErr) throw catErr;
+  if (subErr) throw subErr;
+  return (cats || []).map((c) => ({
+    ...c,
+    subcategories: (subs || []).filter((s) => s.category_id === c.id),
+  }));
+};
 
 export interface TackleVariant {
   id: string;
@@ -35,6 +67,9 @@ export interface TackleItem {
   user_id: string;
   name: string;
   type: string;
+  subcategory_id: string | null;
+  categoryName: string | null;
+  subcategoryName: string | null;
   purchase_location: string | null;
   presentation_notes: string | null;
   notes: string | null;
@@ -44,6 +79,17 @@ export interface TackleItem {
   variants: TackleVariant[];
   photoSignedUrl?: string | null;
 }
+
+/** "Flies · Nymph" — falls back to the legacy flat type for un-migrated records */
+export const tackleLabel = (item: {
+  categoryName: string | null;
+  subcategoryName: string | null;
+  type: string;
+}) =>
+  item.subcategoryName
+    ? [item.categoryName, item.subcategoryName].filter(Boolean).join(" · ")
+    : item.type;
+
 
 const BUCKET = "tackle-photos";
 
