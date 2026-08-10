@@ -58,6 +58,42 @@ const TackleDetailModal = ({ open, onOpenChange, item, onEdit }: Props) => {
               ))}
             </div>
 
+            {item.variants.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Variants</h3>
+                <div className="space-y-2">
+                  {item.variants.map((v) => {
+                    const stat = summary?.byVariant[v.id];
+                    return (
+                      <div key={v.id} className="flex gap-3 items-start rounded-xl border border-border p-2">
+                        <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+                          {v.photoSignedUrl || item.photoSignedUrl ? (
+                            <img
+                              src={(v.photoSignedUrl || item.photoSignedUrl)!}
+                              alt={`${item.name} — ${variantLabel(v)}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Fish className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {variantLabel(v)}
+                            {v.is_primary && <span className="ml-1.5 text-[10px] text-primary font-bold">MAIN</span>}
+                          </p>
+                          {v.notes && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{v.notes}</p>}
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                          {stat ? `${stat.total} fish` : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {item.presentation_notes && (
               <section className="space-y-1">
                 <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">How to present it</h3>
