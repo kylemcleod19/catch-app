@@ -9,14 +9,9 @@ interface Props {
 
 const TackleCard = ({ item, onClick }: Props) => {
   const slides = useMemo(() => {
-    const fromVariants = item.variants
-      .filter((v) => v.photoSignedUrl)
-      .map((v) => ({ url: v.photoSignedUrl!, label: variantLabel(v) }));
-    const primaryFirst = [
-      ...fromVariants.filter((_, i) => item.variants.filter((v) => v.photoSignedUrl)[i]?.is_primary),
-      ...fromVariants.filter((_, i) => !item.variants.filter((v) => v.photoSignedUrl)[i]?.is_primary),
-    ];
-    if (primaryFirst.length) return primaryFirst;
+    const withPhoto = item.variants.filter((v) => v.photoSignedUrl);
+    const ordered = [...withPhoto].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+    if (ordered.length) return ordered.map((v) => ({ url: v.photoSignedUrl!, label: variantLabel(v) }));
     return item.photoSignedUrl ? [{ url: item.photoSignedUrl, label: "" }] : [];
   }, [item]);
 
