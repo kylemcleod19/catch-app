@@ -451,20 +451,50 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Type</label>
-            <Select value={type} onValueChange={setType}>
+            <label className="text-sm font-medium text-foreground">Category</label>
+            <div className="grid grid-cols-3 gap-2">
+              {taxonomy.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryId(c.id);
+                    setSubcategoryId("");
+                  }}
+                  className={`min-h-[44px] rounded-xl border text-sm font-semibold transition-colors ${
+                    categoryId === c.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Subcategory</label>
+            <Select value={subcategoryId} onValueChange={setSubcategoryId}>
               <SelectTrigger className="rounded-lg">
-                <SelectValue />
+                <SelectValue placeholder="Choose a subcategory" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-50">
-                {TACKLE_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                {(taxonomy.find((c) => c.id === categoryId)?.subcategories || []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {(() => {
+              const note = taxonomy
+                .find((c) => c.id === categoryId)
+                ?.subcategories.find((s) => s.id === subcategoryId)?.notes;
+              return note ? <p className="text-xs text-muted-foreground">{note}</p> : null;
+            })()}
           </div>
+
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Target species</label>
