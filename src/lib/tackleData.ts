@@ -273,6 +273,8 @@ export const saveTackle = async (
     user_id: userId,
     name: input.name.trim(),
     type: input.type,
+    subcategory_id: input.subcategoryId,
+
     purchase_location: input.purchase_location,
     presentation_notes: input.presentation_notes,
     notes: input.notes,
