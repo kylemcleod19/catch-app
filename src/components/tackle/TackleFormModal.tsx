@@ -41,6 +41,7 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [species, setSpecies] = useState<Species[]>([]);
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [variants, setVariants] = useState<DraftVariant[]>([]);
 
   const [uploading, setUploading] = useState(false);
   const [identifying, setIdentifying] = useState(false);
