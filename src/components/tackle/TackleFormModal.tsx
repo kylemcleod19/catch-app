@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Image as ImageIcon, Link as LinkIcon, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ interface Props {
 const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
+
 
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("Fly");
@@ -46,6 +48,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [aiGuess, setAiGuess] = useState<any>(null);
   const [clarifications, setClarifications] = useState<string[]>([]);
   const [clarifyInput, setClarifyInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [showUrl, setShowUrl] = useState(false);
+
 
   useEffect(() => {
     if (!open) return;
@@ -61,10 +66,14 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setAiGuess(null);
     setClarifications([]);
     setClarifyInput("");
+    setUrlInput("");
+    setShowUrl(false);
+
   }, [open, item]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const input = e.target;
     if (!file || !user) return;
     setUploading(true);
     try {
@@ -75,9 +84,35 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Photo upload failed");
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      input.value = "";
     }
   };
+
+  const handleUrlImport = async () => {
+    const url = urlInput.trim();
+    if (!url || !user) return;
+    setUploading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-image-url", { body: { url } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const res = await fetch(data.data_url);
+      const blob = await res.blob();
+      const ext = (data.content_type || "image/jpeg").split("/")[1]?.split("+")[0] || "jpg";
+      const file = new File([blob], `web-image.${ext}`, { type: blob.type });
+      const path = await uploadTacklePhoto(file, user.id);
+      setPhotoPath(path);
+      setPhotoPreview(await signPhoto(path));
+      setUrlInput("");
+      setShowUrl(false);
+      toast.success("Image added from the web");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not load that image URL");
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   const runIdentify = async (notes: string[]) => {
     if (!photoPreview || !user) return;
@@ -202,21 +237,71 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
               className="hidden"
               onChange={handlePhoto}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <input ref={libraryRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+            <div className="grid grid-cols-3 gap-2">
               <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => fileRef.current?.click()}>
-                <Camera className="w-4 h-4" /> {photoPreview ? "Replace photo" : "Add photo"}
+                <Camera className="w-4 h-4" /> Camera
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl gap-1.5 border-primary/40 text-primary"
-                disabled={!photoPreview || identifying}
-                onClick={identify}
-              >
-                {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Identify with AI
+              <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => libraryRef.current?.click()}>
+                <ImageIcon className="w-4 h-4" /> Library
+              </Button>
+              <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => setShowUrl((v) => !v)}>
+                <LinkIcon className="w-4 h-4" /> Web
               </Button>
             </div>
+
+            {showUrl && (
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleUrlImport();
+                      }
+                    }}
+                    placeholder="Paste an image URL…"
+                    className="rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg shrink-0"
+                    disabled={uploading || !urlInput.trim()}
+                    onClick={handleUrlImport}
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use"}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Right-click an image in search results → “Copy image address”.
+                  </p>
+                  <a
+                    href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(name || "fishing tackle")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-primary shrink-0 flex items-center gap-1"
+                  >
+                    <Search className="w-3 h-3" /> Search images
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-xl gap-1.5 border-primary/40 text-primary"
+              disabled={!photoPreview || identifying}
+              onClick={identify}
+            >
+              {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Identify with AI
+            </Button>
+
 
             {aiGuess && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
