@@ -237,21 +237,71 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
               className="hidden"
               onChange={handlePhoto}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <input ref={libraryRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+            <div className="grid grid-cols-3 gap-2">
               <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => fileRef.current?.click()}>
-                <Camera className="w-4 h-4" /> {photoPreview ? "Replace photo" : "Add photo"}
+                <Camera className="w-4 h-4" /> Camera
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl gap-1.5 border-primary/40 text-primary"
-                disabled={!photoPreview || identifying}
-                onClick={identify}
-              >
-                {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Identify with AI
+              <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => libraryRef.current?.click()}>
+                <ImageIcon className="w-4 h-4" /> Library
+              </Button>
+              <Button type="button" variant="outline" className="rounded-xl gap-1.5" onClick={() => setShowUrl((v) => !v)}>
+                <LinkIcon className="w-4 h-4" /> Web
               </Button>
             </div>
+
+            {showUrl && (
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleUrlImport();
+                      }
+                    }}
+                    placeholder="Paste an image URL…"
+                    className="rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg shrink-0"
+                    disabled={uploading || !urlInput.trim()}
+                    onClick={handleUrlImport}
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Use"}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Right-click an image in search results → “Copy image address”.
+                  </p>
+                  <a
+                    href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(name || "fishing tackle")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-primary shrink-0 flex items-center gap-1"
+                  >
+                    <Search className="w-3 h-3" /> Search images
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-xl gap-1.5 border-primary/40 text-primary"
+              disabled={!photoPreview || identifying}
+              onClick={identify}
+            >
+              {identifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Identify with AI
+            </Button>
+
 
             {aiGuess && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
