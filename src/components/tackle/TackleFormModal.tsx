@@ -243,6 +243,12 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Give this tackle a name");
       return;
     }
+    const category = taxonomy.find((c) => c.id === categoryId);
+    const subcategory = category?.subcategories.find((s) => s.id === subcategoryId);
+    if (!subcategory) {
+      toast.error("Pick a category and subcategory");
+      return;
+    }
     const cleanVariants = variants.filter((v) => v.color.trim() || v.size.trim());
     if (cleanVariants.length !== variants.length) {
       toast.error("Each variant needs a colour or a size");
@@ -254,7 +260,9 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
         user.id,
         {
           name,
-          type,
+          subcategoryId: subcategory.id,
+          type: subcategory.name,
+
           purchase_location: purchaseLocation.trim() || null,
           presentation_notes: presentation.trim() || null,
           notes: notes.trim() || null,
