@@ -14,6 +14,7 @@ import SpotPicker from "@/components/spots/SpotPicker";
 import CatchLogger, { CatchLoggerHandle } from "./CatchLogger";
 import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
+import TideDataSection, { TideSnapshot } from "./TideDataSection";
 import WeatherSection, { WeatherSnapshot } from "./WeatherSection";
 
 interface TripLogFormProps {
@@ -34,6 +35,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [notes, setNotes] = useState("");
   const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
   const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
+  const [tideSnapshot, setTideSnapshot] = useState<TideSnapshot | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
 
 
@@ -72,6 +74,9 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           setNotes(data.notes || "");
           if (data.water_flow_snapshot) {
             setWaterSnapshot(data.water_flow_snapshot as unknown as WaterFlowSnapshot);
+          }
+          if ((data as any).tide_snapshot) {
+            setTideSnapshot((data as any).tide_snapshot as unknown as TideSnapshot);
           }
           if (data.weather_snapshot) {
             setWeatherSnapshot(data.weather_snapshot as unknown as WeatherSnapshot);
@@ -246,6 +251,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           notes: notes || null,
           status: "completed",
           water_flow_snapshot: waterSnapshot ? (waterSnapshot as any) : null,
+          tide_snapshot: tideSnapshot ? (tideSnapshot as any) : null,
         } as any)
         .eq("id", tripId);
 
@@ -352,6 +358,16 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         date={date}
         existingSnapshot={waterSnapshot}
         onSnapshotChange={setWaterSnapshot}
+      />
+
+      {/* Tides (tidal spots only) */}
+      <TideDataSection
+        spotId={spotId}
+        date={date}
+        startTime={startTime}
+        endTime={endTime}
+        existingSnapshot={tideSnapshot}
+        onSnapshotChange={setTideSnapshot}
       />
 
       {/* Weather */}
