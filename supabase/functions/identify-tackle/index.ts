@@ -67,17 +67,34 @@ serve(async (req) => {
               parameters: {
                 type: "object",
                 properties: {
-                  type: {
+                  category: {
                     type: "string",
+                    enum: ["Lures", "Flies", "Bait"],
+                  },
+                  subcategory: {
+                    type: "string",
+                    description: "Must be a subcategory of the chosen category.",
                     enum: [
-                      "Fly",
-                      "Lure",
-                      "Bait",
-                      "Jig",
+                      // Lures
+                      "Hardbait / Crankbait",
                       "Soft Plastic",
                       "Spoon",
-                      "Spinner",
-                      "Fly Line / Leader",
+                      "Spinner / Spinnerbait",
+                      "Jig",
+                      "Blade Bait",
+                      "Topwater",
+                      // Flies
+                      "Dry Fly",
+                      "Wet Fly",
+                      "Nymph",
+                      "Streamer",
+                      "Topwater / Popper",
+                      // Bait
+                      "Worms",
+                      "Insects",
+                      "Fish",
+                      "Crustaceans",
+                      "Prepared / Dead Bait",
                       "Other",
                     ],
                   },
@@ -91,7 +108,8 @@ serve(async (req) => {
                   presentation_hint: { type: "string" },
                   reasoning: { type: "string" },
                 },
-                required: ["type"],
+                required: ["category", "subcategory"],
+
                 additionalProperties: false,
               },
             },
