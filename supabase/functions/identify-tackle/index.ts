@@ -81,7 +81,12 @@ serve(async (req) => {
                       "Other",
                     ],
                   },
-                  suggested_name: { type: "string" },
+                  suggested_name: {
+                    type: "string",
+                    description: "The pattern/model name only, without colour or size (e.g. 'Woolly Bugger').",
+                  },
+                  color: { type: "string", description: "Dominant colour of this specific item, e.g. 'Olive'." },
+                  size: { type: "string", description: "Hook or lure size if visible, e.g. '#10' or '3 in'." },
                   species: { type: "array", items: { type: "string" } },
                   presentation_hint: { type: "string" },
                   reasoning: { type: "string" },
