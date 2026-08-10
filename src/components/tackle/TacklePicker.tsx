@@ -155,7 +155,7 @@ const TacklePicker = ({ value, tackleId, variantId, speciesHint, onChange, place
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-foreground truncate">{t.name}</p>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {t.variants.length > 0 ? `${t.type} · ${t.variants.length} variants` : t.type}
+                        {t.variants.length > 0 ? `${tackleLabel(t)} · ${t.variants.length} variants` : tackleLabel(t)}
                       </p>
                     </div>
                     {t.variants.length > 0 ? (
