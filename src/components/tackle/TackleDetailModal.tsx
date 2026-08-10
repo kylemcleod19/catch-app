@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Fish, Loader2, MapPin, Pencil } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TackleCatchSummary, TackleItem, fetchTackleCatchSummary } from "@/lib/tackleData";
+import { TackleCatchSummary, TackleItem, fetchTackleCatchSummary, variantLabel } from "@/lib/tackleData";
 
 interface Props {
   open: boolean;
