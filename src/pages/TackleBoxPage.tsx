@@ -119,13 +119,16 @@ const TackleBoxPage = () => {
         </div>
 
         <div className="flex gap-1.5 overflow-x-auto py-3 -mx-4 px-4">
-          {[null, ...TACKLE_TYPES].map((t) => (
+          {[null, ...taxonomy.map((c) => c.name)].map((t) => (
             <button
               key={t ?? "all"}
               type="button"
-              onClick={() => setTypeFilter(t)}
+              onClick={() => {
+                setCategoryFilter(t);
+                setSubFilter(null);
+              }}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                typeFilter === t
+                categoryFilter === t
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-card text-muted-foreground border-border"
               }`}
@@ -134,6 +137,26 @@ const TackleBoxPage = () => {
             </button>
           ))}
         </div>
+
+        {subOptions.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-4 px-4">
+            {[null, ...subOptions.map((s) => s.name)].map((s) => (
+              <button
+                key={s ?? "all-sub"}
+                type="button"
+                onClick={() => setSubFilter(s)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  subFilter === s
+                    ? "bg-secondary text-secondary-foreground border-secondary"
+                    : "bg-card text-muted-foreground border-border"
+                }`}
+              >
+                {s ?? `All ${categoryFilter}`}
+              </button>
+            ))}
+          </div>
+        )}
+
 
         {speciesOptions.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-4 px-4">
