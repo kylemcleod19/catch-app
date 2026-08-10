@@ -41,6 +41,7 @@ interface NewCatchForm {
   lengthIn: string;
   lureOrBait: string;
   tackleId: string | null;
+  variantId: string | null;
   notes: string;
 }
 
@@ -50,6 +51,7 @@ const emptyForm = (): NewCatchForm => ({
   lengthIn: "",
   lureOrBait: "",
   tackleId: null,
+  variantId: null,
   notes: "",
 });
 
@@ -116,6 +118,7 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
       species: form.species.trim(),
       species_id: speciesId,
       tackle_id: form.tackleId,
+      variant_id: form.variantId,
       weight_oz: form.weightOz ? parseFloat(form.weightOz) : null,
       length_in: form.lengthIn ? parseFloat(form.lengthIn) : null,
       lure_or_bait: form.lureOrBait || null,
@@ -231,8 +234,11 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
           <TacklePicker
             value={form.lureOrBait}
             tackleId={form.tackleId}
+            variantId={form.variantId}
             speciesHint={form.species}
-            onChange={({ text, tackleId }) => setForm({ ...form, lureOrBait: text, tackleId })}
+            onChange={({ text, tackleId, variantId }) =>
+              setForm({ ...form, lureOrBait: text, tackleId, variantId })
+            }
           />
           <Input placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg" />
           <Button type="button" variant="catch" size="sm" className="w-full gap-1.5" onClick={handleSaveCatch} disabled={saving}>

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SpeciesMultiSelect from "./SpeciesMultiSelect";
+import VariantEditor, { DraftVariant, newDraftVariant } from "./VariantEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
   const [species, setSpecies] = useState<Species[]>([]);
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [variants, setVariants] = useState<DraftVariant[]>([]);
 
   const [uploading, setUploading] = useState(false);
   const [identifying, setIdentifying] = useState(false);
@@ -62,6 +64,18 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setSpecies(item?.species || []);
     setPhotoPath(item?.photo_url || null);
     setPhotoPreview(item?.photoSignedUrl || null);
+    setVariants(
+      (item?.variants || []).map((v) => ({
+        key: v.id,
+        id: v.id,
+        color: v.color || "",
+        size: v.size || "",
+        photo_url: v.photo_url,
+        photoPreview: v.photoSignedUrl || null,
+        notes: v.notes || "",
+        is_primary: v.is_primary,
+      }))
+    );
     setConfirmDelete(false);
     setAiGuess(null);
     setClarifications([]);
@@ -127,6 +141,31 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       if (data?.suggested_name) setName(data.suggested_name);
       if (data?.presentation_hint) setPresentation(data.presentation_hint);
 
+      if (data?.color || data?.size) {
+        setVariants((prev) => {
+          if (prev.length === 0) {
+            return [
+              {
+                ...newDraftVariant(true),
+                color: data.color ? String(data.color) : "",
+                size: data.size ? String(data.size) : "",
+                photo_url: photoPath,
+                photoPreview,
+              },
+            ];
+          }
+          return prev.map((v, i) =>
+            i === 0
+              ? {
+                  ...v,
+                  color: v.color || (data.color ? String(data.color) : ""),
+                  size: v.size || (data.size ? String(data.size) : ""),
+                }
+              : v
+          );
+        });
+      }
+
       if (Array.isArray(data?.species) && data.species.length) {
         const resolved: Species[] = [];
         for (const s of data.species.slice(0, 6)) {
@@ -167,6 +206,11 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
       toast.error("Give this tackle a name");
       return;
     }
+    const cleanVariants = variants.filter((v) => v.color.trim() || v.size.trim());
+    if (cleanVariants.length !== variants.length) {
+      toast.error("Each variant needs a colour or a size");
+      return;
+    }
     setSaving(true);
     try {
       await saveTackle(
@@ -179,6 +223,14 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
           notes: notes.trim() || null,
           photo_url: photoPath,
           speciesIds: species.map((s) => s.id),
+          variants: cleanVariants.map((v) => ({
+            id: v.id,
+            color: v.color.trim() || null,
+            size: v.size.trim() || null,
+            photo_url: v.photo_url,
+            notes: v.notes.trim() || null,
+            is_primary: v.is_primary,
+          })),
         },
         item?.id
       );
@@ -343,8 +395,15 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Olive Woolly Bugger #10" className="rounded-lg" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Woolly Bugger" className="rounded-lg" />
+            <p className="text-xs text-muted-foreground">Use the pattern name — colours and sizes go in variants below.</p>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Variants (colour / size)</label>
+            <VariantEditor variants={variants} onChange={setVariants} />
+          </div>
+
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Type</label>

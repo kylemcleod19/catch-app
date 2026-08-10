@@ -30,6 +30,7 @@ export type Database = {
           tackle_id: string | null
           trip_id: string
           user_id: string
+          variant_id: string | null
           weight_oz: number | null
         }
         Insert: {
@@ -47,6 +48,7 @@ export type Database = {
           tackle_id?: string | null
           trip_id: string
           user_id: string
+          variant_id?: string | null
           weight_oz?: number | null
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           tackle_id?: string | null
           trip_id?: string
           user_id?: string
+          variant_id?: string | null
           weight_oz?: number | null
         }
         Relationships: [
@@ -86,6 +89,13 @@ export type Database = {
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "fishing_trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catches_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "tackle_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -515,6 +525,53 @@ export type Database = {
           },
           {
             foreignKeyName: "tackle_species_tackle_id_fkey"
+            columns: ["tackle_id"]
+            isOneToOne: false
+            referencedRelation: "tackle"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tackle_variants: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_primary: boolean
+          notes: string | null
+          photo_url: string | null
+          size: string | null
+          sort_order: number
+          tackle_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          photo_url?: string | null
+          size?: string | null
+          sort_order?: number
+          tackle_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          photo_url?: string | null
+          size?: string | null
+          sort_order?: number
+          tackle_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tackle_variants_tackle_id_fkey"
             columns: ["tackle_id"]
             isOneToOne: false
             referencedRelation: "tackle"
