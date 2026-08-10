@@ -42,6 +42,7 @@ const TackleBoxPage = () => {
 
   useEffect(() => {
     load();
+    fetchTackleTaxonomy().then(setTaxonomy).catch(() => undefined);
     if (user) {
       supabase
         .from("user_roles")
@@ -60,16 +61,23 @@ const TackleBoxPage = () => {
     return Array.from(set).sort();
   }, [items]);
 
+  const subOptions = useMemo(
+    () => taxonomy.find((c) => c.name === categoryFilter)?.subcategories || [],
+    [taxonomy, categoryFilter]
+  );
+
   const filtered = useMemo(
     () =>
       items.filter((i) => {
-        if (typeFilter && i.type !== typeFilter) return false;
+        if (categoryFilter && i.categoryName !== categoryFilter) return false;
+        if (subFilter && i.subcategoryName !== subFilter) return false;
         if (speciesFilter && !i.species.some((s) => s.primary_name === speciesFilter)) return false;
         if (query.trim() && !i.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
         return true;
       }),
-    [items, typeFilter, speciesFilter, query]
+    [items, categoryFilter, subFilter, speciesFilter, query]
   );
+
 
   return (
     <div className="min-h-screen bg-background pb-24">
