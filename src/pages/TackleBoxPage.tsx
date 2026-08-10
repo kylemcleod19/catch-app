@@ -9,7 +9,7 @@ import TackleDetailModal from "@/components/tackle/TackleDetailModal";
 import SpeciesAdminModal from "@/components/tackle/SpeciesAdminModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { TACKLE_TYPES, TackleItem, fetchTackle } from "@/lib/tackleData";
+import { TackleCategory, TackleItem, fetchTackle, fetchTackleTaxonomy } from "@/lib/tackleData";
 import { toast } from "sonner";
 
 const TackleBoxPage = () => {
