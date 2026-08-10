@@ -64,6 +64,18 @@ const TackleFormModal = ({ open, onOpenChange, item, onSaved }: Props) => {
     setSpecies(item?.species || []);
     setPhotoPath(item?.photo_url || null);
     setPhotoPreview(item?.photoSignedUrl || null);
+    setVariants(
+      (item?.variants || []).map((v) => ({
+        key: v.id,
+        id: v.id,
+        color: v.color || "",
+        size: v.size || "",
+        photo_url: v.photo_url,
+        photoPreview: v.photoSignedUrl || null,
+        notes: v.notes || "",
+        is_primary: v.is_primary,
+      }))
+    );
     setConfirmDelete(false);
     setAiGuess(null);
     setClarifications([]);
