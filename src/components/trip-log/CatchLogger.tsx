@@ -231,8 +231,11 @@ const CatchLogger = forwardRef<CatchLoggerHandle, CatchLoggerProps>(({ tripId, u
           <TacklePicker
             value={form.lureOrBait}
             tackleId={form.tackleId}
+            variantId={form.variantId}
             speciesHint={form.species}
-            onChange={({ text, tackleId }) => setForm({ ...form, lureOrBait: text, tackleId })}
+            onChange={({ text, tackleId, variantId }) =>
+              setForm({ ...form, lureOrBait: text, tackleId, variantId })
+            }
           />
           <Input placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg" />
           <Button type="button" variant="catch" size="sm" className="w-full gap-1.5" onClick={handleSaveCatch} disabled={saving}>
