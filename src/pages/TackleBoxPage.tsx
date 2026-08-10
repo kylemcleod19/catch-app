@@ -17,7 +17,9 @@ const TackleBoxPage = () => {
   const [items, setItems] = useState<TackleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [taxonomy, setTaxonomy] = useState<TackleCategory[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [subFilter, setSubFilter] = useState<string | null>(null);
   const [speciesFilter, setSpeciesFilter] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 

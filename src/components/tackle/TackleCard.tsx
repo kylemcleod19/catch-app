@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Fish } from "lucide-react";
-import { TackleItem, variantLabel } from "@/lib/tackleData";
+import { TackleItem, tackleLabel, variantLabel } from "@/lib/tackleData";
 
 interface Props {
   item: TackleItem;

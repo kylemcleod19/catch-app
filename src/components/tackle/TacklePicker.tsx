@@ -3,7 +3,7 @@ import { Check, ChevronDown, Fish, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/AuthContext";
-import { TackleItem, fetchTackle, variantLabel } from "@/lib/tackleData";
+import { TackleItem, fetchTackle, tackleLabel, variantLabel } from "@/lib/tackleData";
 
 interface Props {
   /** Free-text value (kept as fallback / history) */
