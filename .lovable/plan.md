@@ -2,7 +2,7 @@
 
 An AI-forward planner that either finds you a spot in a new area or plans the best hours at a spot you already fish. Plans are saved as planned trips and convert into logged trips.
 
-## Two entry paths
+## Step 1 — Choose your path
 
 From "Plan Trip" on the home screen, a full-screen planner opens with two choices:
 
@@ -11,7 +11,7 @@ From "Plan Trip" on the home screen, a full-screen planner opens with two choice
 
 Both converge on the same output: a saved planned trip with a spot (or candidate area), a date, and an hour-by-hour guide.
 
-## Step 1 — Angler intake (both paths) — voice-first
+## Step 2 — Angler intake (both paths) — voice-first
 
 The AI guides you through intake conversationally, **voice-first**: a mic button is the primary input on every screen, so you narrate your answers ("I'm wading for reds on the flats, mostly throwing soft plastics, and I've got the whole morning") and the planner parses it into structured answers — typing is always available as a fallback for quiet environments or corrections. The same Web Speech → AI parsing flow already used by Voice Log is reused here.
 
@@ -26,19 +26,19 @@ The AI nudges you toward richer detail ("what's the water like there this time o
 
 Answers are remembered on your profile as defaults so later plans skip ahead.
 
-## Step 2a — Explore a new area
+## Step 3a — Explore a new area
 
 - You type a place; the AI proposes 3-5 candidate waters grounded in what we can verify: USGS monitoring sites and NOAA tide stations near that place, plus the water-body list we already store.
 - Candidates render on a map with pins, each with a short "why" (species fit, access for your boat/foot answer, current conditions).
 - Live grounding: "this river is running low for the season" (USGS flow vs. recent history), "this creek just spiked from rain", "the bay has a strong outgoing tide mid-morning" (NOAA).
 - You pick one → it is saved as a new Spot (reusing the existing spot creation + station linking flow) → continue to Step 3.
 
-## Step 2b — Plan at an existing spot
+## Step 3b — Plan at an existing spot
 
 - Pick the spot and date. We load its linked station data and forecast automatically.
 - If it's been fished before, we add a **Past trips insight** panel: total trips, best months/hours by catch rate, species mix, top tackle/variants that produced, and conditions on your best days (flow range, tide stage, pressure, sky) compared to the forecast for the planned date.
 
-## Step 3 — The day plan
+## Step 4 — The day plan
 
 A visual + AI hybrid screen:
 
@@ -48,7 +48,7 @@ A visual + AI hybrid screen:
 - **Hour-by-hour guide** below: consolidated blocks (adjacent hours merge when nothing meaningful changes), each with the window, what's happening (light, tide stage, wind, flow), a target species, and a tackle suggestion drawn from your tackle box (item + variant). Neutral tone — states conditions and a reasonable approach rather than promising results.
 - Refine by voice or chat: "I can only fish the afternoon", "I'd rather target reds" — spoken or typed, parsed into a re-plan.
 
-## Step 4 — Save
+## Step 5 — Save
 
 - Saved as a trip with status `planned`, holding the spot, planned start/end, the AI plan, and the intake answers.
 - Appears in Trips under an **Upcoming** section, editable and re-plannable (forecast refreshes as the date nears).
