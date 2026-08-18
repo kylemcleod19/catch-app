@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Fish, MapPin, Loader2, ChevronRight, Plus } from "lucide-react";
+import { Fish, MapPin, Loader2, ChevronRight, Plus, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
