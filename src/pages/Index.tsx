@@ -220,7 +220,7 @@ const Index = () => {
                 <Plus className="w-5 h-5" />
                 Log Trip
               </Button>
-              <Button variant="outline" size="lg" className="w-full gap-2 rounded-xl" onClick={() => navigate("/trips")}>
+              <Button variant="outline" size="lg" className="w-full gap-2 rounded-xl" onClick={() => navigate("/plan")}>
                 <CalendarPlus className="w-5 h-5" />
                 Plan Trip
               </Button>
