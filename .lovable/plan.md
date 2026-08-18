@@ -48,7 +48,7 @@ A visual + AI hybrid screen:
 - **Hour-by-hour guide** below: consolidated blocks (adjacent hours merge when nothing meaningful changes), each with the window, what's happening (light, tide stage, wind, flow), a target species, and a tackle suggestion drawn from your tackle box (item + variant). Neutral tone — states conditions and a reasonable approach rather than promising results.
 - Refine by voice or chat: "I can only fish the afternoon", "I'd rather target reds" — spoken or typed, parsed into a re-plan.
 
-## Step 4 — Save
+## Step 5 — Save
 
 - Saved as a trip with status `planned`, holding the spot, planned start/end, the AI plan, and the intake answers.
 - Appears in Trips under an **Upcoming** section, editable and re-plannable (forecast refreshes as the date nears).
