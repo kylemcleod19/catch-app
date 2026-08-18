@@ -2,7 +2,7 @@
 
 An AI-forward planner that either finds you a spot in a new area or plans the best hours at a spot you already fish. Plans are saved as planned trips and convert into logged trips.
 
-## Two entry paths
+## Step 1 — Choose your path
 
 From "Plan Trip" on the home screen, a full-screen planner opens with two choices:
 
