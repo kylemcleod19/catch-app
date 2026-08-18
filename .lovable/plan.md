@@ -26,7 +26,7 @@ The AI nudges you toward richer detail ("what's the water like there this time o
 
 Answers are remembered on your profile as defaults so later plans skip ahead.
 
-## Step 2a — Explore a new area
+## Step 3a — Explore a new area
 
 - You type a place; the AI proposes 3-5 candidate waters grounded in what we can verify: USGS monitoring sites and NOAA tide stations near that place, plus the water-body list we already store.
 - Candidates render on a map with pins, each with a short "why" (species fit, access for your boat/foot answer, current conditions).
