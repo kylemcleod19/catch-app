@@ -11,14 +11,18 @@ From "Plan Trip" on the home screen, a full-screen planner opens with two choice
 
 Both converge on the same output: a saved planned trip with a spot (or candidate area), a date, and an hour-by-hour guide.
 
-## Step 1 — Angler intake (both paths)
+## Step 1 — Angler intake (both paths) — voice-first
 
-Before any recommendation, the AI asks short, chip-answerable questions:
+The AI guides you through intake conversationally, **voice-first**: a mic button is the primary input on every screen, so you narrate your answers ("I'm wading for reds on the flats, mostly throwing soft plastics, and I've got the whole morning") and the planner parses it into structured answers — typing is always available as a fallback for quiet environments or corrections. The same Web Speech → AI parsing flow already used by Voice Log is reused here.
+
+The AI asks short, answerable prompts one at a time:
 
 - Do you have a boat, kayak, or are you on foot / wading?
 - What species are you targeting? (pulled from your species table + past catches)
 - Fly, spin, or bait? (from your tackle box)
 - How much of the day do you have, and how far will you travel?
+
+The AI nudges you toward richer detail ("what's the water like there this time of year?", "any tides you're counting on?") to make later windows and tackle suggestions better, rather than demanding exhaustive typed inputs.
 
 Answers are remembered on your profile as defaults so later plans skip ahead.
 
