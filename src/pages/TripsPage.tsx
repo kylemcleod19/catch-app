@@ -48,6 +48,7 @@ const TripsPage = () => {
   const [trips, setTrips] = useState<TripWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [plannedTrips, setPlannedTrips] = useState<TripWithDetails[]>([]);
 
   const fetchTrips = useCallback(async () => {
     if (!user) return;
@@ -109,6 +110,37 @@ const TripsPage = () => {
 
     setTrips(enriched);
     setLoading(false);
+
+    // Fetch planned trips separately
+    const { data: plannedData } = await supabase
+      .from("fishing_trips")
+      .select("id, title, started_at, ended_at, status, spot_id, notes, plan_json")
+      .eq("user_id", user.id)
+      .eq("status", "planned")
+      .order("started_at", { ascending: true });
+
+    if (plannedData && plannedData.length > 0) {
+      const plannedSpotIds = plannedData.map((t) => t.spot_id).filter(Boolean) as string[];
+      const plannedSpotsRes = plannedSpotIds.length > 0
+        ? await supabase.from("spots").select("id, name, body_of_water").in("id", plannedSpotIds)
+        : { data: [] };
+      const plannedSpotMap = new Map<string, { name: string | null; body_of_water: string }>();
+      plannedSpotsRes.data?.forEach((s) => plannedSpotMap.set(s.id, s));
+
+      const plannedEnriched: TripWithDetails[] = plannedData.map((t) => {
+        const spot = t.spot_id ? plannedSpotMap.get(t.spot_id) : undefined;
+        return {
+          ...t,
+          spotName: spot?.name ?? null,
+          bodyOfWater: spot?.body_of_water ?? null,
+          catchCount: 0,
+          topSpecies: [],
+        };
+      });
+      setPlannedTrips(plannedEnriched);
+    } else {
+      setPlannedTrips([]);
+    }
   }, [user]);
 
   useEffect(() => {
