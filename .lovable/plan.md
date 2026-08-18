@@ -46,7 +46,7 @@ A visual + AI hybrid screen:
 - **Water/tide chart** — tide curve with high/low markers for tidal spots; flow/gage trend and forecast context for streams; lake level for lakes. Same chart conventions as the rest of the app (MMM d axis, nice grid lines).
 - **Time-window bands** overlaid on the charts, shaded by how favorable each block is.
 - **Hour-by-hour guide** below: consolidated blocks (adjacent hours merge when nothing meaningful changes), each with the window, what's happening (light, tide stage, wind, flow), a target species, and a tackle suggestion drawn from your tackle box (item + variant). Neutral tone — states conditions and a reasonable approach rather than promising results.
-- Regenerate / refine by chat: "I can only fish the afternoon", "I'd rather target reds".
+- Refine by voice or chat: "I can only fish the afternoon", "I'd rather target reds" — spoken or typed, parsed into a re-plan.
 
 ## Step 4 — Save
 
