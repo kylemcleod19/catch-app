@@ -192,6 +192,48 @@ const TripsPage = () => {
             </p>
           </div>
         ) : (
+          <>
+          {plannedTrips.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground mb-2 px-1">Upcoming</h2>
+              <div className="space-y-2">
+                {plannedTrips.map((trip) => {
+                  const displayName = trip.title || (trip.bodyOfWater
+                    ? `${trip.bodyOfWater} · ${format(new Date(trip.started_at), "MMM d")}`
+                    : "Planned trip");
+                  const locationLabel = trip.bodyOfWater || trip.spotName || "No spot";
+
+                  return (
+                    <button
+                      key={trip.id}
+                      onClick={() => setEditingTripId(trip.id)}
+                      className="w-full catch-card flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer text-left"
+                    >
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <CalendarPlus className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium tracking-tight text-card-foreground truncate">
+                          {displayName}
+                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3" />
+                            {locationLabel}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(trip.started_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground ml-1 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+          </div>
+          </>
+        )}
           <div className="space-y-2">
             {trips.map((trip) => {
               const displayName = generateTripName(trip);
