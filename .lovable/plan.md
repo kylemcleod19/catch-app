@@ -38,7 +38,7 @@ Answers are remembered on your profile as defaults so later plans skip ahead.
 - Pick the spot and date. We load its linked station data and forecast automatically.
 - If it's been fished before, we add a **Past trips insight** panel: total trips, best months/hours by catch rate, species mix, top tackle/variants that produced, and conditions on your best days (flow range, tide stage, pressure, sky) compared to the forecast for the planned date.
 
-## Step 3 — The day plan
+## Step 4 — The day plan
 
 A visual + AI hybrid screen:
 
