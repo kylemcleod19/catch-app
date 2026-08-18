@@ -8,6 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import SignInPage from "./pages/SignInPage";
 import Index from "./pages/Index";
 import TripsPage from "./pages/TripsPage";
+import PlanTripPage from "./pages/PlanTripPage";
 import SpotsPage from "./pages/SpotsPage";
 import TackleBoxPage from "./pages/TackleBoxPage";
 import SpotDetailPage from "./pages/SpotDetailPage";
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/landing" element={<PublicRoute><LandingPage /></PublicRoute>} />
             <Route path="/signin" element={<PublicRoute><SignInPage /></PublicRoute>} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/plan" element={<ProtectedRoute><PlanTripPage /></ProtectedRoute>} />
             <Route path="/trips" element={<ProtectedRoute><TripsPage /></ProtectedRoute>} />
             <Route path="/spots" element={<ProtectedRoute><SpotsPage /></ProtectedRoute>} />
             <Route path="/spots/:id" element={<ProtectedRoute><SpotDetailPage /></ProtectedRoute>} />

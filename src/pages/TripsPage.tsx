@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Fish, MapPin, Loader2, ChevronRight, Plus } from "lucide-react";
+import { Fish, MapPin, Loader2, ChevronRight, Plus, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ const TripsPage = () => {
   const [trips, setTrips] = useState<TripWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [plannedTrips, setPlannedTrips] = useState<TripWithDetails[]>([]);
 
   const fetchTrips = useCallback(async () => {
     if (!user) return;
@@ -109,6 +110,37 @@ const TripsPage = () => {
 
     setTrips(enriched);
     setLoading(false);
+
+    // Fetch planned trips separately
+    const { data: plannedData } = await supabase
+      .from("fishing_trips")
+      .select("id, title, started_at, ended_at, status, spot_id, notes, plan_json")
+      .eq("user_id", user.id)
+      .eq("status", "planned")
+      .order("started_at", { ascending: true });
+
+    if (plannedData && plannedData.length > 0) {
+      const plannedSpotIds = plannedData.map((t) => t.spot_id).filter(Boolean) as string[];
+      const plannedSpotsRes = plannedSpotIds.length > 0
+        ? await supabase.from("spots").select("id, name, body_of_water").in("id", plannedSpotIds)
+        : { data: [] };
+      const plannedSpotMap = new Map<string, { name: string | null; body_of_water: string }>();
+      plannedSpotsRes.data?.forEach((s) => plannedSpotMap.set(s.id, s));
+
+      const plannedEnriched: TripWithDetails[] = plannedData.map((t) => {
+        const spot = t.spot_id ? plannedSpotMap.get(t.spot_id) : undefined;
+        return {
+          ...t,
+          spotName: spot?.name ?? null,
+          bodyOfWater: spot?.body_of_water ?? null,
+          catchCount: 0,
+          topSpecies: [],
+        };
+      });
+      setPlannedTrips(plannedEnriched);
+    } else {
+      setPlannedTrips([]);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -160,6 +192,47 @@ const TripsPage = () => {
             </p>
           </div>
         ) : (
+          <>
+          {plannedTrips.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground mb-2 px-1">Upcoming</h2>
+              <div className="space-y-2">
+                {plannedTrips.map((trip) => {
+                  const displayName = trip.title || (trip.bodyOfWater
+                    ? `${trip.bodyOfWater} · ${format(new Date(trip.started_at), "MMM d")}`
+                    : "Planned trip");
+                  const locationLabel = trip.bodyOfWater || trip.spotName || "No spot";
+
+                  return (
+                    <button
+                      key={trip.id}
+                      onClick={() => setEditingTripId(trip.id)}
+                      className="w-full catch-card flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer text-left"
+                    >
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <CalendarPlus className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium tracking-tight text-card-foreground truncate">
+                          {displayName}
+                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3" />
+                            {locationLabel}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(trip.started_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground ml-1 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             {trips.map((trip) => {
               const displayName = generateTripName(trip);
@@ -197,6 +270,7 @@ const TripsPage = () => {
               );
             })}
           </div>
+          </>
         )}
       </main>
       <BottomNav />
