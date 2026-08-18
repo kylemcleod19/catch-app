@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { fetchUserSpots, fetchPastInsights, type SpotLite, type PlannerIntake, type PastInsights } from "@/lib/planTrip";
+import { toast } from "sonner";
 
 interface Props {
   intake: PlannerIntake;
