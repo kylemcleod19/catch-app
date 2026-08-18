@@ -11,14 +11,18 @@ From "Plan Trip" on the home screen, a full-screen planner opens with two choice
 
 Both converge on the same output: a saved planned trip with a spot (or candidate area), a date, and an hour-by-hour guide.
 
-## Step 1 — Angler intake (both paths)
+## Step 1 — Angler intake (both paths) — voice-first
 
-Before any recommendation, the AI asks short, chip-answerable questions:
+The AI guides you through intake conversationally, **voice-first**: a mic button is the primary input on every screen, so you narrate your answers ("I'm wading for reds on the flats, mostly throwing soft plastics, and I've got the whole morning") and the planner parses it into structured answers — typing is always available as a fallback for quiet environments or corrections. The same Web Speech → AI parsing flow already used by Voice Log is reused here.
+
+The AI asks short, answerable prompts one at a time:
 
 - Do you have a boat, kayak, or are you on foot / wading?
 - What species are you targeting? (pulled from your species table + past catches)
 - Fly, spin, or bait? (from your tackle box)
 - How much of the day do you have, and how far will you travel?
+
+The AI nudges you toward richer detail ("what's the water like there this time of year?", "any tides you're counting on?") to make later windows and tackle suggestions better, rather than demanding exhaustive typed inputs.
 
 Answers are remembered on your profile as defaults so later plans skip ahead.
 
@@ -42,7 +46,7 @@ A visual + AI hybrid screen:
 - **Water/tide chart** — tide curve with high/low markers for tidal spots; flow/gage trend and forecast context for streams; lake level for lakes. Same chart conventions as the rest of the app (MMM d axis, nice grid lines).
 - **Time-window bands** overlaid on the charts, shaded by how favorable each block is.
 - **Hour-by-hour guide** below: consolidated blocks (adjacent hours merge when nothing meaningful changes), each with the window, what's happening (light, tide stage, wind, flow), a target species, and a tackle suggestion drawn from your tackle box (item + variant). Neutral tone — states conditions and a reasonable approach rather than promising results.
-- Regenerate / refine by chat: "I can only fish the afternoon", "I'd rather target reds".
+- Refine by voice or chat: "I can only fish the afternoon", "I'd rather target reds" — spoken or typed, parsed into a re-plan.
 
 ## Step 4 — Save
 
@@ -53,8 +57,8 @@ A visual + AI hybrid screen:
 ## Technical notes
 
 - **Schema**: extend `fishing_trips` with `status = 'planned'`, plus `plan_json` (AI plan + intake answers) and `forecast_snapshot`. Add planner defaults (boat/foot, preferred method) to `profiles`. No new tables needed; RLS mirrors existing trip policies.
-- **Edge function `plan-trip`** (Lovable AI, streaming): receives intake answers, spot/area context, forecast, USGS/NOAA series, and past-trip aggregates; returns structured JSON — candidate spots (explore path) or consolidated time blocks with reason, species, and tackle references (spot path). Tool-style grounding: the function fetches station/weather data server-side rather than letting the model invent numbers.
-- **Reuse**: `weather`, `water-data`, `tide-water` edge functions; `SpotWeatherForecast`, `SpotWaterConditions`, `SpotTideConditions`, `chartGrid`, `SpotCreationModal`, `TacklePicker`.
+- **Edge function `plan-trip`** (Lovable AI, streaming): receives intake answers, spot/area context, forecast, USGS/NOAA series, and past-trip aggregates; returns structured JSON — candidate spots (explore path) or consolidated time blocks with reason, species, and tackle references (spot path). Tool-style grounding: the function fetches station/weather data server-side rather than letting the model invent numbers. A shared `parse-voice` helper (factored out of the existing `parse-trip-voice` function) turns spoken intake and refinement into structured answers, so voice-first input works everywhere in the planner.
+- **Reuse**: `weather`, `water-data`, `tide-water` edge functions; the Web Speech + AI parsing flow from Voice Log; `SpotWeatherForecast`, `SpotWaterConditions`, `SpotTideConditions`, `chartGrid`, `SpotCreationModal`, `TacklePicker`.
 - **Past-trip insights** computed client-side from `fishing_trips`, `catches`, and their stored `weather_snapshot` / `water_flow_snapshot` / `tide_snapshot`, then passed to the model as a compact summary.
 - **New files**: `src/pages/PlanTripPage.tsx` (route `/plan`), `src/components/plan/*` (IntakeStep, AreaExplorer, DayPlanView, PastTripInsights), `supabase/functions/plan-trip/index.ts`.
 - Core save must succeed even if AI or an external API fails — the planned trip persists with whatever data loaded.
