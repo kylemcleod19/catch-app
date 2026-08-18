@@ -33,7 +33,7 @@ Answers are remembered on your profile as defaults so later plans skip ahead.
 - Live grounding: "this river is running low for the season" (USGS flow vs. recent history), "this creek just spiked from rain", "the bay has a strong outgoing tide mid-morning" (NOAA).
 - You pick one → it is saved as a new Spot (reusing the existing spot creation + station linking flow) → continue to Step 3.
 
-## Step 2b — Plan at an existing spot
+## Step 3b — Plan at an existing spot
 
 - Pick the spot and date. We load its linked station data and forecast automatically.
 - If it's been fished before, we add a **Past trips insight** panel: total trips, best months/hours by catch rate, species mix, top tackle/variants that produced, and conditions on your best days (flow range, tide stage, pressure, sky) compared to the forecast for the planned date.
