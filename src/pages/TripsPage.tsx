@@ -231,9 +231,8 @@ const TripsPage = () => {
                   );
                 })}
               </div>
-          </div>
-          </>
-        )}
+            </div>
+          )}
           <div className="space-y-2">
             {trips.map((trip) => {
               const displayName = generateTripName(trip);
@@ -271,6 +270,7 @@ const TripsPage = () => {
               );
             })}
           </div>
+          </>
         )}
       </main>
       <BottomNav />
