@@ -11,7 +11,7 @@ From "Plan Trip" on the home screen, a full-screen planner opens with two choice
 
 Both converge on the same output: a saved planned trip with a spot (or candidate area), a date, and an hour-by-hour guide.
 
-## Step 1 — Angler intake (both paths) — voice-first
+## Step 2 — Angler intake (both paths) — voice-first
 
 The AI guides you through intake conversationally, **voice-first**: a mic button is the primary input on every screen, so you narrate your answers ("I'm wading for reds on the flats, mostly throwing soft plastics, and I've got the whole morning") and the planner parses it into structured answers — typing is always available as a fallback for quiet environments or corrections. The same Web Speech → AI parsing flow already used by Voice Log is reused here.
 
