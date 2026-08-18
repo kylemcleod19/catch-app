@@ -138,7 +138,7 @@ export async function fetchPastInsights(spotId: string): Promise<PastInsights> {
 
 export async function fetchForecast(spot: SpotLite, date: string) {
   if (!spot.spot_points.length) return null;
-  const { lat, lng } = spot.spot_points[0];
+  const { latitude: lat, longitude: lng } = spot.spot_points[0];
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const url = `https://${projectId}.supabase.co/functions/v1/weather?lat=${lat}&lng=${lng}&date=${date}`;
@@ -281,8 +281,8 @@ export async function savePlannedTrip(params: {
       spot_id: params.spotId,
       started_at: `${params.date}T06:00:00`,
       status: "planned",
-      plan_json: params.planJson,
-      forecast_snapshot: params.forecastSnapshot,
+      plan_json: params.planJson as any,
+      forecast_snapshot: params.forecastSnapshot as any,
     })
     .select("id")
     .single();
