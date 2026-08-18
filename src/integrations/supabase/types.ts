@@ -104,12 +104,14 @@ export type Database = {
         Row: {
           created_at: string
           ended_at: string | null
+          forecast_snapshot: Json | null
           id: string
           is_demo: boolean
           latitude: number | null
           location_name: string | null
           longitude: number | null
           notes: string | null
+          plan_json: Json | null
           spot_id: string | null
           started_at: string
           status: string
@@ -123,12 +125,14 @@ export type Database = {
         Insert: {
           created_at?: string
           ended_at?: string | null
+          forecast_snapshot?: Json | null
           id?: string
           is_demo?: boolean
           latitude?: number | null
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          plan_json?: Json | null
           spot_id?: string | null
           started_at?: string
           status?: string
@@ -142,12 +146,14 @@ export type Database = {
         Update: {
           created_at?: string
           ended_at?: string | null
+          forecast_snapshot?: Json | null
           id?: string
           is_demo?: boolean
           latitude?: number | null
           location_name?: string | null
           longitude?: number | null
           notes?: string | null
+          plan_json?: Json | null
           spot_id?: string | null
           started_at?: string
           status?: string
@@ -227,6 +233,8 @@ export type Database = {
           home_water: string | null
           id: string
           is_demo: boolean
+          planner_method: string | null
+          planner_vessel: string | null
           updated_at: string
           user_id: string
         }
@@ -241,6 +249,8 @@ export type Database = {
           home_water?: string | null
           id?: string
           is_demo?: boolean
+          planner_method?: string | null
+          planner_vessel?: string | null
           updated_at?: string
           user_id: string
         }
@@ -255,6 +265,8 @@ export type Database = {
           home_water?: string | null
           id?: string
           is_demo?: boolean
+          planner_method?: string | null
+          planner_vessel?: string | null
           updated_at?: string
           user_id?: string
         }
