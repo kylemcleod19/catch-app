@@ -1,7 +1,7 @@
-import { Compass, MapPin } from "lucide-react";
+import { MessageSquare, LayoutList, Mic, MapPin } from "lucide-react";
 
 interface Props {
-  onSelect: (mode: "explore" | "spot") => void;
+  onSelect: (mode: "chat" | "guided") => void;
 }
 
 const PathSelector = ({ onSelect }: Props) => {
@@ -9,38 +9,46 @@ const PathSelector = ({ onSelect }: Props) => {
     <div className="space-y-4">
       <div className="text-center pt-4 pb-2">
         <h2 className="text-xl font-bold text-foreground">Plan a Trip</h2>
-        <p className="text-sm text-muted-foreground mt-1">AI-guided planning, voice-first</p>
+        <p className="text-sm text-muted-foreground mt-1">Two ways to get there</p>
       </div>
 
       <button
-        onClick={() => onSelect("explore")}
+        onClick={() => onSelect("chat")}
         className="w-full text-left p-5 rounded-2xl bg-surface border border-border active:bg-surface/80 transition-colors"
       >
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Compass className="w-6 h-6 text-primary" />
+            <MessageSquare className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Explore a new area</h3>
+            <h3 className="font-semibold text-foreground">Talk it through</h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              "I'm going to Corpus Christi on July 20th." Find a spot and plan the day.
+              A back-and-forth with the AI. It asks what it needs — salt or fresh, which water, what you're after, what
+              you're throwing — then builds the plan.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <Mic className="w-3.5 h-3.5" /> Voice or typing, any time
             </p>
           </div>
         </div>
       </button>
 
       <button
-        onClick={() => onSelect("spot")}
+        onClick={() => onSelect("guided")}
         className="w-full text-left p-5 rounded-2xl bg-surface border border-border active:bg-surface/80 transition-colors"
       >
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <MapPin className="w-6 h-6 text-primary" />
+            <LayoutList className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Plan at my spot</h3>
+            <h3 className="font-semibold text-foreground">Pick from what I know</h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Pick a spot you already fish. Get an hour-by-hour guide based on conditions and past trips.
+              Choose your spot, species, tackle and date from lists. Fast and no typing — jump to the AI whenever you
+              want.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" /> Uses your saved spots and tackle box
             </p>
           </div>
         </div>
