@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, MapPin, LayoutList } from "lucide-react";
+import { Loader2, Sparkles, LayoutList } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import VoiceTextComposer from "./VoiceTextComposer";
@@ -106,23 +106,6 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
       toast.error(e.message || "The planner had trouble responding");
     } finally {
       setBusy(false);
-    }
-  };
-
-  const saveCandidates = async () => {
-    if (!candidates) return;
-    try {
-      await savePlannedTrip({
-        spotId: null,
-        date: details?.date || format(new Date(), "yyyy-MM-dd"),
-        planJson: candidates,
-        intake: detailsToIntake(details),
-        forecastSnapshot: null,
-      });
-      toast.success("Saved to your upcoming trips");
-      onSaved();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
     }
   };
 
