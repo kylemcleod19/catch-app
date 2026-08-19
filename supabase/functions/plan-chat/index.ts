@@ -96,6 +96,11 @@ serve(async (req) => {
                   type: "object",
                   properties: {
                     name: { type: "string" },
+                    search_query: {
+                      type: "string",
+                      description:
+                        "A precise, geocodable place string for this water/access point, including the nearest town, county and state — e.g. 'Castell Crossing, Llano River, Castell, TX'. Used to look up the real coordinates.",
+                    },
                     water_type: { type: "string", enum: ["stream", "lake", "tidal"] },
                     species: { type: "array", items: { type: "string" } },
                     why: { type: "string" },
