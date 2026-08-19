@@ -110,10 +110,10 @@ const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) 
                 mapTypeId: "hybrid",
               }}
             >
-              {pins.map(({ s, i }) => (
+              {pins.map(({ i, lat, lng }) => (
                 <Marker
                   key={i}
-                  position={{ lat: s.latitude!, lng: s.longitude! }}
+                  position={{ lat: lat!, lng: lng! }}
                   label={{ text: String(i + 1), color: "#fff", fontWeight: "700", fontSize: "12px" }}
                   onClick={() => setSelected(i)}
                   zIndex={selected === i ? 10 : 1}
