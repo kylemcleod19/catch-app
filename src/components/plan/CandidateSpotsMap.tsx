@@ -7,13 +7,15 @@ import type { CandidateSpot } from "@/lib/planTrip";
 
 interface Props {
   spots: CandidateSpot[];
+  regionHint?: string | null;
   onPick: (spot: CandidateSpot) => void;
   onNoneOfThese: () => void;
 }
 
-const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
+const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [resolved, setResolved] = useState<Record<number, { lat: number; lng: number }>>({});
   const mapRef = useRef<google.maps.Map | null>(null);
   const { isLoaded } = useGoogleMaps(apiKey);
 
@@ -23,12 +25,47 @@ const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
     });
   }, []);
 
+  // The model's coordinates are rough guesses and are often wrong. Geocode the
+  // place name so pins land on the real access point.
+  useEffect(() => {
+    if (!isLoaded || !spots.length) return;
+    let cancelled = false;
+    const geocoder = new google.maps.Geocoder();
+    (async () => {
+      for (let i = 0; i < spots.length; i++) {
+        const s = spots[i];
+        const query = [s.search_query || s.name, regionHint].filter(Boolean).join(", ");
+        try {
+          const { results } = await geocoder.geocode({ address: query });
+          const loc = results?.[0]?.geometry?.location;
+          if (loc && !cancelled) {
+            setResolved((r) => ({ ...r, [i]: { lat: loc.lat(), lng: loc.lng() } }));
+          }
+        } catch {
+          /* keep the model's coordinates */
+        }
+        if (cancelled) return;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, spots, regionHint]);
+
   const pins = useMemo(
     () =>
       spots
-        .map((s, i) => ({ s, i }))
-        .filter(({ s }) => typeof s.latitude === "number" && typeof s.longitude === "number"),
-    [spots],
+        .map((s, i) => {
+          const r = resolved[i];
+          return {
+            i,
+            s,
+            lat: r ? r.lat : s.latitude,
+            lng: r ? r.lng : s.longitude,
+          };
+        })
+        .filter((p) => typeof p.lat === "number" && typeof p.lng === "number"),
+    [spots, resolved],
   );
 
   const fitAll = (map: google.maps.Map) => {
