@@ -296,7 +296,19 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
             </button>
           ))}
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Showing {isSaltwater ? "saltwater" : "freshwater"} species for this water.
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAllSpecies(!showAllSpecies)}
+              className="ml-1 underline font-medium text-foreground"
+            >
+              {showAllSpecies ? "Show local only" : `Show all (${hiddenCount} more)`}
+            </button>
+          )}
+        </p>
       </div>
+
 
       {/* Tackle */}
       <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
