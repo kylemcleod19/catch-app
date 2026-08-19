@@ -15,6 +15,7 @@ const PlanTripPage = () => {
   const [seed, setSeed] = useState<ChatDetails | null>(null);
   const [chatKey, setChatKey] = useState(0);
   const [pickedSpot, setPickedSpot] = useState<SpotLite | null>(null);
+  const [plannedTripId, setPlannedTripId] = useState<string | null>(null);
 
   const handleBack = () => {
     if (mode === "path") navigate(-1);
@@ -51,12 +52,20 @@ const PlanTripPage = () => {
             seedDetails={seed}
             onSwitchToGuided={() => setMode("guided")}
             onSaved={() => navigate("/trips")}
+            onCandidateCreated={(spot, tripId, details) => {
+              setPickedSpot(spot);
+              setPlannedTripId(tripId);
+              setSeed(details);
+              setMode("guided");
+            }}
           />
         )}
 
         {mode === "guided" && (
           <GuidedPlanner
             initialSpot={pickedSpot}
+            initialTripId={plannedTripId}
+            initialDetails={seed}
             onSwitchToChat={(s) => {
               setSeed(s);
               setChatKey((k) => k + 1);

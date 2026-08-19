@@ -9,6 +9,7 @@ import {
   fetchUserTackle,
   buildDayPlan,
   savePlannedTrip,
+  updatePlannedTrip,
   type SpotLite,
   type PastInsights,
   type DayPlan,
@@ -20,13 +21,15 @@ interface Props {
   initialSpot?: SpotLite | null;
   onSwitchToChat: (seed: ChatDetails) => void;
   onSaved: () => void;
+  initialTripId?: string | null;
+  initialDetails?: ChatDetails | null;
 }
 
 type Step = "spot" | "details" | "plan";
 
 const TIME_OPTIONS = ["Dawn patrol", "Morning", "Midday", "Afternoon", "Evening", "Full day"];
 
-const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved }: Props) => {
+const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, initialDetails }: Props) => {
   const [step, setStep] = useState<Step>(initialSpot ? "details" : "spot");
   const [loading, setLoading] = useState(true);
   const [spots, setSpots] = useState<SpotLite[]>([]);
@@ -35,10 +38,10 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved }: Props) => {
 
   const [speciesList, setSpeciesList] = useState<string[]>([]);
   const [tackleList, setTackleList] = useState<{ name: string; category: string | null; species: string[] }[]>([]);
-  const [pickedSpecies, setPickedSpecies] = useState<string[]>([]);
-  const [pickedTackle, setPickedTackle] = useState<string[]>([]);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [timeAvailable, setTimeAvailable] = useState<string>("Morning");
+  const [pickedSpecies, setPickedSpecies] = useState<string[]>(initialDetails?.species || []);
+  const [pickedTackle, setPickedTackle] = useState<string[]>(initialDetails?.tackle || []);
+  const [date, setDate] = useState(initialDetails?.date || format(new Date(), "yyyy-MM-dd"));
+  const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
 
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
@@ -102,7 +105,7 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved }: Props) => {
   const save = async () => {
     if (!plan || !spot) return;
     try {
-      await savePlannedTrip({
+      const saveParams = {
         spotId: spot.id,
         date,
         planJson: plan,
@@ -117,7 +120,12 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved }: Props) => {
           notes: null,
         },
         forecastSnapshot: null,
-      });
+      };
+      if (initialTripId) {
+        await updatePlannedTrip({ tripId: initialTripId, date, planJson: plan, forecastSnapshot: null });
+      } else {
+        await savePlannedTrip(saveParams);
+      }
       toast.success("Plan saved!");
       onSaved();
     } catch (e: any) {
