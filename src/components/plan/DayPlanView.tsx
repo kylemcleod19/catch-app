@@ -1,5 +1,6 @@
 import { Loader2, Sun, CloudRain, Wind, Droplet, Waves, AlertCircle, Sunrise, Sunset } from "lucide-react";
-import type { DayPlan, DayBlock } from "@/lib/planTrip";
+import type { DayPlan, DayBlock, SpotLite } from "@/lib/planTrip";
+import PlanConditions from "./PlanConditions";
 
 interface Props {
   plan: DayPlan | null;
@@ -7,6 +8,7 @@ interface Props {
   error: string;
   spotName: string;
   date: string;
+  spot?: SpotLite | null;
   onRegenerate: () => void;
   onSave: () => void;
   onBack: () => void;
@@ -19,7 +21,8 @@ const FAVORABILITY: Record<string, { bg: string; text: string; label: string }> 
   poor: { bg: "bg-muted/50", text: "text-muted-foreground/70", label: "Poor" },
 };
 
-const DayPlanView = ({ plan, loading, error, spotName, date, onRegenerate, onSave, onBack }: Props) => {
+const DayPlanView = ({ plan, loading, error, spotName, date, spot, onRegenerate, onSave, onBack }: Props) => {
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -69,6 +72,11 @@ const DayPlanView = ({ plan, loading, error, spotName, date, onRegenerate, onSav
           <p className="text-sm text-foreground">{plan.summary}</p>
         </div>
       )}
+
+      {/* Live conditions for the water */}
+      {spot && <PlanConditions spot={spot} />}
+
+
 
       {/* Best window highlight */}
       {plan.best_window && (

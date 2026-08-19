@@ -158,6 +158,8 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved, onCandidateCreate
         error={planError}
         spotName={planSpot.name || planSpot.body_of_water}
         date={planDate}
+        spot={planSpot}
+
         onRegenerate={() => runPlan(planSpot, planDate, details)}
         onSave={savePlan}
         onBack={() => { setPlan(null); setPlanSpot(null); setPlanError(""); }}
