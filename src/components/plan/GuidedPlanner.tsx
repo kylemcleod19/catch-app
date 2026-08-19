@@ -354,6 +354,32 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         </div>
       )}
 
+
+      {/* Water data station */}
+      {spot && (
+        <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            {isTidalSpot ? <Waves className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
+            {isTidalSpot ? "Tide station" : "Water flow station"}
+          </p>
+          <p className="text-sm text-foreground">
+            {isTidalSpot
+              ? spot.noaa_tide_station_id
+                ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})`
+                : "No tide station linked yet"
+              : spot.usgs_site_id
+                ? `USGS ${spot.usgs_site_id}`
+                : "No monitoring station linked yet"}
+          </p>
+          <button
+            onClick={() => (isTidalSpot ? setTideModal(true) : setUsgsModal(true))}
+            className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-foreground active:bg-background transition-colors"
+          >
+            {(isTidalSpot ? spot.noaa_tide_station_id : spot.usgs_site_id) ? "Change station" : "Pick a station"}
+          </button>
+        </div>
+      )}
+
       <button
         onClick={generate}
         className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold active:scale-95 transition-all flex items-center justify-center gap-1.5"
@@ -363,8 +389,26 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
       </button>
 
       {askAi}
+
+      {spot && !isTidalSpot && (
+        <StationLinkModal
+          open={usgsModal}
+          onOpenChange={setUsgsModal}
+          spot={spot}
+          onLinked={reloadSpot}
+        />
+      )}
+      {spot && isTidalSpot && (
+        <TideStationLinkModal
+          open={tideModal}
+          onOpenChange={setTideModal}
+          spot={spot}
+          onLinked={reloadSpot}
+        />
+      )}
     </div>
   );
+
 };
 
 export default GuidedPlanner;
