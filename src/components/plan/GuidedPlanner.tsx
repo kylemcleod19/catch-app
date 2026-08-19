@@ -43,6 +43,8 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   const [date, setDate] = useState(initialDetails?.date || format(new Date(), "yyyy-MM-dd"));
   const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
 
+  const [showAllSpecies, setShowAllSpecies] = useState(false);
+
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
