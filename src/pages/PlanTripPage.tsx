@@ -175,7 +175,7 @@ const PlanTripPage = () => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 max-w-lg mx-auto w-full px-4">
+      <main className="flex-1 max-w-lg mx-auto w-full px-4 pb-nav">
         {step === "path" && <PathSelector onSelect={handlePathSelect} />}
         {step === "intake" && intake === null && (
           <IntakeStep mode={mode} onComplete={handleIntakeComplete} onBack={handleBack} />
