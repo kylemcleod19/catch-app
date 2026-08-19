@@ -68,22 +68,30 @@ const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) 
     [spots, resolved],
   );
 
-  const fitAll = (map: google.maps.Map) => {
-    mapRef.current = map;
+  const fitPins = (map: google.maps.Map) => {
     if (!pins.length) return;
     const bounds = new google.maps.LatLngBounds();
-    pins.forEach(({ s }) => bounds.extend({ lat: s.latitude!, lng: s.longitude! }));
-    if (pins.length === 1) map.setZoom(11);
+    pins.forEach((p) => bounds.extend({ lat: p.lat!, lng: p.lng! }));
+    if (pins.length === 1) map.setZoom(12);
     map.fitBounds(bounds, 48);
   };
 
+  const fitAll = (map: google.maps.Map) => {
+    mapRef.current = map;
+    fitPins(map);
+  };
+
+  // Re-fit whenever geocoding lands more accurate coordinates
+  useEffect(() => {
+    if (mapRef.current) fitPins(mapRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved]);
+
   useEffect(() => {
     if (selected == null || !mapRef.current) return;
-    const s = spots[selected];
-    if (typeof s?.latitude === "number" && typeof s?.longitude === "number") {
-      mapRef.current.panTo({ lat: s.latitude, lng: s.longitude });
-    }
-  }, [selected, spots]);
+    const p = pins.find((x) => x.i === selected);
+    if (p) mapRef.current.panTo({ lat: p.lat!, lng: p.lng! });
+  }, [selected, pins]);
 
   return (
     <div className="space-y-3 pt-1">
