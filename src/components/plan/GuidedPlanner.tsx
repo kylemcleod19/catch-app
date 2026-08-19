@@ -207,9 +207,17 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   }
 
   // details step
-  const suggestedSpecies = Array.from(
-    new Set([...(insights?.topSpecies || []), ...speciesList])
-  ).slice(0, 24);
+  const isSaltwater = spot?.is_tidal || spot?.site_type === "Tidal";
+  const allSpecies = Array.from(new Set([...(insights?.topSpecies || []), ...speciesList]));
+  // Species actually caught here always stay, regardless of classification.
+  const localSpecies = allSpecies.filter(
+    (s) =>
+      pickedSpecies.includes(s) ||
+      (insights?.topSpecies || []).includes(s) ||
+      speciesFitsWater(s, isSaltwater)
+  );
+  const suggestedSpecies = (showAllSpecies ? allSpecies : localSpecies).slice(0, 24);
+  const hiddenCount = allSpecies.length - localSpecies.length;
 
   return (
     <div className="space-y-4">
