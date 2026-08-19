@@ -34,7 +34,15 @@ const PlanTripPage = () => {
       </header>
 
       <main className="flex-1 max-w-lg mx-auto w-full px-4 pb-nav">
-        {mode === "path" && <PathSelector onSelect={(m) => setMode(m)} />}
+        {mode === "path" && (
+          <PathSelector
+            onNewSpot={() => setMode("chat")}
+            onPickSpot={(s) => {
+              setPickedSpot(s);
+              setMode("guided");
+            }}
+          />
+        )}
 
         {mode === "chat" && (
           <PlannerChat
