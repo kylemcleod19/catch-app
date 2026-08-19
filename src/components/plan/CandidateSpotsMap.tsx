@@ -100,7 +100,7 @@ const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) 
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "100%" }}
-              center={{ lat: pins[0].s.latitude!, lng: pins[0].s.longitude! }}
+              center={{ lat: pins[0].lat!, lng: pins[0].lng! }}
               zoom={9}
               onLoad={fitAll}
               options={{
