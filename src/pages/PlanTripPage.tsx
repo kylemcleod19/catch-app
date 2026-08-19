@@ -5,7 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import PathSelector from "@/components/plan/PathSelector";
 import PlannerChat from "@/components/plan/PlannerChat";
 import GuidedPlanner from "@/components/plan/GuidedPlanner";
-import type { ChatDetails } from "@/lib/planTrip";
+import type { ChatDetails, SpotLite } from "@/lib/planTrip";
 
 type Mode = "path" | "chat" | "guided";
 
@@ -14,6 +14,7 @@ const PlanTripPage = () => {
   const [mode, setMode] = useState<Mode>("path");
   const [seed, setSeed] = useState<ChatDetails | null>(null);
   const [chatKey, setChatKey] = useState(0);
+  const [pickedSpot, setPickedSpot] = useState<SpotLite | null>(null);
 
   const handleBack = () => {
     if (mode === "path") navigate(-1);
@@ -55,6 +56,7 @@ const PlanTripPage = () => {
 
         {mode === "guided" && (
           <GuidedPlanner
+            initialSpot={pickedSpot}
             onSwitchToChat={(s) => {
               setSeed(s);
               setChatKey((k) => k + 1);
