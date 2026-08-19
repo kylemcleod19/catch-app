@@ -53,6 +53,8 @@ export interface CandidateSpot {
   species: string[];
   why: string;
   access: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface ExploreResult {
