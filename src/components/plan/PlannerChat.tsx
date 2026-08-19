@@ -188,6 +188,7 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
         {candidates?.spots?.length ? (
           <CandidateSpotsMap
             spots={candidates.spots}
+            regionHint={details?.location || null}
             onPick={(s) => {
               setCandidates(null);
               send(`Let's plan a trip to ${s.name}.`);
