@@ -17,6 +17,7 @@ import {
 import { fetchSpecies } from "@/lib/species";
 
 interface Props {
+  initialSpot?: SpotLite | null;
   onSwitchToChat: (seed: ChatDetails) => void;
   onSaved: () => void;
 }
@@ -25,11 +26,11 @@ type Step = "spot" | "details" | "plan";
 
 const TIME_OPTIONS = ["Dawn patrol", "Morning", "Midday", "Afternoon", "Evening", "Full day"];
 
-const GuidedPlanner = ({ onSwitchToChat, onSaved }: Props) => {
-  const [step, setStep] = useState<Step>("spot");
+const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved }: Props) => {
+  const [step, setStep] = useState<Step>(initialSpot ? "details" : "spot");
   const [loading, setLoading] = useState(true);
   const [spots, setSpots] = useState<SpotLite[]>([]);
-  const [spot, setSpot] = useState<SpotLite | null>(null);
+  const [spot, setSpot] = useState<SpotLite | null>(initialSpot ?? null);
   const [insights, setInsights] = useState<PastInsights | null>(null);
 
   const [speciesList, setSpeciesList] = useState<string[]>([]);
@@ -205,9 +206,11 @@ const GuidedPlanner = ({ onSwitchToChat, onSaved }: Props) => {
   return (
     <div className="space-y-4">
       <div className="pt-4">
-        <button onClick={() => setStep("spot")} className="text-sm text-muted-foreground active:text-foreground mb-2">
-          ← Back to spots
-        </button>
+        {!initialSpot && (
+          <button onClick={() => setStep("spot")} className="text-sm text-muted-foreground active:text-foreground mb-2">
+            ← Back to spots
+          </button>
+        )}
         <h2 className="text-xl font-bold text-foreground">{spot?.name || spot?.body_of_water}</h2>
         <p className="text-sm text-muted-foreground">{spot?.body_of_water} · {spot?.site_type}</p>
       </div>
