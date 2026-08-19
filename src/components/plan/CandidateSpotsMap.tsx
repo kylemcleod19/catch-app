@@ -15,7 +15,7 @@ interface Props {
 const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [resolved, setResolved] = useState<Record<number, { lat: number; lng: number }>>({});
+  const [resolved, setResolved] = useState<Record<number, { lat: number; lng: number; stateCode: string | null }>>({});
   const mapRef = useRef<google.maps.Map | null>(null);
   const { isLoaded } = useGoogleMaps(apiKey);
 
@@ -39,7 +39,9 @@ const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) 
           const { results } = await geocoder.geocode({ address: query });
           const loc = results?.[0]?.geometry?.location;
           if (loc && !cancelled) {
-            setResolved((r) => ({ ...r, [i]: { lat: loc.lat(), lng: loc.lng() } }));
+            const stateCode = results[0].address_components
+              ?.find((part) => part.types.includes("administrative_area_level_1"))?.short_name || null;
+            setResolved((r) => ({ ...r, [i]: { lat: loc.lat(), lng: loc.lng(), stateCode } }));
           }
         } catch {
           /* keep the model's coordinates */
@@ -166,7 +168,16 @@ const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) 
 
       <button
         disabled={selected == null}
-        onClick={() => selected != null && onPick(spots[selected])}
+        onClick={() => {
+          if (selected == null) return;
+          const location = resolved[selected];
+          onPick({
+            ...spots[selected],
+            latitude: location?.lat ?? spots[selected].latitude,
+            longitude: location?.lng ?? spots[selected].longitude,
+            state_code: location?.stateCode ?? spots[selected].state_code,
+          });
+        }}
         className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100"
       >
         {selected == null ? "Pick one to continue" : `Plan a trip to ${spots[selected].name}`}

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { SPOT_TYPE_SELECT, flattenSpots, flattenSpot, type SpotTypeData } from "./spotData";
+import { SPOT_TYPE_SELECT, createSpotTypeData, flattenSpots, flattenSpot, type SpotTypeData } from "./spotData";
 
 // ── Types ──
 
@@ -56,6 +56,7 @@ export interface CandidateSpot {
   access: string;
   latitude?: number | null;
   longitude?: number | null;
+  state_code?: string | null;
 }
 
 export interface ExploreResult {
@@ -292,6 +293,93 @@ export async function savePlannedTrip(params: {
 
   if (error) throw error;
   return data.id;
+}
+
+/** Persist an AI-selected water immediately so the rest of planning can safely resume. */
+export async function createCandidatePlannedTrip(params: {
+  candidate: CandidateSpot;
+  date: string;
+  details: ChatDetails | null;
+}): Promise<{ spot: SpotLite; tripId: string }> {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Not authenticated");
+  const { candidate, date, details } = params;
+  if (typeof candidate.latitude !== "number" || typeof candidate.longitude !== "number") {
+    throw new Error("That location could not be mapped. Please choose another spot.");
+  }
+
+  const siteType = candidate.water_type === "tidal" ? "Tidal" : candidate.water_type === "lake" ? "Lake" : "Stream";
+  const stateCode = candidate.state_code?.trim().toUpperCase() || "US";
+  const { data: spotRow, error: spotError } = await supabase
+    .from("spots")
+    .insert({
+      user_id: userData.user.id,
+      name: candidate.name,
+      body_of_water: candidate.name,
+      state_code: stateCode,
+      site_type: siteType,
+    })
+    .select("id, name, body_of_water, state_code, site_type")
+    .single();
+  if (spotError) throw spotError;
+
+  const point = { id: crypto.randomUUID(), label: "Primary access", latitude: candidate.latitude, longitude: candidate.longitude };
+  try {
+    const { error: pointError } = await supabase.from("spot_points").insert({
+      id: point.id,
+      spot_id: spotRow.id,
+      label: point.label,
+      latitude: point.latitude,
+      longitude: point.longitude,
+    });
+    if (pointError) throw pointError;
+    const { error: typeError } = await createSpotTypeData(spotRow.id, siteType, {});
+    if (typeError) throw typeError;
+
+    const { data: trip, error: tripError } = await supabase
+      .from("fishing_trips")
+      .insert({
+        user_id: userData.user.id,
+        spot_id: spotRow.id,
+        started_at: `${date}T06:00:00`,
+        status: "planned",
+        plan_json: { stage: "equipment", candidate, details: details || {} } as any,
+      })
+      .select("id")
+      .single();
+    if (tripError) throw tripError;
+
+    return {
+      tripId: trip.id,
+      spot: flattenSpot({
+        ...spotRow,
+        spot_points: [point],
+        spot_stream_data: siteType === "Stream" ? [{ usgs_site_id: null }] : [],
+        spot_lake_data: siteType === "Lake" ? [{ usgs_site_id: null }] : [],
+        spot_tidal_data: siteType === "Tidal" ? [{}] : [],
+      }) as SpotLite,
+    };
+  } catch (error) {
+    await supabase.from("spots").delete().eq("id", spotRow.id);
+    throw error;
+  }
+}
+
+export async function updatePlannedTrip(params: {
+  tripId: string;
+  date: string;
+  planJson: DayPlan;
+  forecastSnapshot: any;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("fishing_trips")
+    .update({
+      started_at: `${params.date}T06:00:00`,
+      plan_json: params.planJson as any,
+      forecast_snapshot: params.forecastSnapshot as any,
+    })
+    .eq("id", params.tripId);
+  if (error) throw error;
 }
 
 // ── Conversational planner ──

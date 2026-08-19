@@ -12,6 +12,7 @@ import {
   buildDayPlan,
   detailsToIntake,
   savePlannedTrip,
+  createCandidatePlannedTrip,
   type ChatMessage,
   type ChatDetails,
   type SpotLite,
@@ -24,16 +25,18 @@ interface Props {
   seedDetails?: ChatDetails | null;
   onSwitchToGuided: () => void;
   onSaved: () => void;
+  onCandidateCreated: (spot: SpotLite, tripId: string, details: ChatDetails) => void;
 }
 
 const OPENING =
   "Where and when are you thinking of fishing? A city or water body and a rough date is enough to start.";
 
-const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
+const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved, onCandidateCreated }: Props) => {
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: OPENING }]);
   const [details, setDetails] = useState<ChatDetails | null>(seedDetails || null);
   const [candidates, setCandidates] = useState<ExploreResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [savingCandidate, setSavingCandidate] = useState(false);
   const [spots, setSpots] = useState<SpotLite[]>([]);
   const [species, setSpecies] = useState<string[]>([]);
   const [tackle, setTackle] = useState<{ name: string; category: string | null; species: string[] }[]>([]);
@@ -126,6 +129,26 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
     }
   };
 
+  const pickCandidate = async (candidate: import("@/lib/planTrip").CandidateSpot) => {
+    if (savingCandidate) return;
+    setSavingCandidate(true);
+    try {
+      const nextDetails: ChatDetails = {
+        ...(details || {}),
+        body_of_water: candidate.name,
+        species: details?.species?.length ? details.species : candidate.species,
+      };
+      const date = nextDetails.date || format(new Date(), "yyyy-MM-dd");
+      const created = await createCandidatePlannedTrip({ candidate, date, details: nextDetails });
+      toast.success("Spot and planned trip created");
+      onCandidateCreated(created.spot, created.tripId, { ...nextDetails, date });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create the spot and trip");
+    } finally {
+      setSavingCandidate(false);
+    }
+  };
+
   // Grounded day plan takes over the screen once requested
   if (planSpot && (plan || planLoading || planError)) {
     return (
@@ -189,10 +212,7 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
           <CandidateSpotsMap
             spots={candidates.spots}
             regionHint={details?.location || null}
-            onPick={(s) => {
-              setCandidates(null);
-              send(`Let's plan a trip to ${s.name}.`);
-            }}
+            onPick={pickCandidate}
             onNoneOfThese={() => {
               setCandidates(null);
               setMessages((m) => [
@@ -213,7 +233,7 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
       </div>
 
       <div className="sticky bottom-0 bg-background pt-2 pb-3 space-y-2">
-        <VoiceTextComposer onSend={send} disabled={busy} placeholder="Say or type your answer…" />
+        <VoiceTextComposer onSend={send} disabled={busy || savingCandidate} placeholder={savingCandidate ? "Creating spot and trip…" : "Say or type your answer…"} />
         <button
           onClick={onSwitchToGuided}
           className="w-full py-2 text-xs font-medium text-muted-foreground flex items-center justify-center gap-1.5"
