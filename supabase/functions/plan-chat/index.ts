@@ -108,7 +108,7 @@ serve(async (req) => {
                     latitude: { type: "number", description: "Approximate latitude of the water, required so it can be mapped." },
                     longitude: { type: "number", description: "Approximate longitude of the water, required so it can be mapped." },
                   },
-                  required: ["name", "why", "latitude", "longitude"],
+                  required: ["name", "search_query", "why", "latitude", "longitude"],
                   additionalProperties: false,
                 },
               },
