@@ -131,37 +131,47 @@ serve(async (req) => {
       },
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: convo,
-        tools,
-      }),
-    });
+    const convo: any[] = [
+      { role: "system", content: `${SYSTEM}\n\nContext:\n${ctxParts.join("\n")}` },
+      ...messages,
+    ];
 
+    const callModel = async (msgs: any[]) => {
+      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: msgs, tools }),
+      });
+      if (!r.ok) {
+        const text = await r.text();
+        console.error("AI gateway error:", r.status, text);
+        const err: any = new Error("AI gateway error");
+        err.status = r.status;
+        throw err;
+      }
+      return await r.json();
+    };
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    let result;
+    try {
+      result = await callModel(convo);
+    } catch (err: any) {
+      if (err.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
+      if (err.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
-      throw new Error("AI gateway error");
+      throw err;
     }
 
-    const result = await response.json();
     const msg = result.choices?.[0]?.message || {};
     const calls = msg.tool_calls || [];
 
@@ -178,6 +188,35 @@ serve(async (req) => {
     }
 
     let reply: string = msg.content || "";
+
+    // The model often calls record_details with no prose. Feed the tool results
+    // back so it produces the next specific question in the same round trip.
+    if (!reply && calls.length && !spots && !planRequest) {
+      const followUp = [
+        ...convo,
+        msg,
+        ...calls.map((c: any) => ({
+          role: "tool",
+          tool_call_id: c.id,
+          content: JSON.stringify({ ok: true }),
+        })),
+      ];
+      try {
+        const second = await callModel(followUp);
+        const m2 = second.choices?.[0]?.message || {};
+        reply = m2.content || "";
+        for (const c of m2.tool_calls || []) {
+          let args: any = {};
+          try { args = JSON.parse(c.function?.arguments || "{}"); } catch { /* noop */ }
+          if (c.function?.name === "record_details") details = { ...(details || {}), ...args };
+          if (c.function?.name === "propose_spots") spots = args;
+          if (c.function?.name === "plan_day_at_spot") planRequest = args;
+        }
+      } catch (e) {
+        console.error("follow-up call failed", e);
+      }
+    }
+
     if (!reply) {
       if (spots) reply = spots.summary || "Here are a few waters worth a look.";
       else if (planRequest) reply = "Pulling conditions and building your day plan…";
