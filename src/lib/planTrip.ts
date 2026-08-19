@@ -291,6 +291,83 @@ export async function savePlannedTrip(params: {
   return data.id;
 }
 
+// ── Conversational planner ──
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatDetails {
+  location?: string;
+  water_type?: string;
+  body_of_water?: string;
+  species?: string[];
+  vessel?: string;
+  method?: string;
+  tackle?: string[];
+  date?: string;
+  time_available?: string;
+}
+
+export interface ChatTurn {
+  reply: string;
+  details: ChatDetails | null;
+  spots: ExploreResult | null;
+  planRequest: { spot_id: string; date: string; reason?: string } | null;
+}
+
+export async function planChat(params: {
+  messages: ChatMessage[];
+  context: {
+    today: string;
+    spots: { id: string; name: string | null; body_of_water: string; state_code: string; site_type: string }[];
+    species: string[];
+    tackle: { name: string; category: string | null; species: string[] }[];
+    details?: ChatDetails | null;
+  };
+}): Promise<ChatTurn> {
+  const { data, error } = await supabase.functions.invoke("plan-chat", { body: params });
+  if (error) throw error;
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return data as ChatTurn;
+}
+
+/** Chat details → the intake shape the day-plan function expects. */
+export function detailsToIntake(d: ChatDetails | null): PlannerIntake {
+  return {
+    vessel: d?.vessel || null,
+    species: d?.species || [],
+    method: d?.method || null,
+    time_available: d?.time_available || null,
+    travel_distance: null,
+    date: d?.date || null,
+    location_query: d?.location || d?.body_of_water || null,
+    notes: null,
+  };
+}
+
+/** Fetch all conditions for a spot/date and generate the grounded day plan. */
+export async function buildDayPlan(params: {
+  spot: SpotLite;
+  date: string;
+  intake: PlannerIntake;
+  refinement?: string;
+}): Promise<DayPlan> {
+  const { spot, date, intake, refinement } = params;
+  const [forecast, waterData, tideData, tackle, pastInsights] = await Promise.all([
+    fetchForecast(spot, date).catch(() => null),
+    fetchWaterData(spot, date).catch(() => null),
+    fetchTideData(spot, date).catch(() => null),
+    fetchUserTackle().catch(() => []),
+    fetchPastInsights(spot.id).catch(() => ({
+      totalTrips: 0, bestHours: [], topSpecies: [], topTackle: [], bestConditions: null,
+    })),
+  ]);
+
+  return generateDayPlan({ intake, spot, date, forecast, waterData, tideData, pastInsights, tackle, refinement });
+}
+
 export async function convertPlannedToDraft(tripId: string): Promise<void> {
   const { error } = await supabase
     .from("fishing_trips")
