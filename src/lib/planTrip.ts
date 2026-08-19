@@ -309,7 +309,8 @@ export async function createCandidatePlannedTrip(params: {
   }
 
   const siteType = candidate.water_type === "tidal" ? "Tidal" : candidate.water_type === "lake" ? "Lake" : "Stream";
-  const stateCode = candidate.state_code?.trim().toUpperCase() || "US";
+  const stateFromQuery = candidate.search_query?.match(/,\s*([A-Z]{2})(?:\s|$)/)?.[1];
+  const stateCode = candidate.state_code?.trim().toUpperCase() || stateFromQuery || "US";
   const { data: spotRow, error: spotError } = await supabase
     .from("spots")
     .insert({
