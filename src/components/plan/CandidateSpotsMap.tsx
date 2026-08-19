@@ -7,13 +7,15 @@ import type { CandidateSpot } from "@/lib/planTrip";
 
 interface Props {
   spots: CandidateSpot[];
+  regionHint?: string | null;
   onPick: (spot: CandidateSpot) => void;
   onNoneOfThese: () => void;
 }
 
-const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
+const CandidateSpotsMap = ({ spots, regionHint, onPick, onNoneOfThese }: Props) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [resolved, setResolved] = useState<Record<number, { lat: number; lng: number }>>({});
   const mapRef = useRef<google.maps.Map | null>(null);
   const { isLoaded } = useGoogleMaps(apiKey);
 
@@ -23,30 +25,73 @@ const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
     });
   }, []);
 
+  // The model's coordinates are rough guesses and are often wrong. Geocode the
+  // place name so pins land on the real access point.
+  useEffect(() => {
+    if (!isLoaded || !spots.length) return;
+    let cancelled = false;
+    const geocoder = new google.maps.Geocoder();
+    (async () => {
+      for (let i = 0; i < spots.length; i++) {
+        const s = spots[i];
+        const query = [s.search_query || s.name, regionHint].filter(Boolean).join(", ");
+        try {
+          const { results } = await geocoder.geocode({ address: query });
+          const loc = results?.[0]?.geometry?.location;
+          if (loc && !cancelled) {
+            setResolved((r) => ({ ...r, [i]: { lat: loc.lat(), lng: loc.lng() } }));
+          }
+        } catch {
+          /* keep the model's coordinates */
+        }
+        if (cancelled) return;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, spots, regionHint]);
+
   const pins = useMemo(
     () =>
       spots
-        .map((s, i) => ({ s, i }))
-        .filter(({ s }) => typeof s.latitude === "number" && typeof s.longitude === "number"),
-    [spots],
+        .map((s, i) => {
+          const r = resolved[i];
+          return {
+            i,
+            s,
+            lat: r ? r.lat : s.latitude,
+            lng: r ? r.lng : s.longitude,
+          };
+        })
+        .filter((p) => typeof p.lat === "number" && typeof p.lng === "number"),
+    [spots, resolved],
   );
 
-  const fitAll = (map: google.maps.Map) => {
-    mapRef.current = map;
+  const fitPins = (map: google.maps.Map) => {
     if (!pins.length) return;
     const bounds = new google.maps.LatLngBounds();
-    pins.forEach(({ s }) => bounds.extend({ lat: s.latitude!, lng: s.longitude! }));
-    if (pins.length === 1) map.setZoom(11);
+    pins.forEach((p) => bounds.extend({ lat: p.lat!, lng: p.lng! }));
+    if (pins.length === 1) map.setZoom(12);
     map.fitBounds(bounds, 48);
   };
 
+  const fitAll = (map: google.maps.Map) => {
+    mapRef.current = map;
+    fitPins(map);
+  };
+
+  // Re-fit whenever geocoding lands more accurate coordinates
+  useEffect(() => {
+    if (mapRef.current) fitPins(mapRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved]);
+
   useEffect(() => {
     if (selected == null || !mapRef.current) return;
-    const s = spots[selected];
-    if (typeof s?.latitude === "number" && typeof s?.longitude === "number") {
-      mapRef.current.panTo({ lat: s.latitude, lng: s.longitude });
-    }
-  }, [selected, spots]);
+    const p = pins.find((x) => x.i === selected);
+    if (p) mapRef.current.panTo({ lat: p.lat!, lng: p.lng! });
+  }, [selected, pins]);
 
   return (
     <div className="space-y-3 pt-1">
@@ -55,7 +100,7 @@ const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "100%" }}
-              center={{ lat: pins[0].s.latitude!, lng: pins[0].s.longitude! }}
+              center={{ lat: pins[0].lat!, lng: pins[0].lng! }}
               zoom={9}
               onLoad={fitAll}
               options={{
@@ -65,10 +110,10 @@ const CandidateSpotsMap = ({ spots, onPick, onNoneOfThese }: Props) => {
                 mapTypeId: "hybrid",
               }}
             >
-              {pins.map(({ s, i }) => (
+              {pins.map(({ i, lat, lng }) => (
                 <Marker
                   key={i}
-                  position={{ lat: s.latitude!, lng: s.longitude! }}
+                  position={{ lat: lat!, lng: lng! }}
                   label={{ text: String(i + 1), color: "#fff", fontWeight: "700", fontSize: "12px" }}
                   onClick={() => setSelected(i)}
                   zIndex={selected === i ? 10 : 1}

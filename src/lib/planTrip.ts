@@ -49,6 +49,7 @@ export interface DayPlan {
 
 export interface CandidateSpot {
   name: string;
+  search_query?: string | null;
   water_type: string;
   species: string[];
   why: string;
