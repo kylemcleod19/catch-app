@@ -15,7 +15,7 @@ import {
   type DayPlan,
   type ChatDetails,
 } from "@/lib/planTrip";
-import { fetchSpecies } from "@/lib/species";
+import { fetchSpecies, speciesFitsWater } from "@/lib/species";
 
 interface Props {
   initialSpot?: SpotLite | null;
@@ -42,6 +42,8 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   const [pickedTackle, setPickedTackle] = useState<string[]>(initialDetails?.tackle || []);
   const [date, setDate] = useState(initialDetails?.date || format(new Date(), "yyyy-MM-dd"));
   const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
+
+  const [showAllSpecies, setShowAllSpecies] = useState(false);
 
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
@@ -207,9 +209,17 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   }
 
   // details step
-  const suggestedSpecies = Array.from(
-    new Set([...(insights?.topSpecies || []), ...speciesList])
-  ).slice(0, 24);
+  const isSaltwater = spot?.is_tidal || spot?.site_type === "Tidal";
+  const allSpecies = Array.from(new Set([...(insights?.topSpecies || []), ...speciesList]));
+  // Species actually caught here always stay, regardless of classification.
+  const localSpecies = allSpecies.filter(
+    (s) =>
+      pickedSpecies.includes(s) ||
+      (insights?.topSpecies || []).includes(s) ||
+      speciesFitsWater(s, isSaltwater)
+  );
+  const suggestedSpecies = (showAllSpecies ? allSpecies : localSpecies).slice(0, 24);
+  const hiddenCount = allSpecies.length - localSpecies.length;
 
   return (
     <div className="space-y-4">
@@ -286,7 +296,19 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
             </button>
           ))}
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Showing {isSaltwater ? "saltwater" : "freshwater"} species for this water.
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAllSpecies(!showAllSpecies)}
+              className="ml-1 underline font-medium text-foreground"
+            >
+              {showAllSpecies ? "Show local only" : `Show all (${hiddenCount} more)`}
+            </button>
+          )}
+        </p>
       </div>
+
 
       {/* Tackle */}
       <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
