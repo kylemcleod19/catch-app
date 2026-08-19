@@ -15,7 +15,7 @@ import {
   type DayPlan,
   type ChatDetails,
 } from "@/lib/planTrip";
-import { fetchSpecies } from "@/lib/species";
+import { fetchSpecies, speciesFitsWater } from "@/lib/species";
 
 interface Props {
   initialSpot?: SpotLite | null;
