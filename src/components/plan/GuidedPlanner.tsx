@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy, Box, MessageSquare, Check } from "lucide-react";
+import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy, Box, MessageSquare, Check, Activity, Waves } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import DayPlanView from "./DayPlanView";
+import StationLinkModal from "@/components/spots/StationLinkModal";
+import TideStationLinkModal from "@/components/spots/TideStationLinkModal";
+
 import {
   fetchUserSpots,
   fetchPastInsights,
@@ -44,10 +47,26 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
 
   const [showAllSpecies, setShowAllSpecies] = useState(false);
+  const [usgsModal, setUsgsModal] = useState(false);
+  const [tideModal, setTideModal] = useState(false);
 
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
+
+  const isTidalSpot = !!spot && (spot.is_tidal || spot.site_type === "Tidal");
+
+  const reloadSpot = async () => {
+    if (!spot) return;
+    try {
+      const all = await fetchUserSpots();
+      setSpots(all);
+      const fresh = all.find((s) => s.id === spot.id);
+      if (fresh) setSpot(fresh);
+    } catch {
+      /* keep the current spot if the refresh fails */
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +81,7 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
     setInsights(null);
     fetchPastInsights(spot.id).then(setInsights).catch(() => {});
   }, [spot]);
+
 
   const seed = (): ChatDetails => ({
     location: spot?.body_of_water,
@@ -161,7 +181,9 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         error={planError}
         spotName={spot.name || spot.body_of_water}
         date={date}
+        spot={spot}
         onRegenerate={generate}
+
         onSave={save}
         onBack={() => setStep("details")}
       />
@@ -354,6 +376,32 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         </div>
       )}
 
+
+      {/* Water data station */}
+      {spot && (
+        <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            {isTidalSpot ? <Waves className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
+            {isTidalSpot ? "Tide station" : "Water flow station"}
+          </p>
+          <p className="text-sm text-foreground">
+            {isTidalSpot
+              ? spot.noaa_tide_station_id
+                ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})`
+                : "No tide station linked yet"
+              : spot.usgs_site_id
+                ? `USGS ${spot.usgs_site_id}`
+                : "No monitoring station linked yet"}
+          </p>
+          <button
+            onClick={() => (isTidalSpot ? setTideModal(true) : setUsgsModal(true))}
+            className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-foreground active:bg-background transition-colors"
+          >
+            {(isTidalSpot ? spot.noaa_tide_station_id : spot.usgs_site_id) ? "Change station" : "Pick a station"}
+          </button>
+        </div>
+      )}
+
       <button
         onClick={generate}
         className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold active:scale-95 transition-all flex items-center justify-center gap-1.5"
@@ -363,8 +411,26 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
       </button>
 
       {askAi}
+
+      {spot && !isTidalSpot && (
+        <StationLinkModal
+          open={usgsModal}
+          onOpenChange={setUsgsModal}
+          spot={spot}
+          onLinked={reloadSpot}
+        />
+      )}
+      {spot && isTidalSpot && (
+        <TideStationLinkModal
+          open={tideModal}
+          onOpenChange={setTideModal}
+          spot={spot}
+          onLinked={reloadSpot}
+        />
+      )}
     </div>
   );
+
 };
 
 export default GuidedPlanner;
