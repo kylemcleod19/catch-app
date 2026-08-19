@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, MapPin, LayoutList } from "lucide-react";
+import { Loader2, Sparkles, LayoutList } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import VoiceTextComposer from "./VoiceTextComposer";
 import DayPlanView from "./DayPlanView";
+import CandidateSpotsMap from "./CandidateSpotsMap";
 import {
   planChat,
   fetchUserSpots,
@@ -108,23 +109,6 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
     }
   };
 
-  const saveCandidates = async () => {
-    if (!candidates) return;
-    try {
-      await savePlannedTrip({
-        spotId: null,
-        date: details?.date || format(new Date(), "yyyy-MM-dd"),
-        planJson: candidates,
-        intake: detailsToIntake(details),
-        forecastSnapshot: null,
-      });
-      toast.success("Saved to your upcoming trips");
-      onSaved();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
-    }
-  };
-
   const savePlan = async () => {
     if (!plan || !planSpot) return;
     try {
@@ -202,26 +186,20 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onSaved }: Props) => {
         ))}
 
         {candidates?.spots?.length ? (
-          <div className="space-y-2 pt-1">
-            {candidates.spots.map((s, i) => (
-              <div key={i} className="p-4 rounded-xl bg-surface border border-border">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-primary shrink-0" />
-                  <p className="font-semibold text-foreground">{s.name}</p>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">{s.why}</p>
-                {s.species?.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1.5">{s.species.join(" · ")}</p>
-                )}
-              </div>
-            ))}
-            <button
-              onClick={saveCandidates}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold active:scale-95 transition-all"
-            >
-              Save these to upcoming trips
-            </button>
-          </div>
+          <CandidateSpotsMap
+            spots={candidates.spots}
+            onPick={(s) => {
+              setCandidates(null);
+              send(`Let's plan a trip to ${s.name}.`);
+            }}
+            onNoneOfThese={() => {
+              setCandidates(null);
+              setMessages((m) => [
+                ...m,
+                { role: "assistant", content: "No problem — what didn't work about those? Too far, wrong species, wrong kind of water?" },
+              ]);
+            }}
+          />
         ) : null}
 
         {busy && (

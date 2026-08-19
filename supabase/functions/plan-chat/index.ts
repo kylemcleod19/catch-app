@@ -20,7 +20,7 @@ Your job, in order:
    - How much of the day they have.
 3. Keep every question concrete and answerable in a few words. Offer likely options. Never ask something the context already answers.
 4. Once you know enough, act:
-   - If they are heading somewhere new: call propose_spots with 3-5 candidate waters, each with why it fits.
+   - If they are heading somewhere new: call propose_spots with 3-5 candidate waters, each with why it fits and approximate latitude/longitude so they can be shown on a map. The app shows them on a map and asks the angler to pick one, so do not ask them to choose in your reply — just say what you found.
    - If the trip is at one of THEIR saved spots (listed in context): call plan_day_at_spot with that exact spot id — the app will pull real forecast, flow and tide data and build the hour-by-hour plan.
 5. Call record_details every time you learn something new so the app can show progress.
 
@@ -100,8 +100,10 @@ serve(async (req) => {
                     species: { type: "array", items: { type: "string" } },
                     why: { type: "string" },
                     access: { type: "string", enum: ["boat", "kayak", "foot"] },
+                    latitude: { type: "number", description: "Approximate latitude of the water, required so it can be mapped." },
+                    longitude: { type: "number", description: "Approximate longitude of the water, required so it can be mapped." },
                   },
-                  required: ["name", "why"],
+                  required: ["name", "why", "latitude", "longitude"],
                   additionalProperties: false,
                 },
               },
