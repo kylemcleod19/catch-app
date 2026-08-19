@@ -139,13 +139,11 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: `${SYSTEM}\n\nContext:\n${ctxParts.join("\n")}` },
-          ...messages,
-        ],
+        messages: convo,
         tools,
       }),
     });
+
 
     if (!response.ok) {
       if (response.status === 429) {
