@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy, Box, MessageSquare, Check } from "lucide-react";
+import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy, Box, MessageSquare, Check, Activity, Waves } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import DayPlanView from "./DayPlanView";
+import StationLinkModal from "@/components/spots/StationLinkModal";
+import TideStationLinkModal from "@/components/spots/TideStationLinkModal";
+
 import {
   fetchUserSpots,
   fetchPastInsights,
@@ -44,10 +47,26 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
 
   const [showAllSpecies, setShowAllSpecies] = useState(false);
+  const [usgsModal, setUsgsModal] = useState(false);
+  const [tideModal, setTideModal] = useState(false);
 
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
+
+  const isTidalSpot = !!spot && (spot.is_tidal || spot.site_type === "Tidal");
+
+  const reloadSpot = async () => {
+    if (!spot) return;
+    try {
+      const all = await fetchUserSpots();
+      setSpots(all);
+      const fresh = all.find((s) => s.id === spot.id);
+      if (fresh) setSpot(fresh);
+    } catch {
+      /* keep the current spot if the refresh fails */
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +81,7 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
     setInsights(null);
     fetchPastInsights(spot.id).then(setInsights).catch(() => {});
   }, [spot]);
+
 
   const seed = (): ChatDetails => ({
     location: spot?.body_of_water,
@@ -161,7 +181,9 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         error={planError}
         spotName={spot.name || spot.body_of_water}
         date={date}
+        spot={spot}
         onRegenerate={generate}
+
         onSave={save}
         onBack={() => setStep("details")}
       />
