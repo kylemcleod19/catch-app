@@ -148,4 +148,10 @@
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 2rem);
   }
 
+  /* Clears the fixed BottomNav (h-16) + safe area. Use on any scrollable
+     page rendered alongside <BottomNav /> so actions are never cut off. */
+  .pb-nav {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
+
 }
