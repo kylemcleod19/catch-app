@@ -145,7 +145,7 @@ export async function fetchForecast(spot: SpotLite, date: string) {
   const { latitude: lat, longitude: lng } = spot.spot_points[0];
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const url = `https://${projectId}.supabase.co/functions/v1/weather?lat=${lat}&lng=${lng}&date=${date}`;
+  const url = `https://${projectId}.supabase.co/functions/v1/weather?lat=${lat}&lon=${lng}&date=${date}`;
   try {
     const resp = await fetch(url, {
       headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
