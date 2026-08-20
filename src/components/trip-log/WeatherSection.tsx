@@ -169,16 +169,6 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
           if (!resp.ok) throw new Error("Failed to fetch weather data");
           result = await resp.json();
-
-          supabase
-            .from("weather_data_cache")
-            .upsert(
-              { lat, lon, date: dateStr, spot_id: spotId, trip_id: tripId, response_json: result } as any,
-              { onConflict: "lat,lon,date" }
-            )
-            .then(({ error }) => {
-              if (error) console.warn("Weather cache write failed:", error);
-            });
         }
 
         const snapshot: WeatherSnapshot = {

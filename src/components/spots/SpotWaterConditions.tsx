@@ -48,13 +48,6 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
           });
           if (!resp.ok) throw new Error("Failed to load water data");
           result = await resp.json();
-          supabase
-            .from("water_data_cache")
-            .upsert(
-              { monitoring_location_id: usgsSiteId, date: dateStr, response_json: result },
-              { onConflict: "monitoring_location_id,date" }
-            )
-            .then(() => {});
         }
 
         if (cancelled) return;
