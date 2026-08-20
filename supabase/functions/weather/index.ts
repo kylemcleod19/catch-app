@@ -1,4 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
+/** Persist the payload into the shared cache using the service role (clients cannot write it). */
+async function cacheResponse(
+  lat: number,
+  lon: number,
+  date: string,
+  spotId: string | null,
+  tripId: string | null,
+  response: unknown,
+) {
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    await supabase
+      .from("weather_data_cache")
+      .upsert(
+        { lat, lon, date, spot_id: spotId, trip_id: tripId, response_json: response },
+        { onConflict: "lat,lon,date" },
+      );
+  } catch (e) {
+    console.warn("weather cache write failed:", e);
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -564,6 +590,15 @@ serve(async (req) => {
     if (dataGaps.length > 0) {
       response.data_gaps = dataGaps;
     }
+
+    await cacheResponse(
+      lat,
+      lon,
+      url.searchParams.get("date") || new Date().toISOString().split("T")[0],
+      url.searchParams.get("spot_id"),
+      url.searchParams.get("trip_id"),
+      response,
+    );
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

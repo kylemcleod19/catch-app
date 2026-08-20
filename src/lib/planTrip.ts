@@ -179,13 +179,6 @@ export async function fetchWaterData(spot: SpotLite, date: string) {
     });
     if (!resp.ok) return null;
     const result = await resp.json();
-    supabase
-      .from("water_data_cache")
-      .upsert(
-        { monitoring_location_id: siteId, date: dateStr, response_json: result },
-        { onConflict: "monitoring_location_id,date" }
-      )
-      .then(() => {});
     return result;
   } catch {
     return null;

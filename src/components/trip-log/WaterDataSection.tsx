@@ -150,16 +150,6 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
 
           if (!resp.ok) throw new Error("Failed to fetch water data");
           result = await resp.json();
-
-          supabase
-            .from("water_data_cache")
-            .upsert(
-              { monitoring_location_id: usgsSiteId, date: dateStr, response_json: result },
-              { onConflict: "monitoring_location_id,date" }
-            )
-            .then(({ error }) => {
-              if (error) console.warn("Cache write failed:", error);
-            });
         }
 
         const { data: locData } = await supabase

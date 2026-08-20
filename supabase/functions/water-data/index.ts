@@ -1,4 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
+/** Persist the payload into the shared cache using the service role (clients cannot write it). */
+async function cacheResponse(monId: string, date: string, response: unknown) {
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    await supabase
+      .from("water_data_cache")
+      .upsert(
+        { monitoring_location_id: monId, date, response_json: response },
+        { onConflict: "monitoring_location_id,date" },
+      );
+  } catch (e) {
+    console.warn("water cache write failed:", e);
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -254,6 +273,8 @@ serve(async (req) => {
         },
       },
     };
+
+    await cacheResponse(monId, targetDate, response);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

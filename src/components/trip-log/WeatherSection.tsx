@@ -159,7 +159,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
           result = cached.response_json;
         } else {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-          const url = `https://${projectId}.supabase.co/functions/v1/weather?lat=${lat}&lon=${lon}&date=${dateStr}`;
+          const url = `https://${projectId}.supabase.co/functions/v1/weather?lat=${lat}&lon=${lon}&date=${dateStr}&spot_id=${encodeURIComponent(spotId)}&trip_id=${encodeURIComponent(tripId)}`;
 
           const resp = await fetch(url, {
             headers: {
@@ -169,16 +169,6 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
           if (!resp.ok) throw new Error("Failed to fetch weather data");
           result = await resp.json();
-
-          supabase
-            .from("weather_data_cache")
-            .upsert(
-              { lat, lon, date: dateStr, spot_id: spotId, trip_id: tripId, response_json: result } as any,
-              { onConflict: "lat,lon,date" }
-            )
-            .then(({ error }) => {
-              if (error) console.warn("Weather cache write failed:", error);
-            });
         }
 
         const snapshot: WeatherSnapshot = {
