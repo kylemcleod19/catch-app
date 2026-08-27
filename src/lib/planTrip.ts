@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SPOT_TYPE_SELECT, createSpotTypeData, flattenSpots, flattenSpot, type SpotTypeData } from "./spotData";
+import { toFipsStateCode } from "./us-states";
 
 // ── Types ──
 
