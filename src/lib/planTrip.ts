@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SPOT_TYPE_SELECT, createSpotTypeData, flattenSpots, flattenSpot, type SpotTypeData } from "./spotData";
+import { toFipsStateCode } from "./us-states";
 
 // ── Types ──
 
@@ -303,7 +304,7 @@ export async function createCandidatePlannedTrip(params: {
 
   const siteType = candidate.water_type === "tidal" ? "Tidal" : candidate.water_type === "lake" ? "Lake" : "Stream";
   const stateFromQuery = candidate.search_query?.match(/,\s*([A-Z]{2})(?:\s|$)/)?.[1];
-  const stateCode = candidate.state_code?.trim().toUpperCase() || stateFromQuery || "US";
+  const stateCode = toFipsStateCode(candidate.state_code?.trim() || stateFromQuery) || "US";
   const { data: spotRow, error: spotError } = await supabase
     .from("spots")
     .insert({
