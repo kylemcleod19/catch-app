@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeState } from "@/hooks/useHomeState";
 import { toast } from "sonner";
-import { US_STATES, getStateName } from "@/lib/us-states";
+import { US_STATES, getStateName, toFipsStateCode } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
   Navigation, Move, Waves, Droplets, Anchor,
@@ -210,7 +210,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
     const { data } = await supabase
       .from("usgs_fishing_water_bodies")
       .select("site_id, monitoring_location_name, latitude, longitude")
-      .eq("state_code", stateCode)
+      .eq("state_code", toFipsStateCode(stateCode))
       .eq("normalized_water_body", waterInput)
       .eq("site_type", USGS_SITE_TYPE[waterType])
       .not("latitude", "is", null)

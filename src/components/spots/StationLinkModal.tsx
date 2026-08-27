@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getStateName } from "@/lib/us-states";
+import { getStateName, toFipsStateCode } from "@/lib/us-states";
 import { ChevronLeft, Loader2, Search, Check, X } from "lucide-react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
@@ -68,7 +68,7 @@ const StationLinkModal = ({ open, onOpenChange, spot, onLinked }: StationLinkMod
     let q = supabase
       .from("usgs_fishing_water_bodies")
       .select("site_id, monitoring_location_name, normalized_water_body, latitude, longitude")
-      .eq("state_code", spot.state_code)
+      .eq("state_code", toFipsStateCode(spot.state_code))
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 
