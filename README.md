@@ -1,6 +1,14 @@
 # Catch - passion project - fishing app - AI and tool consolidation
 
-I like to fly fish. Particularly, I like to explore rivers and learn new spots and techniques. I had been using a variety of tools to help me explore and track my learnings. I decided to combine them in a web app as a way to practice vibe coding and give fishers a better tool for trip exploration. I don't particularly like the name and hope to find a better one soon.
+I like to fly fish. Particularly, I like to explore rivers and learn new spots and techniques. I had been using a variety of tools to help me explore and track my learnings. I decided to combine them in a web app as a way to practice vibe coding and give fishers a better tool for trip exploration. 
+
+Catch is an AI-assisted fishing trip planning and logging application I built to explore how modern coding agents can let a product-oriented builder own a full-stack application. It consolidates mapping, hydrology, weather, trip history, and AI-assisted logging into a single workflow.
+
+Frontend: React + TypeScript + Vite
+Backend/Data: Supabase/Postgres
+Integrations: Google Maps, USGS stream gauges, weather APIs, AI APIs
+Testing: Vitest + Playwright
+Development: Lovable + coding agents / direct code iteration
 
 ## Tools I used before
 
@@ -28,6 +36,7 @@ The app is meant to provide a thorough, but thoughtful set of tools to save spot
 * AI API can take voice memos and turn them into trip logs so anglers can keep a hand on their fishing pole and log real-time insights
 * AI API can use users data to recommend spots and future trips
 
-## Development
+## Progress
 
-This is currently being built on Lovable. At some point I will likely move it to a different architecture and build an phone app.
+I am refining the overall experience a bit as I get some chances to test it in the wild. I hope to soon move it to an Apple iPhone app once I have it in a good space.
+
