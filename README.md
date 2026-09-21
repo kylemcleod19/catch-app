@@ -38,5 +38,10 @@ The app is meant to provide a thorough, but thoughtful set of tools to save spot
 
 ## Progress
 
-I am refining the overall experience a bit as I get some chances to test it in the wild. I hope to soon move it to an Apple iPhone app once I have it in a good space.
+I am refining the overall experience a bit as I get some chances to test it in the wild. I hope to soon move it to an Apple iPhone app once I have it in a good place.
+
+## Copyright
+Copyright © 2026 Kyle McLeod. All rights reserved.
+
+This source code is publicly available for portfolio and evaluation purposes. No license is granted to copy, modify, distribute, sublicense, or commercially use this software.
 
