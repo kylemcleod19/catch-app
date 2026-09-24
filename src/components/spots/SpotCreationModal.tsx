@@ -1179,6 +1179,8 @@ const FullScreenMapStep = ({
               if (!isNavigate) setPendingPinCoords(coords);
             }}
             onLocateMe={onLocateMe}
+            accessPoints={accessPoints}
+            onPickAccess={onPickAccess}
           />
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center text-sm text-muted-foreground">
@@ -1229,9 +1231,21 @@ const FullScreenMapStep = ({
             )}
           </div>
 
-          <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
-            {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1"
+              onClick={onSuggestAccess}
+              disabled={loadingAccess}
+            >
+              {loadingAccess ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
+              Suggest
+            </Button>
+            <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
+              {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -1242,6 +1256,7 @@ const FullScreenMapStep = ({
 
 const FullScreenMap = ({
   apiKey, mapRef, initialView, pins, isNavigate, isSatellite, autoSearchQuery, onAutoSearchDone, onMapViewChange, onMapClick, onLocateMe,
+  accessPoints, onPickAccess,
 }: {
   apiKey: string;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
@@ -1254,6 +1269,8 @@ const FullScreenMap = ({
   onMapViewChange: (view: MapView) => void;
   onMapClick: (coords: { lat: number; lng: number }) => void;
   onLocateMe: () => void;
+  accessPoints: { name: string; lat: number; lng: number; note: string }[];
+  onPickAccess: (p: { name: string; lat: number; lng: number }) => void;
 }) => {
   const { isLoaded } = useGoogleMaps(apiKey);
   const didAutoSearch = useRef(false);
@@ -1391,6 +1408,19 @@ const FullScreenMap = ({
             url: pinSvgIcon(getPinColor(i), String(i + 1)),
             scaledSize: new google.maps.Size(32, 40),
             anchor: new google.maps.Point(16, 40),
+          }}
+        />
+      ))}
+      {accessPoints.map((p, i) => (
+        <Marker
+          key={`access-${i}`}
+          position={{ lat: p.lat, lng: p.lng }}
+          title={`${p.name} — tap to add as a fishing spot`}
+          onClick={() => onPickAccess(p)}
+          icon={{
+            url: FISHING_ROD_PIN_ICON,
+            scaledSize: new google.maps.Size(40, 49),
+            anchor: new google.maps.Point(20, 46),
           }}
         />
       ))}
