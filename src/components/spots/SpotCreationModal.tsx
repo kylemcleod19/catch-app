@@ -273,6 +273,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setNearbyUsgs([]);
       setPendingPinCoords(null);
       setMapStage("navigate");
+      setAccessPoints([]);
+      setLoadingAccess(false);
     }
   }, [open, initialStateCode, homeState]);
 
@@ -567,6 +569,10 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             onBack={() => setStep("water")}
             onFinish={handleMapFinish}
             onExit={onExit}
+            accessPoints={accessPoints}
+            loadingAccess={loadingAccess}
+            onSuggestAccess={fetchAccessPoints}
+            onPickAccess={pickAccessPoint}
           />
         </DialogContent>
       </Dialog>
@@ -1086,6 +1092,7 @@ const FullScreenMapStep = ({
   apiKey, mapView, mapRef, effectiveWater, stateCode,
   autoSearchQuery, onAutoSearchDone,
   onPlaceSelected, onMapViewChange, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish, onExit,
+  accessPoints, loadingAccess, onSuggestAccess, onPickAccess,
 }: {
   mapStage: MapStage;
   setMapStage: (s: MapStage) => void;
@@ -1108,6 +1115,10 @@ const FullScreenMapStep = ({
   onBack: () => void;
   onFinish: () => void;
   onExit?: () => void;
+  accessPoints: { name: string; lat: number; lng: number; note: string }[];
+  loadingAccess: boolean;
+  onSuggestAccess: () => void;
+  onPickAccess: (p: { name: string; lat: number; lng: number }) => void;
 }) => {
   const isNavigate = mapStage === "navigate";
   const [isSatellite, setIsSatellite] = useState(false);
