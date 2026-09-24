@@ -19,6 +19,7 @@ interface TripWithDetails {
   bodyOfWater: string | null;
   catchCount: number;
   topSpecies: string[];
+  planJson?: unknown;
 }
 
 function generateTripName(trip: TripWithDetails): string {
@@ -54,29 +55,34 @@ const TripsPage = () => {
     if (!user) return;
     setLoading(true);
 
-    // Fetch all completed trips with spot info
-    const { data: tripsData } = await supabase
-      .from("fishing_trips")
-      .select("id, title, started_at, ended_at, status, spot_id, notes")
-      .eq("user_id", user.id)
-      .eq("status", "completed")
-      .order("started_at", { ascending: false });
+    const [{ data: tripsData }, { data: plannedData }] = await Promise.all([
+      supabase
+        .from("fishing_trips")
+        .select("id, title, started_at, ended_at, status, spot_id, notes")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("fishing_trips")
+        .select("id, title, started_at, ended_at, status, spot_id, notes, plan_json")
+        .eq("user_id", user.id)
+        .eq("status", "planned")
+        .order("started_at", { ascending: true }),
+    ]);
 
-    if (!tripsData || tripsData.length === 0) {
-      setTrips([]);
-      setLoading(false);
-      return;
-    }
+    const completedRows = tripsData || [];
 
-    const tripIds = tripsData.map((t) => t.id);
-    const spotIds = tripsData.map((t) => t.spot_id).filter(Boolean) as string[];
+    const tripIds = completedRows.map((t) => t.id);
+    const spotIds = completedRows.map((t) => t.spot_id).filter(Boolean) as string[];
 
     // Fetch spots and catches in parallel
     const [spotsRes, catchesRes] = await Promise.all([
       spotIds.length > 0
         ? supabase.from("spots").select("id, name, body_of_water").in("id", spotIds)
         : Promise.resolve({ data: [] }),
-      supabase.from("catches").select("trip_id, quantity, species").in("trip_id", tripIds),
+      tripIds.length > 0
+        ? supabase.from("catches").select("trip_id, quantity, species").in("trip_id", tripIds)
+        : Promise.resolve({ data: [] }),
     ]);
 
     const spotMap = new Map<string, { name: string | null; body_of_water: string }>();
@@ -91,7 +97,7 @@ const TripsPage = () => {
       speciesMap[c.trip_id][c.species] = (speciesMap[c.trip_id][c.species] || 0) + c.quantity;
     });
 
-    const enriched: TripWithDetails[] = tripsData.map((t) => {
+    const enriched: TripWithDetails[] = completedRows.map((t) => {
       const spot = t.spot_id ? spotMap.get(t.spot_id) : undefined;
       const speciesCounts = speciesMap[t.id] || {};
       const topSpecies = Object.entries(speciesCounts)
@@ -109,16 +115,6 @@ const TripsPage = () => {
     });
 
     setTrips(enriched);
-    setLoading(false);
-
-    // Fetch planned trips separately
-    const { data: plannedData } = await supabase
-      .from("fishing_trips")
-      .select("id, title, started_at, ended_at, status, spot_id, notes, plan_json")
-      .eq("user_id", user.id)
-      .eq("status", "planned")
-      .order("started_at", { ascending: true });
-
     if (plannedData && plannedData.length > 0) {
       const plannedSpotIds = plannedData.map((t) => t.spot_id).filter(Boolean) as string[];
       const plannedSpotsRes = plannedSpotIds.length > 0
@@ -135,12 +131,14 @@ const TripsPage = () => {
           bodyOfWater: spot?.body_of_water ?? null,
           catchCount: 0,
           topSpecies: [],
+          planJson: t.plan_json,
         };
       });
       setPlannedTrips(plannedEnriched);
     } else {
       setPlannedTrips([]);
     }
+    setLoading(false);
   }, [user]);
 
   useEffect(() => {
@@ -181,7 +179,7 @@ const TripsPage = () => {
           <div className="flex justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : trips.length === 0 ? (
+        ) : trips.length === 0 && plannedTrips.length === 0 ? (
           <div className="flex flex-col items-center text-center pt-12">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
               <Fish className="w-8 h-8 text-primary" />
@@ -216,7 +214,7 @@ const TripsPage = () => {
                         <p className="font-medium tracking-tight text-card-foreground truncate">
                           {displayName}
                         </p>
-                        <div className="flex items-center gap-3 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MapPin className="w-3 h-3" />
                             {locationLabel}
@@ -224,6 +222,9 @@ const TripsPage = () => {
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(trip.started_at), "MMM d, yyyy")}
                           </span>
+                          {trip.planJson && (
+                            <span className="text-xs font-medium text-primary">Plan saved</span>
+                          )}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground ml-1 shrink-0" />

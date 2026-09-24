@@ -16,6 +16,7 @@ import VoiceLogModal, { ParsedTripData } from "./VoiceLogModal";
 import WaterDataSection, { WaterFlowSnapshot } from "./WaterDataSection";
 import TideDataSection, { TideSnapshot } from "./TideDataSection";
 import WeatherSection, { WeatherSnapshot } from "./WeatherSection";
+import SavedPlanDetails from "@/components/plan/SavedPlanDetails";
 
 interface TripLogFormProps {
   tripId: string;
@@ -36,6 +37,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
   const [waterSnapshot, setWaterSnapshot] = useState<WaterFlowSnapshot | null>(null);
   const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
   const [tideSnapshot, setTideSnapshot] = useState<TideSnapshot | null>(null);
+  const [savedPlan, setSavedPlan] = useState<unknown>(null);
+  const [isPlannedTrip, setIsPlannedTrip] = useState(false);
   const [timeError, setTimeError] = useState<string | null>(null);
 
 
@@ -81,6 +84,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
           if (data.weather_snapshot) {
             setWeatherSnapshot(data.weather_snapshot as unknown as WeatherSnapshot);
           }
+          setSavedPlan(data.plan_json);
+          setIsPlannedTrip(data.status === "planned");
         }
         setLoadingTrip(false);
       });
@@ -278,7 +283,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">Log a Trip</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">{isPlannedTrip ? "Upcoming Trip" : "Log a Trip"}</h2>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
           <X className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -379,6 +384,8 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
         onSnapshotChange={setWeatherSnapshot}
       />
 
+      {isPlannedTrip && <SavedPlanDetails plan={savedPlan} />}
+
       {/* Catches */}
       {user && <CatchLogger ref={catchLoggerRef} tripId={tripId} userId={user.id} />}
 
@@ -391,7 +398,7 @@ const TripLogForm = ({ tripId, onClose, onSuccess }: TripLogFormProps) => {
       {/* Submit */}
       <Button type="submit" variant="catch" size="lg" className="w-full" disabled={saving}>
         {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-        Save Trip
+        {isPlannedTrip ? "Complete Trip" : "Save Trip"}
       </Button>
     </form>
   );
