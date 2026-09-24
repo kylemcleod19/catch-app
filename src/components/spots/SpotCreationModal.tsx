@@ -695,7 +695,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                   onChange={(e) => handleWaterInputChange(e.target.value)}
                   onFocus={() => waterType !== "Tidal" && waterInput.trim().length >= 2 && setShowSuggestions(true)}
                   className="rounded-xl pl-9"
-                  autoFocus
+                  autoFocus={!locationHint}
                 />
               </div>
               {waterType === "Tidal" ? (
@@ -758,7 +758,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
                 value={spotName}
                 onChange={(e) => setSpotName(e.target.value)}
                 className="rounded-xl"
-                autoFocus
+                autoFocus={!locationHint}
               />
               <p className="text-xs text-muted-foreground">
                 Give it a memorable name. The water body is already saved separately.
