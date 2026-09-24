@@ -29,7 +29,7 @@ interface Props {
   onSpotReady: (spot: SpotLite, details: ChatDetails) => void;
 }
 
-type Stage = "where" | "how" | "species" | "chat";
+type Stage = "where" | "species" | "chat";
 
 export const TIME_OPTIONS = ["Dawn", "Morning", "Midday", "Afternoon", "Evening", "Night"];
 const WATER_OPTIONS = ["Freshwater", "Saltwater"];
@@ -101,8 +101,12 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onCandidateCreated, onSpot
   const goHow = () => {
     if (!location.trim()) return toast.error("Tell us roughly where you're headed");
     setDetails(baseDetails());
-    setStage("how");
-    say("Do you want to pick the spot on a map, or get help choosing water based on the fish you're after?");
+    setMapOpen(true);
+  };
+
+  const handleMapExit = () => {
+    setMapOpen(false);
+    goSpecies();
   };
 
   // ── Map path ──
@@ -276,42 +280,6 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onCandidateCreated, onSpot
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>
-      </div>
-    );
-  }
-
-  // ── Step 2: map or guidance ──
-  if (stage === "how") {
-    return (
-      <div className="space-y-4 pt-4">
-        <button onClick={() => setStage("where")} className="text-sm text-muted-foreground">← {location} · {date}</button>
-        <h2 className="text-xl font-bold text-foreground">How do you want to pick the spot?</h2>
-
-        <button onClick={() => setMapOpen(true)} className="w-full text-left p-5 rounded-2xl bg-surface border border-border active:bg-surface/80">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <MapIcon className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">I know where — pick it on the map</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">Drop pins on the water and link its flow or tide station.</p>
-            </div>
-          </div>
-        </button>
-
-        <button onClick={goSpecies} className="w-full text-left p-5 rounded-2xl bg-surface border border-border active:bg-surface/80">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Fish className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Help me choose by target fish</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">Tell the AI what you're after and it suggests water on a map.</p>
-            </div>
-          </div>
-        </button>
-
-        <SpotCreationModal open={mapOpen} onOpenChange={setMapOpen} onSpotCreated={handleMapCreated} locationHint={location} />
       </div>
     );
   }
