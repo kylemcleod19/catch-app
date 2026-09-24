@@ -311,7 +311,7 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onCandidateCreated, onSpot
           </div>
         </button>
 
-        <SpotCreationModal open={mapOpen} onOpenChange={setMapOpen} onSpotCreated={handleMapCreated} />
+        <SpotCreationModal open={mapOpen} onOpenChange={setMapOpen} onSpotCreated={handleMapCreated} locationHint={location} />
       </div>
     );
   }
