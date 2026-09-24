@@ -659,8 +659,34 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               <button type="button" className="text-[10px] underline" onClick={() => setStep("type")}>change</button>
             </div>
 
+            {locationHint && waterType !== "Tidal" && (loadingNearby || nearbyWaters.length > 0) && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Near {locationHint}</p>
+                {loadingNearby ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {nearbyWaters.map((w) => (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(w)}
+                        className={`px-3 py-2 rounded-full border text-sm font-medium transition-colors ${
+                          waterInput === w ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface text-foreground"
+                        }`}
+                      >
+                        {w}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1 relative">
-              <label className="text-sm font-medium text-foreground">Water body name</label>
+              <label className="text-sm font-medium text-foreground">
+                {locationHint && nearbyWaters.length > 0 ? "Or search another" : "Water body name"}
+              </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
