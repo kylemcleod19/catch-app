@@ -65,7 +65,10 @@ const WhereStep = ({ date, area, waterType, onArea, onWaterType, onSpotCreated }
     if (!isLoaded) return toast.error("Map is still loading — try again in a second");
     setGeocoding(true);
     try {
-      const { results } = await new google.maps.Geocoder().geocode({ address: query, region: "us" });
+      const { results } = await Promise.race([
+        new google.maps.Geocoder().geocode({ address: query, region: "us" }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
+      ]);
       const r = results?.[0];
       if (!r) throw new Error();
       const stateAbbr =
