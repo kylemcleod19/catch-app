@@ -142,9 +142,10 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
 
         // Treat cached payloads without a `current` block as stale when they
         // also lack daily values, so older caches gain the live reading.
+        const cachedJson = cached?.response_json as any;
         const cacheUsable =
-          cached?.response_json &&
-          (cached.response_json.daily_values?.length > 0 || cached.response_json.current);
+          cachedJson &&
+          (cachedJson.daily_values?.length > 0 || cachedJson.current);
 
         if (cacheUsable) {
           result = cached.response_json;
