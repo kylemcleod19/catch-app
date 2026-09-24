@@ -404,21 +404,6 @@ export interface ChatTurn {
   choices?: { options: string[]; multi?: boolean } | null;
 }
 
-export async function planChat(params: {
-  messages: ChatMessage[];
-  context: {
-    today: string;
-    spots: { id: string; name: string | null; body_of_water: string; state_code: string; site_type: string }[];
-    species: string[];
-    tackle: { name: string; category: string | null; species: string[] }[];
-    details?: ChatDetails | null;
-  };
-}): Promise<ChatTurn> {
-  const { data, error } = await supabase.functions.invoke("plan-chat", { body: params });
-  if (error) throw error;
-  if ((data as any)?.error) throw new Error((data as any).error);
-  return data as ChatTurn;
-}
 
 /** Chat details → the intake shape the day-plan function expects. */
 export function detailsToIntake(d: ChatDetails | null): PlannerIntake {

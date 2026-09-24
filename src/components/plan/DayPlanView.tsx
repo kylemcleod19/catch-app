@@ -1,6 +1,7 @@
 import { Loader2, Sun, CloudRain, Wind, Droplet, Waves, AlertCircle, Sunrise, Sunset } from "lucide-react";
 import type { DayPlan, DayBlock, SpotLite } from "@/lib/planTrip";
 import PlanConditions from "./PlanConditions";
+import PlanMap from "./PlanMap";
 
 interface Props {
   plan: DayPlan | null;
@@ -46,6 +47,12 @@ const DayPlanView = ({ plan, loading, error, spotName, date, spot, onRegenerate,
           Try again
         </button>
         <button
+          onClick={onSave}
+          className="w-full py-3 rounded-xl border border-primary text-primary text-sm font-semibold"
+        >
+          Save trip without the AI plan
+        </button>
+        <button
           onClick={onBack}
           className="w-full py-3 rounded-xl border border-border text-sm font-medium text-muted-foreground"
         >
@@ -74,7 +81,21 @@ const DayPlanView = ({ plan, loading, error, spotName, date, spot, onRegenerate,
       )}
 
       {/* Live conditions for the water */}
-      {spot && <PlanConditions spot={spot} />}
+      {spot?.spot_points?.[0] && (
+        <PlanMap
+          center={{ lat: spot.spot_points[0].latitude, lng: spot.spot_points[0].longitude }}
+          pins={[
+            { id: "spot", lat: spot.spot_points[0].latitude, lng: spot.spot_points[0].longitude, kind: "spot" },
+            ...(spot.noaa_station_lat != null && spot.noaa_station_lon != null
+              ? [{ id: "st", lat: spot.noaa_station_lat, lng: spot.noaa_station_lon, kind: "station" as const }]
+              : []),
+          ]}
+          height="h-44"
+          zoom={12}
+        />
+      )}
+
+      {spot && <PlanConditions spot={spot} date={date} />}
 
 
 

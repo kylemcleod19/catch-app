@@ -5,9 +5,11 @@ import SpotTideConditions from "@/components/spots/SpotTideConditions";
 import SpotWeatherForecast from "@/components/spots/SpotWeatherForecast";
 import { fetchFlowSeries, summarizeClarity, type ClaritySummary } from "@/lib/waterClarity";
 import type { SpotLite } from "@/lib/planTrip";
+import { hasForecast, FORECAST_DAYS } from "@/lib/planSuggest";
 
 interface Props {
   spot: SpotLite;
+  date?: string;
 }
 
 const TONE_CLASS: Record<ClaritySummary["tone"], string> = {
@@ -70,7 +72,8 @@ const FlowAndClarity = ({ usgsSiteId }: { usgsSiteId: string }) => {
 };
 
 /** Conditions block shown with a generated day plan: flow + clarity or tides, plus the weather outlook. */
-const PlanConditions = ({ spot }: Props) => {
+const PlanConditions = ({ spot, date }: Props) => {
+  const forecast = !date || hasForecast(date);
   const point = spot.spot_points?.[0];
   const isTidal = spot.is_tidal || spot.site_type === "Tidal";
 
@@ -82,6 +85,13 @@ const PlanConditions = ({ spot }: Props) => {
           {isTidal ? "Tide & weather" : "Water & weather"}
         </p>
       </div>
+
+      {!forecast && (
+        <p className="text-xs text-muted-foreground p-3 rounded-xl bg-muted/30">
+          Your date is more than {FORECAST_DAYS} days out, so there's no weather forecast yet.{" "}
+          {isTidal ? "Tide predictions are shown below." : "Showing current river conditions and the last 30 days."}
+        </p>
+      )}
 
       {isTidal ? (
         point ? (
@@ -97,7 +107,7 @@ const PlanConditions = ({ spot }: Props) => {
         </p>
       )}
 
-      {point ? (
+      {!forecast ? null : point ? (
         <SpotWeatherForecast lat={point.latitude} lon={point.longitude} />
       ) : (
         <p className="text-xs text-muted-foreground flex items-center gap-1">
