@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, LayoutList, Map as MapIcon, Fish, ChevronRight, Mic, Square, Calendar, Clock, MapPin, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Sparkles, LayoutList, Fish, ChevronRight, Mic, Square, Calendar, Clock, MapPin, Volume2, VolumeX } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import VoiceTextComposer from "./VoiceTextComposer";
@@ -280,6 +280,19 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onCandidateCreated, onSpot
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>
+
+        <button onClick={goSpecies} className="w-full py-2 text-xs font-medium text-muted-foreground flex items-center justify-center gap-1.5">
+          <Fish className="w-3.5 h-3.5" />
+          Not sure where? Help me find a spot
+        </button>
+
+        <SpotCreationModal
+          open={mapOpen}
+          onOpenChange={setMapOpen}
+          onSpotCreated={handleMapCreated}
+          locationHint={location}
+          onExit={handleMapExit}
+        />
       </div>
     );
   }
@@ -290,7 +303,7 @@ const PlannerChat = ({ seedDetails, onSwitchToGuided, onCandidateCreated, onSpot
     const list = (isSalt === undefined ? species : species.filter((s) => speciesFitsWater(s, isSalt))).slice(0, 30);
     return (
       <div className="space-y-4 pt-4">
-        <button onClick={() => setStage("how")} className="text-sm text-muted-foreground">← Back</button>
+        <button onClick={() => setStage("where")} className="text-sm text-muted-foreground">← Back</button>
         <h2 className="text-xl font-bold text-foreground">What are you fishing for?</h2>
 
         <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
