@@ -40,6 +40,10 @@ export interface WaterFlowSnapshot {
   date: string;
   fetched_at: string;
   daily_values: DailyValue[];
+  current?: {
+    discharge?: { parameter_code?: string; value: string; unit: string; time?: string } | null;
+    gage_height?: { parameter_code?: string; value: string; unit: string; time?: string } | null;
+  };
   historical?: {
     discharge?: { parameter_code?: string | null; series?: HistoricalPoint[] };
     gage_height?: { parameter_code?: string | null; series?: HistoricalPoint[] };
@@ -136,7 +140,14 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
 
         let result: any;
 
-        if (cached?.response_json) {
+        // Treat cached payloads without a `current` block as stale when they
+        // also lack daily values, so older caches gain the live reading.
+        const cachedJson = cached?.response_json as any;
+        const cacheUsable =
+          cachedJson &&
+          (cachedJson.daily_values?.length > 0 || cachedJson.current);
+
+        if (cacheUsable) {
           result = cached.response_json;
         } else {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -164,6 +175,7 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
           date: dateStr,
           fetched_at: new Date().toISOString(),
           daily_values: result.daily_values || [],
+          current: result.current,
           historical: result.historical,
           statistics: result.statistics,
         };
@@ -252,6 +264,24 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                 </div>
               );
             })
+          ) : existingSnapshot.current?.discharge || existingSnapshot.current?.gage_height ? (
+            <div className="flex items-center gap-3 min-w-0 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">Current</span>
+              {existingSnapshot.current?.discharge && (
+                <div className="flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">{existingSnapshot.current.discharge.value}</span>
+                  <span className="text-[10px] text-muted-foreground">{existingSnapshot.current.discharge.unit}</span>
+                </div>
+              )}
+              {existingSnapshot.current?.gage_height && (
+                <div className="flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-accent" />
+                  <span className="text-sm font-semibold text-foreground">{existingSnapshot.current.gage_height.value}</span>
+                  <span className="text-[10px] text-muted-foreground">{existingSnapshot.current.gage_height.unit}</span>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
               <Droplets className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
