@@ -65,13 +65,27 @@ serve(async (req) => {
         });
       }
 
-      if (waterData?.series?.length) {
-        parts.push(`\nWater conditions (recent):`);
-        const recent = waterData.series.slice(-20);
-        recent.forEach((w: any) => {
-          parts.push(`  ${w.timestamp}: ${w.value}${w.unit || ""}`);
-        });
-        if (waterData.current) parts.push(`Current: ${waterData.current.value}${waterData.current.unit || ""}`);
+      // USGS payload shape: { historical: { discharge: { series }, gage_height: { series } } } (unsorted)
+      const toSeries = (arr: any[] = []) =>
+        arr
+          .map((p: any) => ({ date: String(p.date || p.timestamp || ""), value: parseFloat(p.value) }))
+          .filter((p) => p.date && !isNaN(p.value))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      const discharge = toSeries(waterData?.historical?.discharge?.series || waterData?.series);
+      const gage = toSeries(waterData?.historical?.gage_height?.series);
+      if (discharge.length || gage.length) {
+        parts.push(`\nMeasured USGS water data (real observations — use these, do NOT say flow is unavailable):`);
+        if (discharge.length) {
+          const vals = discharge.slice(-30).map((d) => d.value).sort((a, b) => a - b);
+          const median = vals[Math.floor(vals.length / 2)];
+          const last = discharge[discharge.length - 1];
+          parts.push(`  Latest discharge: ${last.value} cfs on ${last.date}; 30-day median ${median} cfs`);
+          parts.push(`  Recent daily discharge (cfs): ${discharge.slice(-14).map((d) => `${d.date.slice(5)}=${d.value}`).join(", ")}`);
+        }
+        if (gage.length) {
+          const last = gage[gage.length - 1];
+          parts.push(`  Latest gage height: ${last.value} ft on ${last.date}`);
+        }
       }
 
       if (tideData?.predictions?.length) {
