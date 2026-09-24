@@ -401,6 +401,7 @@ export interface ChatTurn {
   details: ChatDetails | null;
   spots: ExploreResult | null;
   planRequest: { spot_id: string; date: string; reason?: string } | null;
+  choices?: { options: string[]; multi?: boolean } | null;
 }
 
 export async function planChat(params: {
