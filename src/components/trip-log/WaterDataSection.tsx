@@ -40,6 +40,10 @@ export interface WaterFlowSnapshot {
   date: string;
   fetched_at: string;
   daily_values: DailyValue[];
+  current?: {
+    discharge?: { parameter_code?: string; value: string; unit: string; time?: string } | null;
+    gage_height?: { parameter_code?: string; value: string; unit: string; time?: string } | null;
+  };
   historical?: {
     discharge?: { parameter_code?: string | null; series?: HistoricalPoint[] };
     gage_height?: { parameter_code?: string | null; series?: HistoricalPoint[] };
@@ -136,7 +140,13 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
 
         let result: any;
 
-        if (cached?.response_json) {
+        // Treat cached payloads without a `current` block as stale when they
+        // also lack daily values, so older caches gain the live reading.
+        const cacheUsable =
+          cached?.response_json &&
+          (cached.response_json.daily_values?.length > 0 || cached.response_json.current);
+
+        if (cacheUsable) {
           result = cached.response_json;
         } else {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
