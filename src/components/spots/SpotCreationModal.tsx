@@ -54,6 +54,8 @@ interface SpotCreationModalProps {
   onOpenChange: (open: boolean) => void;
   onSpotCreated: (spot: CreatedSpot) => void;
   initialStateCode?: string;
+  /** Free-text area the user already gave (e.g. from the trip planner). */
+  locationHint?: string;
 }
 
 type Step = "type" | "state" | "water" | "map" | "usgs_select" | "naming";
@@ -106,7 +108,7 @@ const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
   '</svg>'
 );
 
-const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode }: SpotCreationModalProps) => {
+const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode, locationHint }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
   const [step, setStep] = useState<Step>("type");
@@ -139,12 +141,61 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
   const [spotName, setSpotName] = useState("");
+  const [hintCoords, setHintCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [nearbyWaters, setNearbyWaters] = useState<string[]>([]);
+  const [loadingNearby, setLoadingNearby] = useState(false);
+  const { isLoaded: mapsLoaded } = useGoogleMaps(locationHint ? apiKey : null);
 
   useEffect(() => {
     supabase.functions.invoke("google-maps-key").then(({ data, error }) => {
       if (!error && data?.key) setApiKey(data.key);
     });
   }, []);
+
+  // Geocode the area the angler already gave us → coords + state.
+  useEffect(() => {
+    if (!open || !locationHint?.trim() || !mapsLoaded) return;
+    let cancelled = false;
+    new google.maps.Geocoder().geocode({ address: locationHint, region: "us" }, (results, status) => {
+      if (cancelled || status !== "OK" || !results?.[0]) return;
+      const r = results[0];
+      const loc = r.geometry.location;
+      setHintCoords({ lat: loc.lat(), lng: loc.lng() });
+      const st = r.address_components.find((c) => c.types.includes("administrative_area_level_1"));
+      if (st?.short_name && US_STATES.some((s) => s.code === st.short_name)) {
+        setStateCode(st.short_name);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [open, locationHint, mapsLoaded]);
+
+  // Nearby monitored waters of the selected type, closest first.
+  useEffect(() => {
+    if (!hintCoords || waterType === "Tidal" || step !== "water") return;
+    let cancelled = false;
+    setLoadingNearby(true);
+    const d = 0.6; // ~40 miles
+    supabase
+      .from("usgs_fishing_water_bodies")
+      .select("normalized_water_body, latitude, longitude")
+      .eq("site_type", USGS_SITE_TYPE[waterType])
+      .gte("latitude", hintCoords.lat - d).lte("latitude", hintCoords.lat + d)
+      .gte("longitude", hintCoords.lng - d).lte("longitude", hintCoords.lng + d)
+      .not("normalized_water_body", "is", null)
+      .limit(500)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const best = new Map<string, number>();
+        (data || []).forEach((r: any) => {
+          const dist = Math.hypot(r.latitude - hintCoords.lat, r.longitude - hintCoords.lng);
+          const prev = best.get(r.normalized_water_body);
+          if (prev === undefined || dist < prev) best.set(r.normalized_water_body, dist);
+        });
+        setNearbyWaters([...best.entries()].sort((a, b) => a[1] - b[1]).slice(0, 8).map(([n]) => n));
+        setLoadingNearby(false);
+      });
+    return () => { cancelled = true; };
+  }, [hintCoords, waterType, step]);
 
   useEffect(() => {
     if (!stateCode || waterType === "Tidal") {
