@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageSquare, Mic, MapPin, ChevronRight, Loader2, History, Navigation } from "lucide-react";
+import { MapPin, ChevronRight, Loader2, History, Navigation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchUserSpots, type SpotLite } from "@/lib/planTrip";
 
@@ -92,16 +92,12 @@ const PathSelector = ({ onNewSpot, onPickSpot }: Props) => {
       >
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <MessageSquare className="w-6 h-6 text-primary" />
+            <Navigation className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">New Spot</h3>
+            <h3 className="font-semibold text-foreground">Somewhere new</h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Talk it through with the AI — where you're headed, salt or fresh, what you're after — and it finds the
-              water for you.
-            </p>
-            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-              <Mic className="w-3.5 h-3.5" /> Voice or typing, any time
+              Tell us the area — we'll show nearby water on a map and suggest a few spots if you want help.
             </p>
           </div>
         </div>
@@ -116,7 +112,7 @@ const PathSelector = ({ onNewSpot, onPickSpot }: Props) => {
           </div>
         ) : ranked.length === 0 ? (
           <div className="p-4 rounded-xl bg-surface border border-border text-sm text-muted-foreground">
-            No saved spots yet — start with New Spot above.
+            No saved spots yet — start with Somewhere new above.
           </div>
         ) : (
           <div className="space-y-2">
