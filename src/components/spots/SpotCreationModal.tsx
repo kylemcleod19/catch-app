@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { US_STATES, getStateName, toFipsStateCode } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
-  Navigation, Move, Waves, Droplets, Anchor,
+  Navigation, Move, Waves, Droplets, Anchor, Sparkles,
 } from "lucide-react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
@@ -143,6 +143,44 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
   const [spotName, setSpotName] = useState("");
+  const [accessPoints, setAccessPoints] = useState<{ name: string; lat: number; lng: number; note: string }[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(false);
+
+  const fetchAccessPoints = async () => {
+    if (!waterInput.trim()) return;
+    setLoadingAccess(true);
+    try {
+      const c = mapRef.current?.getCenter();
+      const { data, error } = await supabase.functions.invoke("suggest-access-points", {
+        body: {
+          waterBody: waterInput.trim(),
+          stateCode,
+          lat: c?.lat(),
+          lng: c?.lng(),
+        },
+      });
+      if (error) throw error;
+      const pts = (data?.points ?? []) as { name: string; lat: number; lng: number; note: string }[];
+      setAccessPoints(pts);
+      if (pts.length === 0) {
+        toast.info("No access point suggestions found for this water");
+      } else if (mapRef.current) {
+        const bounds = new google.maps.LatLngBounds();
+        pts.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+        pins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+        mapRef.current.fitBounds(bounds, 60);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't get suggestions");
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
+
+  const pickAccessPoint = (p: { name: string; lat: number; lng: number }) => {
+    setPins((prev) => [...prev, { label: p.name, latitude: p.lat, longitude: p.lng }]);
+    setAccessPoints((prev) => prev.filter((a) => a.name !== p.name || a.lat !== p.lat));
+  };
   const [hintCoords, setHintCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearbyWaters, setNearbyWaters] = useState<string[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(false);
@@ -235,6 +273,8 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
       setNearbyUsgs([]);
       setPendingPinCoords(null);
       setMapStage("navigate");
+      setAccessPoints([]);
+      setLoadingAccess(false);
     }
   }, [open, initialStateCode, homeState]);
 
@@ -529,6 +569,10 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             onBack={() => setStep("water")}
             onFinish={handleMapFinish}
             onExit={onExit}
+            accessPoints={accessPoints}
+            loadingAccess={loadingAccess}
+            onSuggestAccess={fetchAccessPoints}
+            onPickAccess={pickAccessPoint}
           />
         </DialogContent>
       </Dialog>
@@ -1048,6 +1092,7 @@ const FullScreenMapStep = ({
   apiKey, mapView, mapRef, effectiveWater, stateCode,
   autoSearchQuery, onAutoSearchDone,
   onPlaceSelected, onMapViewChange, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish, onExit,
+  accessPoints, loadingAccess, onSuggestAccess, onPickAccess,
 }: {
   mapStage: MapStage;
   setMapStage: (s: MapStage) => void;
@@ -1070,6 +1115,10 @@ const FullScreenMapStep = ({
   onBack: () => void;
   onFinish: () => void;
   onExit?: () => void;
+  accessPoints: { name: string; lat: number; lng: number; note: string }[];
+  loadingAccess: boolean;
+  onSuggestAccess: () => void;
+  onPickAccess: (p: { name: string; lat: number; lng: number }) => void;
 }) => {
   const isNavigate = mapStage === "navigate";
   const [isSatellite, setIsSatellite] = useState(false);
@@ -1130,6 +1179,8 @@ const FullScreenMapStep = ({
               if (!isNavigate) setPendingPinCoords(coords);
             }}
             onLocateMe={onLocateMe}
+            accessPoints={accessPoints}
+            onPickAccess={onPickAccess}
           />
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center text-sm text-muted-foreground">
@@ -1180,9 +1231,21 @@ const FullScreenMapStep = ({
             )}
           </div>
 
-          <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
-            {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1"
+              onClick={onSuggestAccess}
+              disabled={loadingAccess}
+            >
+              {loadingAccess ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
+              Suggest
+            </Button>
+            <Button size="sm" className="rounded-xl gap-1" onClick={onFinish}>
+              {pins.length > 0 ? "Finish" : "Skip"} <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -1193,6 +1256,7 @@ const FullScreenMapStep = ({
 
 const FullScreenMap = ({
   apiKey, mapRef, initialView, pins, isNavigate, isSatellite, autoSearchQuery, onAutoSearchDone, onMapViewChange, onMapClick, onLocateMe,
+  accessPoints, onPickAccess,
 }: {
   apiKey: string;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
@@ -1205,6 +1269,8 @@ const FullScreenMap = ({
   onMapViewChange: (view: MapView) => void;
   onMapClick: (coords: { lat: number; lng: number }) => void;
   onLocateMe: () => void;
+  accessPoints: { name: string; lat: number; lng: number; note: string }[];
+  onPickAccess: (p: { name: string; lat: number; lng: number }) => void;
 }) => {
   const { isLoaded } = useGoogleMaps(apiKey);
   const didAutoSearch = useRef(false);
@@ -1342,6 +1408,19 @@ const FullScreenMap = ({
             url: pinSvgIcon(getPinColor(i), String(i + 1)),
             scaledSize: new google.maps.Size(32, 40),
             anchor: new google.maps.Point(16, 40),
+          }}
+        />
+      ))}
+      {accessPoints.map((p, i) => (
+        <Marker
+          key={`access-${i}`}
+          position={{ lat: p.lat, lng: p.lng }}
+          title={`${p.name} — tap to add as a fishing spot`}
+          onClick={() => onPickAccess(p)}
+          icon={{
+            url: FISHING_ROD_PIN_ICON,
+            scaledSize: new google.maps.Size(40, 49),
+            anchor: new google.maps.Point(20, 46),
           }}
         />
       ))}
