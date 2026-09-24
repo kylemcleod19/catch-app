@@ -235,14 +235,19 @@ export async function findBestStation(spot: SpotLite): Promise<StationMatch | nu
     .in("site_id", rows.map((r: any) => r.site_id));
   const av = new Map<string, any>((avail || []).map((a: any) => [a.site_id, a]));
   const need = spot.site_type === "Lake" ? "gage_height" : "water_flow";
-  const water = (spot.body_of_water || "").toLowerCase();
-  const scored = rows
+  const water = (spot.body_of_water || "").trim().toLowerCase();
+  const isSame = (r: any) =>
+    !!water &&
+    ((r.normalized_water_body || "").toLowerCase() === water ||
+      (r.monitoring_location_name || "").toLowerCase().includes(water));
+  // Stations must be on the chosen water when any exist nearby.
+  const same = rows.filter(isSame);
+  const pool = same.length ? same : rows;
+  const scored = pool
     .map((r: any) => {
       const miles = milesBetween(here, { lat: r.latitude, lng: r.longitude });
       const a = av.get(r.site_id);
-      const sameWater = !!water && `${r.normalized_water_body || ""} ${r.monitoring_location_name}`.toLowerCase().includes(water.split(" ")[0]);
-      // Prefer stations on the same water that report the metric this spot needs.
-      const score = miles - (sameWater ? 15 : 0) - (a?.[need] ? 10 : 0);
+      const score = miles - (a?.[need] ? 10 : 0);
       const params = a ? [a.water_flow && "Flow", a.gage_height && "Gage", a.temp && "Temp", a.turbidity && "Turbidity"].filter(Boolean) : [];
       return { r, miles, score, params };
     })

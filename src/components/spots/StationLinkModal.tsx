@@ -65,24 +65,32 @@ const StationLinkModal = ({ open, onOpenChange, spot, onLinked }: StationLinkMod
 
   const load = useCallback(async (search: string) => {
     setLoading(true);
-    let q = supabase
-      .from("usgs_fishing_water_bodies")
-      .select("site_id, monitoring_location_name, normalized_water_body, latitude, longitude")
-      .eq("state_code", toFipsStateCode(spot.state_code))
-      .not("latitude", "is", null)
-      .not("longitude", "is", null);
+    const base = () =>
+      supabase
+        .from("usgs_fishing_water_bodies")
+        .select("site_id, monitoring_location_name, normalized_water_body, latitude, longitude")
+        .eq("state_code", toFipsStateCode(spot.state_code))
+        .not("latitude", "is", null)
+        .not("longitude", "is", null);
 
+    let rows: any[] = [];
     if (search.trim()) {
-      q = q.ilike("monitoring_location_name", `%${search.trim()}%`);
-    }
-
-    const { data } = await q.limit(500);
-    let rows = (data || []) as any[];
-
-    // Prefer stations on the same body of water when not free-searching
-    if (!search.trim()) {
-      const sameWater = rows.filter((r) => r.normalized_water_body === spot.body_of_water);
-      if (sameWater.length > 0) rows = sameWater;
+      const { data } = await base().ilike("monitoring_location_name", `%${search.trim()}%`).limit(500);
+      rows = data || [];
+    } else {
+      // Only show stations on the spot's own body of water (queried directly so the state's
+      // thousands of other stations can't crowd it out).
+      const water = spot.body_of_water.trim();
+      const { data: exact } = await base().ilike("normalized_water_body", water).limit(500);
+      rows = exact || [];
+      if (!rows.length && water) {
+        const { data: loose } = await base().ilike("monitoring_location_name", `%${water}%`).limit(500);
+        rows = loose || [];
+      }
+      if (!rows.length) {
+        const { data } = await base().limit(500);
+        rows = data || [];
+      }
     }
 
     const refLat = ref?.latitude ?? 32;
