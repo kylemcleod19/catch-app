@@ -204,6 +204,14 @@ serve(async (req) => {
       gageData = await fetchHistorical(monId, ["62615", "00065"], "00003", interval100, USGS_API_KEY);
     } catch (e) { console.warn("Gage fetch failed:", e); }
 
+    let latestData: any = null;
+    try {
+      latestData = await usgsGet("/collections/latest-continuous/items", {
+        monitoring_location_id: monId,
+        limit: "1000",
+      }, USGS_API_KEY);
+    } catch (e) { console.warn("Latest continuous fetch failed:", e); }
+
     try {
       metadataData = await usgsGet("/collections/time-series-metadata/items", {
         monitoring_location_id: monId,
@@ -247,6 +255,23 @@ serve(async (req) => {
       thresholds: f.properties?.thresholds || null,
     }));
 
+    // ── Current (latest continuous) readings ──
+    const latestFeatures = latestData?.features || [];
+    const pickLatest = (codes: string[]) => {
+      const f = latestFeatures.find((x: any) => codes.includes(x.properties?.parameter_code));
+      if (!f) return null;
+      return {
+        parameter_code: f.properties?.parameter_code,
+        value: f.properties?.value,
+        unit: f.properties?.unit_of_measure,
+        time: f.properties?.time,
+      };
+    };
+    const current = {
+      discharge: pickLatest(["00060"]),
+      gage_height: pickLatest(["62615", "00065"]),
+    };
+
     // ── Computed stats (USGS returns values as strings) ──
     const dischargeValues = dischargeSeries.map((d: any) => parseFloat(d.value)).filter((v: number) => !isNaN(v));
     const gageValues = gageSeries.map((d: any) => parseFloat(d.value)).filter((v: number) => !isNaN(v));
@@ -255,6 +280,7 @@ serve(async (req) => {
       monitoring_location_id: monId,
       date: targetDate,
       daily_values: dailyValues,
+      current,
       historical: {
         discharge: {
           parameter_code: dischargeData.paramUsed,
