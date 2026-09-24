@@ -174,6 +174,7 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
           date: dateStr,
           fetched_at: new Date().toISOString(),
           daily_values: result.daily_values || [],
+          current: result.current,
           historical: result.historical,
           statistics: result.statistics,
         };
@@ -262,6 +263,24 @@ const WaterDataSection = forwardRef<HTMLDivElement, WaterDataSectionProps>(({ sp
                 </div>
               );
             })
+          ) : existingSnapshot.current?.discharge || existingSnapshot.current?.gage_height ? (
+            <div className="flex items-center gap-3 min-w-0 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">Current</span>
+              {existingSnapshot.current?.discharge && (
+                <div className="flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">{existingSnapshot.current.discharge.value}</span>
+                  <span className="text-[10px] text-muted-foreground">{existingSnapshot.current.discharge.unit}</span>
+                </div>
+              )}
+              {existingSnapshot.current?.gage_height && (
+                <div className="flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-accent" />
+                  <span className="text-sm font-semibold text-foreground">{existingSnapshot.current.gage_height.value}</span>
+                  <span className="text-[10px] text-muted-foreground">{existingSnapshot.current.gage_height.unit}</span>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
               <Droplets className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
