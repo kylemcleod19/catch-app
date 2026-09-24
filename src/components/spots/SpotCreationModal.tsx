@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { US_STATES, getStateName, toFipsStateCode } from "@/lib/us-states";
 import {
   ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X, Search,
-  Navigation, Move, Waves, Droplets, Anchor,
+  Navigation, Move, Waves, Droplets, Anchor, Sparkles,
 } from "lucide-react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import { useGoogleMaps } from "@/lib/googleMaps";
@@ -143,6 +143,44 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
   const [selectedUsgs, setSelectedUsgs] = useState<UsgsLocation | null>(null);
 
   const [spotName, setSpotName] = useState("");
+  const [accessPoints, setAccessPoints] = useState<{ name: string; lat: number; lng: number; note: string }[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(false);
+
+  const fetchAccessPoints = async () => {
+    if (!waterInput.trim()) return;
+    setLoadingAccess(true);
+    try {
+      const c = mapRef.current?.getCenter();
+      const { data, error } = await supabase.functions.invoke("suggest-access-points", {
+        body: {
+          waterBody: waterInput.trim(),
+          stateCode,
+          lat: c?.lat(),
+          lng: c?.lng(),
+        },
+      });
+      if (error) throw error;
+      const pts = (data?.points ?? []) as { name: string; lat: number; lng: number; note: string }[];
+      setAccessPoints(pts);
+      if (pts.length === 0) {
+        toast.info("No access point suggestions found for this water");
+      } else if (mapRef.current) {
+        const bounds = new google.maps.LatLngBounds();
+        pts.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+        pins.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+        mapRef.current.fitBounds(bounds, 60);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't get suggestions");
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
+
+  const pickAccessPoint = (p: { name: string; lat: number; lng: number }) => {
+    setPins((prev) => [...prev, { label: p.name, latitude: p.lat, longitude: p.lng }]);
+    setAccessPoints((prev) => prev.filter((a) => a.name !== p.name || a.lat !== p.lat));
+  };
   const [hintCoords, setHintCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearbyWaters, setNearbyWaters] = useState<string[]>([]);
   const [loadingNearby, setLoadingNearby] = useState(false);
