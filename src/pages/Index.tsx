@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, CalendarPlus, MapPin, Fish, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, CalendarPlus, MapPin, Fish, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import WeatherHeader from "@/components/WeatherHeader";
@@ -45,6 +45,14 @@ interface RecentTrip {
   catchCount: number;
 }
 
+interface UpcomingTrip {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  hasPlan: boolean;
+}
+
 const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -53,36 +61,58 @@ const Index = () => {
   const [checkingDraft, setCheckingDraft] = useState(true);
   const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [upcomingTrips, setUpcomingTrips] = useState<UpcomingTrip[]>([]);
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
 
   const fetchRecentTrips = useCallback(async () => {
     if (!user) return;
     setLoadingTrips(true);
-    const { data: trips } = await supabase
-      .from("fishing_trips")
-      .select("id, started_at, spot_id")
-      .eq("user_id", user.id)
-      .eq("status", "completed")
-      .order("started_at", { ascending: false })
-      .limit(5);
+    const [{ data: trips }, { data: planned }] = await Promise.all([
+      supabase
+        .from("fishing_trips")
+        .select("id, started_at, spot_id")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .order("started_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("fishing_trips")
+        .select("id, title, started_at, spot_id, plan_json")
+        .eq("user_id", user.id)
+        .eq("status", "planned")
+        .gte("started_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+        .order("started_at", { ascending: true })
+        .limit(5),
+    ]);
+
+    const allSpotIds = [...(trips || []), ...(planned || [])]
+      .map((trip) => trip.spot_id)
+      .filter(Boolean) as string[];
+    const { data: allSpots } = allSpotIds.length
+      ? await supabase.from("spots").select("id, name, body_of_water").in("id", Array.from(new Set(allSpotIds)))
+      : { data: [] };
+    const sharedSpotMap = new Map<string, { name: string | null; body_of_water: string }>();
+    allSpots?.forEach((spot) => sharedSpotMap.set(spot.id, spot));
+
+    setUpcomingTrips((planned || []).map((trip) => {
+      const plannedSpot = trip.spot_id ? sharedSpotMap.get(trip.spot_id) : undefined;
+      const location = plannedSpot?.body_of_water || plannedSpot?.name || "No spot";
+      return {
+        id: trip.id,
+        title: trip.title || `${location} · ${format(new Date(trip.started_at), "MMM d")}`,
+        location,
+        date: format(new Date(trip.started_at), "EEE, MMM d"),
+        hasPlan: Boolean(trip.plan_json && typeof trip.plan_json === "object" && Object.keys(trip.plan_json as object).length),
+      };
+    }));
 
     if (trips && trips.length > 0) {
       const tripIds = trips.map((t) => t.id);
-      const spotIds = trips.map((t) => t.spot_id).filter(Boolean) as string[];
-
-      const [spotsRes, catchesRes] = await Promise.all([
-        spotIds.length > 0
-          ? supabase.from("spots").select("id, name, body_of_water").in("id", spotIds)
-          : Promise.resolve({ data: [] }),
-        supabase.from("catches").select("trip_id, quantity, species").in("trip_id", tripIds),
-      ]);
-
-      const spotMap = new Map<string, { name: string | null; body_of_water: string }>();
-      spotsRes.data?.forEach((s) => spotMap.set(s.id, s));
+      const { data: catches } = await supabase.from("catches").select("trip_id, quantity, species").in("trip_id", tripIds);
 
       const countMap: Record<string, number> = {};
       const speciesMap: Record<string, Record<string, number>> = {};
-      catchesRes.data?.forEach((c) => {
+      catches?.forEach((c) => {
         countMap[c.trip_id] = (countMap[c.trip_id] || 0) + c.quantity;
         if (!speciesMap[c.trip_id]) speciesMap[c.trip_id] = {};
         speciesMap[c.trip_id][c.species] = (speciesMap[c.trip_id][c.species] || 0) + c.quantity;
@@ -90,7 +120,7 @@ const Index = () => {
 
       setRecentTrips(
         trips.map((t) => {
-          const spot = t.spot_id ? spotMap.get(t.spot_id) : undefined;
+          const spot = t.spot_id ? sharedSpotMap.get(t.spot_id) : undefined;
           const location = spot?.body_of_water || spot?.name || "No spot";
           const topSpecies = Object.entries(speciesMap[t.id] || {})
             .sort(([, a], [, b]) => b - a)
@@ -225,6 +255,34 @@ const Index = () => {
                 Plan Trip
               </Button>
             </div>
+
+            {/* Recent Trips */}
+            {upcomingTrips.length > 0 && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">Upcoming Trips</h2>
+                  <button onClick={() => navigate("/trips")} className="text-xs font-medium text-primary active:text-primary/70 transition-colors">View all</button>
+                </div>
+                <div className="space-y-2">
+                  {upcomingTrips.map((trip) => (
+                    <button key={trip.id} onClick={() => setEditingTripId(trip.id)} className="w-full catch-card flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <CalendarPlus className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-card-foreground">{trip.title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{trip.location}</span>
+                          <span>{trip.date}</span>
+                          {trip.hasPlan && <span className="flex items-center gap-1 text-primary"><Sparkles className="h-3 w-3" />Plan saved</span>}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Recent Trips */}
             <div className="space-y-3">
