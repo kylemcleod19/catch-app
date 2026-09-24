@@ -56,6 +56,8 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
   /** Free-text area the user already gave (e.g. from the trip planner). */
   locationHint?: string;
+  /** Optional escape hatch (e.g. planner offers AI guidance instead). */
+  onExit?: () => void;
 }
 
 type Step = "type" | "state" | "water" | "map" | "usgs_select" | "naming";
@@ -108,7 +110,7 @@ const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
   '</svg>'
 );
 
-const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode, locationHint }: SpotCreationModalProps) => {
+const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode, locationHint, onExit }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
   const [step, setStep] = useState<Step>("type");
