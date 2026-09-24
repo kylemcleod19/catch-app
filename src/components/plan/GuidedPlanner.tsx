@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin, Calendar, ChevronRight, Loader2, Fish, Clock, Trophy, Box, MessageSquare, Check, Activity, Waves } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import DayPlanView from "./DayPlanView";
+import ChoiceChips from "./ChoiceChips";
+import { TIME_OPTIONS } from "./PlannerChat";
 import StationLinkModal from "@/components/spots/StationLinkModal";
 import TideStationLinkModal from "@/components/spots/TideStationLinkModal";
 
@@ -30,7 +32,6 @@ interface Props {
 
 type Step = "spot" | "details" | "plan";
 
-const TIME_OPTIONS = ["Dawn patrol", "Morning", "Midday", "Afternoon", "Evening", "Full day"];
 
 const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, initialDetails }: Props) => {
   const [step, setStep] = useState<Step>(initialSpot ? "details" : "spot");
@@ -44,7 +45,12 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
   const [pickedSpecies, setPickedSpecies] = useState<string[]>(initialDetails?.species || []);
   const [pickedTackle, setPickedTackle] = useState<string[]>(initialDetails?.tackle || []);
   const [date, setDate] = useState(initialDetails?.date || format(new Date(), "yyyy-MM-dd"));
-  const [timeAvailable, setTimeAvailable] = useState<string>(initialDetails?.time_available || "Morning");
+  const [times, setTimes] = useState<string[]>(() => {
+    const t = (initialDetails?.time_available || "").split(/,\s*/).filter((x) => TIME_OPTIONS.includes(x));
+    return t.length ? t : ["Morning"];
+  });
+  const timeAvailable = times.join(", ");
+  const stationPrompted = useRef<string | null>(null);
 
   const [showAllSpecies, setShowAllSpecies] = useState(false);
   const [usgsModal, setUsgsModal] = useState(false);
@@ -75,6 +81,15 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
       fetchUserTackle().then(setTackleList).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
+
+  // Linking a flow/tide station is part of the spot — prompt right after it's picked.
+  useEffect(() => {
+    if (!spot || step !== "details" || stationPrompted.current === spot.id) return;
+    stationPrompted.current = spot.id;
+    const tidal = spot.is_tidal || spot.site_type === "Tidal";
+    if (tidal && !spot.noaa_tide_station_id) setTideModal(true);
+    if (!tidal && !spot.usgs_site_id) setUsgsModal(true);
+  }, [spot, step]);
 
   useEffect(() => {
     if (!spot) return;
@@ -255,6 +270,31 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         <p className="text-sm text-muted-foreground">{spot?.body_of_water} · {spot?.site_type}</p>
       </div>
 
+      {/* Water data station */}
+      {spot && (
+        <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            {isTidalSpot ? <Waves className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
+            {isTidalSpot ? "Tide station" : "Water flow station"}
+          </p>
+          <p className="text-sm text-foreground">
+            {isTidalSpot
+              ? spot.noaa_tide_station_id
+                ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})`
+                : "No tide station linked yet"
+              : spot.usgs_site_id
+                ? `USGS ${spot.usgs_site_id}`
+                : "No monitoring station linked yet"}
+          </p>
+          <button
+            onClick={() => (isTidalSpot ? setTideModal(true) : setUsgsModal(true))}
+            className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-foreground active:bg-background transition-colors"
+          >
+            {(isTidalSpot ? spot.noaa_tide_station_id : spot.usgs_site_id) ? "Change station" : "Pick a station"}
+          </button>
+        </div>
+      )}
+
       {/* Date */}
       <div className="p-4 rounded-xl bg-surface border border-border">
         <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
@@ -274,23 +314,14 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
       <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
         <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5" />
-          How much of the day
+          Time of day <span className="font-normal">· pick all that apply</span>
         </p>
-        <div className="flex flex-wrap gap-2">
-          {TIME_OPTIONS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTimeAvailable(t)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                timeAvailable === t
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-muted-foreground border-border"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <ChoiceChips options={TIME_OPTIONS} selected={times} onChange={setTimes} />
+      </div>
+
+      <div className="pt-2">
+        <h3 className="text-base font-bold text-foreground">Want tips for your fish or gear?</h3>
+        <p className="text-xs text-muted-foreground">Optional — tap any species or tackle and the plan will tailor to them.</p>
       </div>
 
       {/* Species */}
@@ -376,31 +407,6 @@ const GuidedPlanner = ({ initialSpot, onSwitchToChat, onSaved, initialTripId, in
         </div>
       )}
 
-
-      {/* Water data station */}
-      {spot && (
-        <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
-          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-            {isTidalSpot ? <Waves className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
-            {isTidalSpot ? "Tide station" : "Water flow station"}
-          </p>
-          <p className="text-sm text-foreground">
-            {isTidalSpot
-              ? spot.noaa_tide_station_id
-                ? `${spot.noaa_station_name || "NOAA station"} (${spot.noaa_tide_station_id})`
-                : "No tide station linked yet"
-              : spot.usgs_site_id
-                ? `USGS ${spot.usgs_site_id}`
-                : "No monitoring station linked yet"}
-          </p>
-          <button
-            onClick={() => (isTidalSpot ? setTideModal(true) : setUsgsModal(true))}
-            className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-foreground active:bg-background transition-colors"
-          >
-            {(isTidalSpot ? spot.noaa_tide_station_id : spot.usgs_site_id) ? "Change station" : "Pick a station"}
-          </button>
-        </div>
-      )}
 
       <button
         onClick={generate}

@@ -3,22 +3,23 @@ import { Mic, Send, Square, Loader2 } from "lucide-react";
 import { useVoiceInput } from "@/lib/useVoiceInput";
 
 interface Props {
-  onSend: (text: string) => void;
+  onSend: (text: string, viaVoice: boolean) => void;
+  onFocusChange?: (focused: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
 }
 
 /** Shared composer: talk to the AI or type — always both. */
-const VoiceTextComposer = ({ onSend, disabled, placeholder = "Type or tap the mic…" }: Props) => {
+const VoiceTextComposer = ({ onSend, onFocusChange, disabled, placeholder = "Type or tap the mic…" }: Props) => {
   const [text, setText] = useState("");
   const { stage, startListening, stopListening } = useVoiceInput();
   const listening = stage === "listening";
 
-  const submit = (value: string) => {
+  const submit = (value: string, viaVoice = false) => {
     const v = value.trim();
     if (!v || disabled) return;
     setText("");
-    onSend(v);
+    onSend(v, viaVoice);
   };
 
   const handleMic = () => {
@@ -26,7 +27,7 @@ const VoiceTextComposer = ({ onSend, disabled, placeholder = "Type or tap the mi
       stopListening();
       return;
     }
-    startListening((spoken) => submit(spoken));
+    startListening((spoken) => submit(spoken, true));
   };
 
   return (
@@ -41,6 +42,8 @@ const VoiceTextComposer = ({ onSend, disabled, placeholder = "Type or tap the mi
               submit(text);
             }
           }}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           rows={1}
           disabled={disabled || listening}
           placeholder={listening ? "Listening…" : placeholder}

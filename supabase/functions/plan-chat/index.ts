@@ -24,6 +24,10 @@ Your job, in order:
    - If the trip is at one of THEIR saved spots (listed in context): call plan_day_at_spot with that exact spot id — the app will pull real forecast, flow and tide data and build the hour-by-hour plan.
 5. Call record_details every time you learn something new so the app can show progress.
 
+Flow for this app: the angler has already told you the general area, date and time window (see "Already established"). They chose to get guidance picking water based on their target species. Confirm species (and how they'll fish if it matters), then call propose_spots — the map of candidate waters is the final step of this conversation. Tips on tackle come later in the app, not here.
+
+Multiple choice: whenever your question has a small set of likely answers, ALSO call offer_choices with 2-6 short options (1-4 words each) so the angler can tap instead of typing. Set multi=true when several can apply (species, methods, time of day).
+
 Tone: plain, knowledgeable, no hype, no promises about catching fish. Keep replies to 1-3 short sentences — this is a voice-first conversation.`;
 
 serve(async (req) => {
@@ -138,6 +142,23 @@ serve(async (req) => {
       },
     ];
 
+    tools.push({
+      type: "function",
+      function: {
+        name: "offer_choices",
+        description: "Offer tap-able answer buttons for the question you are asking.",
+        parameters: {
+          type: "object",
+          properties: {
+            options: { type: "array", items: { type: "string" } },
+            multi: { type: "boolean", description: "true if the angler can pick more than one" },
+          },
+          required: ["options"],
+          additionalProperties: false,
+        },
+      },
+    } as any);
+
     const convo: any[] = [
       { role: "system", content: `${SYSTEM}\n\nContext:\n${ctxParts.join("\n")}` },
       ...messages,
@@ -185,6 +206,7 @@ serve(async (req) => {
     let details: any = null;
     let spots: any = null;
     let planRequest: any = null;
+    let choices: any = null;
 
     for (const c of calls) {
       let args: any = {};
@@ -192,6 +214,7 @@ serve(async (req) => {
       if (c.function?.name === "record_details") details = args;
       if (c.function?.name === "propose_spots") spots = args;
       if (c.function?.name === "plan_day_at_spot") planRequest = args;
+      if (c.function?.name === "offer_choices") choices = args;
     }
 
     let reply: string = msg.content || "";
@@ -216,6 +239,7 @@ serve(async (req) => {
           let args: any = {};
           try { args = JSON.parse(c.function?.arguments || "{}"); } catch { /* noop */ }
           if (c.function?.name === "record_details") details = { ...(details || {}), ...args };
+          if (c.function?.name === "offer_choices") choices = args;
           if (c.function?.name === "propose_spots") spots = args;
           if (c.function?.name === "plan_day_at_spot") planRequest = args;
         }
@@ -230,7 +254,7 @@ serve(async (req) => {
       else reply = "Tell me a bit more about the trip.";
     }
 
-    return new Response(JSON.stringify({ reply, details, spots, planRequest }), {
+    return new Response(JSON.stringify({ reply, details, spots, planRequest, choices }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

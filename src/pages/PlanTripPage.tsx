@@ -52,6 +52,12 @@ const PlanTripPage = () => {
             seedDetails={seed}
             onSwitchToGuided={() => setMode("guided")}
             onSaved={() => navigate("/trips")}
+            onSpotReady={(spot, details) => {
+              setPickedSpot(spot);
+              setPlannedTripId(null);
+              setSeed(details);
+              setMode("guided");
+            }}
             onCandidateCreated={(spot, tripId, details) => {
               setPickedSpot(spot);
               setPlannedTripId(tripId);
