@@ -56,6 +56,8 @@ interface SpotCreationModalProps {
   initialStateCode?: string;
   /** Free-text area the user already gave (e.g. from the trip planner). */
   locationHint?: string;
+  /** Optional escape hatch (e.g. planner offers AI guidance instead). */
+  onExit?: () => void;
 }
 
 type Step = "type" | "state" | "water" | "map" | "usgs_select" | "naming";
@@ -108,7 +110,7 @@ const FISHING_ROD_PIN_ICON = "data:image/svg+xml," + encodeURIComponent(
   '</svg>'
 );
 
-const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode, locationHint }: SpotCreationModalProps) => {
+const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode, locationHint, onExit }: SpotCreationModalProps) => {
   const { user } = useAuth();
   const { homeState, updateHomeState } = useHomeState();
   const [step, setStep] = useState<Step>("type");
@@ -526,6 +528,7 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
             onLocateMe={handleLocateMe}
             onBack={() => setStep("water")}
             onFinish={handleMapFinish}
+            onExit={onExit}
           />
         </DialogContent>
       </Dialog>
@@ -572,6 +575,15 @@ const SpotCreationModal = ({ open, onOpenChange, onSpotCreated, initialStateCode
               <MapPin className="w-3 h-3" />
               {getStateName(stateCode)}
               <span className="text-[10px] underline">change</span>
+            </button>
+          )}
+          {onExit && (
+            <button
+              type="button"
+              onClick={onExit}
+              className="text-xs font-medium text-primary underline underline-offset-2 mt-1 text-left"
+            >
+              Not sure where? Help me find a spot
             </button>
           )}
         </DialogHeader>
@@ -1035,7 +1047,7 @@ const FullScreenMapStep = ({
   mapStage, setMapStage, pins, pendingPinCoords, setPendingPinCoords,
   apiKey, mapView, mapRef, effectiveWater, stateCode,
   autoSearchQuery, onAutoSearchDone,
-  onPlaceSelected, onMapViewChange, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish,
+  onPlaceSelected, onMapViewChange, onConfirmPin, onCancelPin, onRemovePin, onLocateMe, onBack, onFinish, onExit,
 }: {
   mapStage: MapStage;
   setMapStage: (s: MapStage) => void;
@@ -1057,6 +1069,7 @@ const FullScreenMapStep = ({
   onLocateMe: () => void;
   onBack: () => void;
   onFinish: () => void;
+  onExit?: () => void;
 }) => {
   const isNavigate = mapStage === "navigate";
   const [isSatellite, setIsSatellite] = useState(false);
@@ -1071,6 +1084,15 @@ const FullScreenMapStep = ({
               <p className="text-sm font-semibold text-foreground truncate">{effectiveWater}</p>
               <p className="text-xs text-muted-foreground">{getStateName(stateCode)}</p>
             </div>
+            {onExit && (
+              <button
+                type="button"
+                onClick={onExit}
+                className="shrink-0 text-xs font-medium text-primary underline underline-offset-2"
+              >
+                Help me find a spot
+              </button>
+            )}
           </div>
 
           <PlacesAutocomplete onPlaceSelected={onPlaceSelected} />
