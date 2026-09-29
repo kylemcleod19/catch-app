@@ -26,6 +26,8 @@ const parsePlan = (value: unknown): DayPlan | null => {
   };
 };
 
+export const hasDetailedPlan = (value: unknown) => parsePlan(value) !== null;
+
 const FAVORABILITY: Record<string, string> = {
   prime: "bg-primary text-primary-foreground",
   good: "bg-primary/15 text-primary",

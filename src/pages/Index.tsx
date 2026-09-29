@@ -1,3 +1,4 @@
+import { hasDetailedPlan } from "@/components/plan/SavedPlanDetails";
 import { useState, useEffect, useCallback } from "react";
 import { Plus, CalendarPlus, MapPin, Fish, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,7 @@ const Index = () => {
         title: trip.title || `${location} · ${format(new Date(trip.started_at), "MMM d")}`,
         location,
         date: format(new Date(trip.started_at), "EEE, MMM d"),
-        hasPlan: Boolean(trip.plan_json && typeof trip.plan_json === "object" && Object.keys(trip.plan_json as object).length),
+        hasPlan: hasDetailedPlan(trip.plan_json),
       };
     }));
 
