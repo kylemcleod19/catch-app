@@ -89,9 +89,10 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
   }
 
   const renderChart = (data: Series[], color: string, unit: string, label: string, gradId: string) => {
-    const gridLines = data.length > 0
-      ? niceGridLines(Math.min(...data.map((d) => d.value)), Math.max(...data.map((d) => d.value)))
-      : [];
+    const minV = data.length ? Math.min(...data.map((d) => d.value)) : 0;
+    const maxV = data.length ? Math.max(...data.map((d) => d.value)) : 0;
+    const gridLines = data.length > 0 ? niceGridLines(minV, maxV) : [];
+    const fmt = (v: number) => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100);
     return (
     <div className="p-3 rounded-xl bg-card border border-border/50">
       <div className="flex items-center justify-between mb-1">
@@ -102,6 +103,13 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
           </p>
         )}
       </div>
+      {data.length > 1 && (
+        <div className="flex gap-3 mb-1 text-[10px] text-muted-foreground">
+          <span>Low <span className="font-semibold text-foreground">{fmt(minV)} {unit}</span></span>
+          <span>High <span className="font-semibold text-foreground">{fmt(maxV)} {unit}</span></span>
+          <span>Range <span className="font-semibold text-foreground">{fmt(maxV - minV)} {unit}</span></span>
+        </div>
+      )}
       {data.length > 1 ? (
         <ResponsiveContainer width="100%" height={100}>
           <AreaChart data={data.map((d) => ({ ...d, label: format(new Date(d.date), "MMM d") }))}>
@@ -119,6 +127,13 @@ const SpotWaterConditions = ({ usgsSiteId }: Props) => {
               interval="preserveStartEnd"
             />
             <YAxis hide domain={["dataMin", "dataMax"]} />
+            <ReferenceLine
+              y={minV}
+              stroke={color}
+              strokeWidth={1.5}
+              ifOverflow="extendDomain"
+              label={{ value: `min ${fmt(minV)}`, position: "insideBottomRight", fontSize: 9, fill: color }}
+            />
             <Tooltip
               contentStyle={{
                 background: "hsl(var(--card))",
