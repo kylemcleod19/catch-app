@@ -113,9 +113,43 @@ function hasPressureInResponse(json: any): boolean {
 
 
 
+interface FallbackDay {
+  label: "Forecast" | "Current";
+  temp_high_f: number | null;
+  temp_low_f: number | null;
+  conditions: string | null;
+  wind_speed_kmh: number | null;
+  precip_probability_pct: number | null;
+}
+
 const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId, tripId, date, existingSnapshot, onSnapshotChange }, ref) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [fallback, setFallback] = useState<FallbackDay | null>(null);
+
+  // When the dated lookup has nothing, show the forecast for that day, or today's weather.
+  useEffect(() => {
+    setFallback(null);
+    if (!existingSnapshot || loading) return;
+    const sm = existingSnapshot.given_day?.summary || {};
+    const hasTemps = sm.temp_high_c != null || sm.temp_low_c != null || (existingSnapshot.given_day?.hourly?.length || 0) > 0;
+    if (hasTemps) return;
+    let cancelled = false;
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    fetch(`https://${projectId}.supabase.co/functions/v1/weather?mode=forecast&lat=${existingSnapshot.lat}&lon=${existingSnapshot.lon}`, {
+      headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.forecast?.length) return;
+        const days: any[] = json.forecast;
+        const match = days.find((d) => d.date === existingSnapshot.date);
+        const d = match || days[0];
+        setFallback({ label: match ? "Forecast" : "Current", ...d });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [existingSnapshot, loading]);
 
   useEffect(() => {
     if (!spotId) {
