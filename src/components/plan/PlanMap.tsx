@@ -67,8 +67,27 @@ const PlanMap = ({ center, pins, selectedId, onPinClick, onMapClick, height = "h
 
   useEffect(fit, [pins.map((p) => p.id + p.lat + p.lng).join("|"), center.lat, center.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const LEGEND: Record<PlanPin["kind"], string> = {
+    spot: "Your spot",
+    custom: "Your pin",
+    suggestion: "Suggested spot",
+    water: "Monitored water",
+    station: "Monitoring station",
+  };
+  const kinds = Array.from(new Set(pins.map((p) => p.kind)));
+
   return (
-    <div className={`rounded-xl overflow-hidden border border-border bg-surface ${height}`}>
+    <div className={`relative rounded-xl overflow-hidden border border-border bg-surface ${height}`}>
+      {kinds.length > 0 && (
+        <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 rounded-lg bg-background/90 px-2 py-1.5 text-[11px] text-foreground shadow">
+          {kinds.map((k) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full border border-foreground" style={{ backgroundColor: COLORS[k] }} />
+              {LEGEND[k]}
+            </span>
+          ))}
+        </div>
+      )}
       {isLoaded ? (
         <GoogleMap
           mapContainerStyle={{ width: "100%", height: "100%" }}

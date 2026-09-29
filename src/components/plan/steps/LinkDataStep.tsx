@@ -75,14 +75,6 @@ const LinkDataStep = ({ spot, onSpotUpdated, onNext }: Props) => {
 
       {point && <PlanMap center={{ lat: point.latitude, lng: point.longitude }} pins={pins} height="h-52" zoom={11} />}
 
-      <div className="p-4 rounded-xl bg-surface border border-border flex items-center gap-3">
-        <CloudSun className="w-5 h-5 text-primary shrink-0" />
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">Weather</p>
-          <p className="text-xs text-muted-foreground">Linked by the spot's location</p>
-        </div>
-        <Check className="w-4 h-4 text-primary" />
-      </div>
 
       <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
         <div className="flex items-center gap-3">
