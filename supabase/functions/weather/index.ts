@@ -360,9 +360,14 @@ serve(async (req) => {
         const pointsData = await nwsFetch(`https://api.weather.gov/points/${lat},${lon}`);
         const props = pointsData.properties;
         const forecastUrl = props?.forecast;
+        const forecastHourlyUrl = props?.forecastHourly;
         if (!forecastUrl) throw new Error("No NWS forecast available for this location");
-        const forecastData = await nwsFetch(forecastUrl);
+        const [forecastData, forecastHourlyData] = await Promise.all([
+          nwsFetch(forecastUrl),
+          forecastHourlyUrl ? nwsFetch(forecastHourlyUrl).catch(() => null) : Promise.resolve(null),
+        ]);
         const periods: any[] = forecastData.properties?.periods || [];
+        const hourlyPeriods: any[] = forecastHourlyData?.properties?.periods || [];
 
         // Group periods by date and combine day/night
         const byDate: Record<string, any[]> = {};
@@ -388,6 +393,7 @@ serve(async (req) => {
             short_forecast: dayP?.shortForecast || null,
             precip_probability_pct: isFinite(precipProb) ? precipProb : null,
             wind_speed_kmh: dayP?.windSpeed ? parseWindSpeed(dayP.windSpeed) : null,
+            hourly: buildNwsHourly(hourlyPeriods, d),
           };
         });
 
@@ -395,24 +401,47 @@ serve(async (req) => {
         // so future trip dates still get a forecast instead of "current" weather.
         try {
           const covered = new Set(days.map((d) => d.date));
-          const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=kmh&timezone=auto&forecast_days=16`;
+          const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,weather_code&hourly=temperature_2m,precipitation_probability,wind_speed_10m,weather_code&temperature_unit=fahrenheit&wind_speed_unit=kmh&timezone=auto&forecast_days=16`;
           const omResp = await fetch(omUrl);
           if (omResp.ok) {
             const om = await omResp.json();
             const daily = om.daily || {};
+            const hourly = om.hourly || {};
+            const openMeteoHourlyByDate: Record<string, any[]> = {};
+            const hourlyTimes: string[] = hourly.time || [];
+            for (let i = 0; i < hourlyTimes.length; i++) {
+              const time = hourlyTimes[i];
+              const hour = localHourFromTimeStr(time);
+              if (hour < 2 || hour > 22) continue;
+              const day = time.slice(0, 10);
+              (openMeteoHourlyByDate[day] ||= []).push({
+                time,
+                temp_c: hourly.temperature_2m?.[i] != null
+                  ? celsiusFromFahrenheit(hourly.temperature_2m[i])
+                  : null,
+                precip_probability_pct: hourly.precipitation_probability?.[i] ?? null,
+                wind_speed_kmh: hourly.wind_speed_10m?.[i] ?? null,
+                conditions: weatherCodeText(hourly.weather_code?.[i]),
+              });
+            }
             const times: string[] = daily.time || [];
             for (let i = 0; i < times.length; i++) {
               const d = times[i];
-              if (covered.has(d)) continue;
-              days.push({
-                date: d,
-                temp_high_f: daily.temperature_2m_max?.[i] ?? null,
-                temp_low_f: daily.temperature_2m_min?.[i] ?? null,
-                conditions: weatherCodeText(daily.weather_code?.[i]),
-                short_forecast: null,
-                precip_probability_pct: daily.precipitation_probability_max?.[i] ?? null,
-                wind_speed_kmh: daily.wind_speed_10m_max?.[i] ?? null,
-              });
+              const existing = days.find((day) => day.date === d);
+              if (existing) {
+                if (!existing.hourly?.length) existing.hourly = openMeteoHourlyByDate[d] || [];
+              } else if (!covered.has(d)) {
+                days.push({
+                  date: d,
+                  temp_high_f: daily.temperature_2m_max?.[i] ?? null,
+                  temp_low_f: daily.temperature_2m_min?.[i] ?? null,
+                  conditions: weatherCodeText(daily.weather_code?.[i]),
+                  short_forecast: null,
+                  precip_probability_pct: daily.precipitation_probability_max?.[i] ?? null,
+                  wind_speed_kmh: daily.wind_speed_10m_max?.[i] ?? null,
+                  hourly: openMeteoHourlyByDate[d] || [],
+                });
+              }
             }
             days.sort((a, b) => a.date.localeCompare(b.date));
           }

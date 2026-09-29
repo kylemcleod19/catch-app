@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useState } from "react";
 import { Cloud, Droplets, Loader2, Thermometer, Wind, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 
 
@@ -113,23 +114,35 @@ function hasPressureInResponse(json: any): boolean {
 
 
 
+interface ForecastHour {
+  time: string;
+  temp_c: number | null;
+  precip_probability_pct?: number | null;
+  wind_speed_kmh?: number | null;
+  conditions?: string | null;
+}
+
 interface FallbackDay {
+  date: string;
   label: "Forecast" | "Current";
   temp_high_f: number | null;
   temp_low_f: number | null;
   conditions: string | null;
   wind_speed_kmh: number | null;
   precip_probability_pct: number | null;
+  hourly?: ForecastHour[];
 }
 
 const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId, tripId, date, existingSnapshot, onSnapshotChange }, ref) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [fallback, setFallback] = useState<FallbackDay | null>(null);
+  const [forecastDays, setForecastDays] = useState<FallbackDay[]>([]);
 
   // When the dated lookup has nothing, show the forecast for that day, or today's weather.
   useEffect(() => {
     setFallback(null);
+    setForecastDays([]);
     if (!existingSnapshot || loading) return;
     const sm = existingSnapshot.given_day?.summary || {};
     const hasTemps = sm.temp_high_c != null || sm.temp_low_c != null || (existingSnapshot.given_day?.hourly?.length || 0) > 0;
@@ -146,6 +159,10 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
         const match = days.find((d) => d.date === existingSnapshot.date);
         const d = match || days[0];
         setFallback({ label: match ? "Forecast" : "Current", ...d });
+        if (match) {
+          const throughTrip = days.filter((day) => day.date <= existingSnapshot.date);
+          setForecastDays(throughTrip.slice(-5).map((day) => ({ label: "Forecast", ...day })));
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -248,6 +265,8 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
   const s = existingSnapshot.given_day?.summary || {};
   const hourly = existingSnapshot.given_day?.hourly || [];
+  const fallbackHourly = fallback?.label === "Forecast" ? (fallback.hourly || []) : [];
+  const displayHourly = hourly.length > 0 ? hourly : fallbackHourly;
 
   // Derive high/low from hourly when the summary doesn't have them (e.g. NCEI
   // station has no daily TMAX/TMIN). Keeps the preview bar useful for ponds /
@@ -267,7 +286,12 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     (s.precip_mm != null && s.precip_mm > 0) ||
     Boolean(s.conditions);
   const pressureSeries = existingSnapshot.given_day?.pressure_series || [];
-  const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const isFutureTrip = date.getTime() > todayDate.getTime();
+  const emptyMessage = isFutureTrip
+    ? "The hourly forecast for this trip isn't available yet."
+    : existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
     ? "No historical weather was returned for this date."
     : "Weather details aren't available for this date.";
 
@@ -340,10 +364,10 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
 
       {expanded && (
         <>
-          {hourly.length > 0 && (() => {
+          {displayHourly.length > 0 && (() => {
             // Sample down to 6 evenly-spaced points so it fits horizontally
-            const step = Math.max(1, Math.ceil(hourly.length / 6));
-            const sampled = hourly.filter((_, i) => i % step === 0).slice(0, 6);
+            const step = Math.max(1, Math.ceil(displayHourly.length / 6));
+            const sampled = displayHourly.filter((_, i) => i % step === 0).slice(0, 6);
             return (
               <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
                 <div className="flex justify-between gap-1">
@@ -351,7 +375,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
                     <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
                       <span className="text-[10px] text-muted-foreground">{formatHour(h.time)}</span>
                       <span className="text-base">{getWeatherIcon(h.conditions)}</span>
-                      <span className="text-xs font-semibold text-foreground">{cToF(h.temp_c)}°F</span>
+                      <span className="text-xs font-semibold text-foreground">{h.temp_c != null ? `${cToF(h.temp_c)}°F` : "—"}</span>
                       {h.precip_probability_pct != null && h.precip_probability_pct > 0 && (
                         <span className="text-[10px] text-accent flex items-center gap-0.5">
                           <Droplets className="w-2.5 h-2.5" />
@@ -370,12 +394,37 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               </div>
             );
           })()}
-          {hourly.length === 0 && s.short_forecast && (
+          {displayHourly.length === 0 && forecastDays.length > 0 && (
+            <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
+              <p className="text-[10px] font-semibold uppercase text-primary mb-2">Forecast through trip day</p>
+              <div className="flex justify-between gap-1">
+                {forecastDays.map((day) => (
+                  <div key={day.date} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                    <span className="text-[10px] text-muted-foreground">{format(new Date(`${day.date}T12:00:00`), "EEE")}</span>
+                    <span className="text-base leading-none">{getWeatherIcon(day.conditions || undefined)}</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      {day.temp_high_f != null ? `${Math.round(day.temp_high_f)}°` : "—"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {day.temp_low_f != null ? `${Math.round(day.temp_low_f)}°` : "—"}
+                    </span>
+                    {day.precip_probability_pct != null && day.precip_probability_pct > 0 && (
+                      <span className="text-[10px] text-accent flex items-center gap-0.5">
+                        <Droplets className="w-2.5 h-2.5" />
+                        {day.precip_probability_pct}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {displayHourly.length === 0 && forecastDays.length === 0 && s.short_forecast && (
             <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
               <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
             </div>
           )}
-          {hourly.length === 0 && !s.short_forecast && (
+          {displayHourly.length === 0 && forecastDays.length === 0 && !s.short_forecast && fallback?.label !== "Forecast" && (
             <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
               <p className="text-xs text-muted-foreground">{emptyMessage}</p>
             </div>
