@@ -286,7 +286,12 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     (s.precip_mm != null && s.precip_mm > 0) ||
     Boolean(s.conditions);
   const pressureSeries = existingSnapshot.given_day?.pressure_series || [];
-  const emptyMessage = existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const isFutureTrip = date.getTime() > todayDate.getTime();
+  const emptyMessage = isFutureTrip
+    ? "The hourly forecast for this trip isn't available yet."
+    : existingSnapshot.given_day?.data_gaps?.includes(existingSnapshot.date)
     ? "No historical weather was returned for this date."
     : "Weather details aren't available for this date.";
 
