@@ -149,6 +149,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     const hasTemps = sm.temp_high_c != null || sm.temp_low_c != null || (existingSnapshot.given_day?.hourly?.length || 0) > 0;
     if (hasTemps) return;
     let cancelled = false;
+    setFallbackLoading(true);
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     fetch(`https://${projectId}.supabase.co/functions/v1/weather?mode=forecast&lat=${existingSnapshot.lat}&lon=${existingSnapshot.lon}`, {
       headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
@@ -165,8 +166,11 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
           setForecastDays(throughTrip.slice(-5).map((day) => ({ label: "Forecast", ...day })));
         }
       })
-      .catch(() => {});
-    return () => { cancelled = true; };
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFallbackLoading(false);
+      });
+    return () => { cancelled = true; setFallbackLoading(false); };
   }, [existingSnapshot, loading]);
 
   useEffect(() => {
