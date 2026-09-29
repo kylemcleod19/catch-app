@@ -137,6 +137,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [fallback, setFallback] = useState<FallbackDay | null>(null);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
   const [forecastDays, setForecastDays] = useState<FallbackDay[]>([]);
 
   // When the dated lookup has nothing, show the forecast for that day, or today's weather.
@@ -148,6 +149,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
     const hasTemps = sm.temp_high_c != null || sm.temp_low_c != null || (existingSnapshot.given_day?.hourly?.length || 0) > 0;
     if (hasTemps) return;
     let cancelled = false;
+    setFallbackLoading(true);
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     fetch(`https://${projectId}.supabase.co/functions/v1/weather?mode=forecast&lat=${existingSnapshot.lat}&lon=${existingSnapshot.lon}`, {
       headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
@@ -164,8 +166,11 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
           setForecastDays(throughTrip.slice(-5).map((day) => ({ label: "Forecast", ...day })));
         }
       })
-      .catch(() => {});
-    return () => { cancelled = true; };
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFallbackLoading(false);
+      });
+    return () => { cancelled = true; setFallbackLoading(false); };
   }, [existingSnapshot, loading]);
 
   useEffect(() => {
@@ -352,6 +357,11 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               )}
               {fallback.conditions && <span className="text-xs text-muted-foreground truncate">{fallback.conditions}</span>}
             </>
+          ) : fallbackLoading ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground truncate">Loading weather…</span>
+            </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
               <Cloud className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -424,7 +434,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
             </div>
           )}
-          {displayHourly.length === 0 && forecastDays.length === 0 && !s.short_forecast && fallback?.label !== "Forecast" && (
+          {displayHourly.length === 0 && forecastDays.length === 0 && !s.short_forecast && fallback?.label !== "Forecast" && !fallbackLoading && (
             <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
               <p className="text-xs text-muted-foreground">{emptyMessage}</p>
             </div>
