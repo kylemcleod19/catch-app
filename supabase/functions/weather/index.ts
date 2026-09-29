@@ -179,6 +179,26 @@ function parseWindSpeed(windStr: string): number | null {
   return Math.round(parseInt(match[1]) * 1.60934);
 }
 
+// WMO weather interpretation codes → short text (Open-Meteo daily forecast)
+function weatherCodeText(code: number | null | undefined): string | null {
+  if (code == null) return null;
+  if (code === 0) return "Clear";
+  if (code === 1) return "Mostly Clear";
+  if (code === 2) return "Partly Cloudy";
+  if (code === 3) return "Overcast";
+  if (code === 45 || code === 48) return "Fog";
+  if (code >= 51 && code <= 55) return "Drizzle";
+  if (code >= 56 && code <= 57) return "Freezing Drizzle";
+  if (code >= 61 && code <= 65) return "Rain";
+  if (code >= 66 && code <= 67) return "Freezing Rain";
+  if (code >= 71 && code <= 77) return "Snow";
+  if (code >= 80 && code <= 82) return "Rain Showers";
+  if (code >= 85 && code <= 86) return "Snow Showers";
+  if (code === 95) return "Thunderstorms";
+  if (code >= 96 && code <= 99) return "Thunderstorms w/ Hail";
+  return null;
+}
+
 function localHourFromTimeStr(t: string): number {
   // Works for "YYYY-MM-DDTHH:..." regardless of trailing offset/Z;
   // we only care about the clock portion as authored by the source.
