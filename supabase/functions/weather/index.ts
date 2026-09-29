@@ -371,6 +371,35 @@ serve(async (req) => {
           };
         });
 
+        // Extend beyond NWS's 7 days with Open-Meteo (up to 16 days out)
+        // so future trip dates still get a forecast instead of "current" weather.
+        try {
+          const covered = new Set(days.map((d) => d.date));
+          const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=kmh&timezone=auto&forecast_days=16`;
+          const omResp = await fetch(omUrl);
+          if (omResp.ok) {
+            const om = await omResp.json();
+            const daily = om.daily || {};
+            const times: string[] = daily.time || [];
+            for (let i = 0; i < times.length; i++) {
+              const d = times[i];
+              if (covered.has(d)) continue;
+              days.push({
+                date: d,
+                temp_high_f: daily.temperature_2m_max?.[i] ?? null,
+                temp_low_f: daily.temperature_2m_min?.[i] ?? null,
+                conditions: weatherCodeText(daily.weather_code?.[i]),
+                short_forecast: null,
+                precip_probability_pct: daily.precipitation_probability_max?.[i] ?? null,
+                wind_speed_kmh: daily.wind_speed_10m_max?.[i] ?? null,
+              });
+            }
+            days.sort((a, b) => a.date.localeCompare(b.date));
+          }
+        } catch (e) {
+          console.warn("Open-Meteo forecast extension failed:", e);
+        }
+
         return new Response(
           JSON.stringify({
             location: {
