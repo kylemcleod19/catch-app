@@ -357,6 +357,11 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               )}
               {fallback.conditions && <span className="text-xs text-muted-foreground truncate">{fallback.conditions}</span>}
             </>
+          ) : fallbackLoading ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground truncate">Loading weather…</span>
+            </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
               <Cloud className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
