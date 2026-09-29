@@ -1,3 +1,4 @@
+import { hasDetailedPlan } from "@/components/plan/SavedPlanDetails";
 import { useState, useEffect, useCallback } from "react";
 import { Fish, MapPin, Loader2, ChevronRight, Plus, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
@@ -222,7 +223,7 @@ const TripsPage = () => {
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(trip.started_at), "MMM d, yyyy")}
                           </span>
-                          {trip.planJson && (
+                          {hasDetailedPlan(trip.planJson) && (
                             <span className="text-xs font-medium text-primary">Plan saved</span>
                           )}
                         </div>

@@ -11,6 +11,7 @@ import {
   fetchNearbyWaters,
   suggestSpots,
   createSpotAt,
+  milesBetween,
   type Area,
   type WaterKind,
   type NearbyWater,
@@ -124,15 +125,23 @@ const WhereStep = ({ date, area, waterType, onArea, onWaterType, onSpotCreated }
   const confirm = async () => {
     if (!choice || !area || !waterType) return;
     let name = "", body = "", lat = 0, lng = 0;
+    // Water name comes from the monitored water closest to the chosen point (within 3 mi), never the searched town.
+    const waterNear = (p: { lat: number; lng: number }) => {
+      if (waterType === "Tidal") return null;
+      const best = nearby
+        .map((n) => ({ n, d: milesBetween(p, n) }))
+        .sort((a, b) => a.d - b.d)[0];
+      return best && best.d <= 3 ? best.n.name : null;
+    };
     if (choice.kind === "suggestion") {
       const s = suggestions[choice.idx];
-      name = s.name; body = nearby[0]?.name && waterType !== "Tidal" ? nearby[0].name : s.name; lat = s.lat; lng = s.lng;
+      name = s.name; body = waterNear(s) || s.name; lat = s.lat; lng = s.lng;
     } else if (choice.kind === "water") {
       const w = nearby[choice.idx];
       name = w.name; body = w.name; lat = w.lat; lng = w.lng;
     } else {
       name = customName.trim() || `Spot near ${area.label.split(",")[0]}`;
-      body = nearby[0]?.name || name; lat = choice.lat; lng = choice.lng;
+      body = waterNear(choice) || name; lat = choice.lat; lng = choice.lng;
     }
     setSaving(true);
     try {
