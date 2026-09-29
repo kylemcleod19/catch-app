@@ -137,6 +137,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [fallback, setFallback] = useState<FallbackDay | null>(null);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
   const [forecastDays, setForecastDays] = useState<FallbackDay[]>([]);
 
   // When the dated lookup has nothing, show the forecast for that day, or today's weather.
