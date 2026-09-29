@@ -434,7 +434,7 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               <p className="text-xs text-muted-foreground">{s.short_forecast}</p>
             </div>
           )}
-          {displayHourly.length === 0 && forecastDays.length === 0 && !s.short_forecast && fallback?.label !== "Forecast" && (
+          {displayHourly.length === 0 && forecastDays.length === 0 && !s.short_forecast && fallback?.label !== "Forecast" && !fallbackLoading && (
             <div className="mt-2 p-3 rounded-xl bg-card border border-border/50">
               <p className="text-xs text-muted-foreground">{emptyMessage}</p>
             </div>
