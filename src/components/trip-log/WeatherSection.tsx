@@ -308,6 +308,26 @@ const WeatherSection = forwardRef<HTMLDivElement, WeatherSectionProps>(({ spotId
               )}
 
             </>
+          ) : fallback ? (
+            <>
+              <span className="text-[10px] font-semibold uppercase text-primary">{fallback.label}</span>
+              {(fallback.temp_high_f != null || fallback.temp_low_f != null) && (
+                <div className="flex items-center gap-1">
+                  <Thermometer className="w-3.5 h-3.5 text-destructive" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {fallback.temp_high_f != null ? `${Math.round(fallback.temp_high_f)}°` : "—"}/
+                    {fallback.temp_low_f != null ? `${Math.round(fallback.temp_low_f)}°` : "—"}
+                  </span>
+                </div>
+              )}
+              {fallback.wind_speed_kmh != null && (
+                <div className="flex items-center gap-1">
+                  <Wind className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-sm text-foreground">{kmhToMph(fallback.wind_speed_kmh)} mph</span>
+                </div>
+              )}
+              {fallback.conditions && <span className="text-xs text-muted-foreground truncate">{fallback.conditions}</span>}
+            </>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
               <Cloud className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
